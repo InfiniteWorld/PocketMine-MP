@@ -30,7 +30,7 @@ use pocketmine\network\mcpe\handler\SessionHandler;
 class SetLocalPlayerAsInitializedPacket extends DataPacket{
 	public const NETWORK_ID = ProtocolInfo::SET_LOCAL_PLAYER_AS_INITIALIZED_PACKET;
 
-	/** @var int */
+	/** @var int|string */
 	public $entityRuntimeId;
 
 	protected function decodePayload() : void{

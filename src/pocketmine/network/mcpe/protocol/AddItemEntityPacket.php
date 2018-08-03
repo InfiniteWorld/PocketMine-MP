@@ -32,9 +32,9 @@ use pocketmine\network\mcpe\handler\SessionHandler;
 class AddItemEntityPacket extends DataPacket{
 	public const NETWORK_ID = ProtocolInfo::ADD_ITEM_ENTITY_PACKET;
 
-	/** @var int|null */
+	/** @var int|string|null */
 	public $entityUniqueId = null; //TODO
-	/** @var int */
+	/** @var int|string */
 	public $entityRuntimeId;
 	/** @var Item */
 	public $item;

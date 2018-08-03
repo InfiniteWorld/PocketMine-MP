@@ -31,9 +31,9 @@ use pocketmine\network\mcpe\handler\SessionHandler;
 class TakeItemEntityPacket extends DataPacket{
 	public const NETWORK_ID = ProtocolInfo::TAKE_ITEM_ENTITY_PACKET;
 
-	/** @var int */
+	/** @var int|string */
 	public $target;
-	/** @var int */
+	/** @var int|string */
 	public $eid;
 
 	protected function decodePayload() : void{

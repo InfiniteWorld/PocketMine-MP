@@ -35,7 +35,7 @@ class ShowCreditsPacket extends DataPacket{
 	public const STATUS_START_CREDITS = 0;
 	public const STATUS_END_CREDITS = 1;
 
-	/** @var int */
+	/** @var int|string */
 	public $playerEid;
 	/** @var int */
 	public $status;

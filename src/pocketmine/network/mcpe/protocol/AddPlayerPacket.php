@@ -42,9 +42,9 @@ class AddPlayerPacket extends DataPacket{
 	public $thirdPartyName = "";
 	/** @var int */
 	public $platform = 0;
-	/** @var int|null */
+	/** @var int|string|null */
 	public $entityUniqueId = null; //TODO
-	/** @var int */
+	/** @var int|string */
 	public $entityRuntimeId;
 	/** @var string */
 	public $platformChatId = "";

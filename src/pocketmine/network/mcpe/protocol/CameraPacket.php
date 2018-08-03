@@ -30,9 +30,9 @@ use pocketmine\network\mcpe\handler\SessionHandler;
 class CameraPacket extends DataPacket{
 	public const NETWORK_ID = ProtocolInfo::CAMERA_PACKET;
 
-	/** @var int */
+	/** @var int|string */
 	public $cameraUniqueId;
-	/** @var int */
+	/** @var int|string */
 	public $playerUniqueId;
 
 	protected function decodePayload() : void{

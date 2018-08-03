@@ -38,7 +38,7 @@ class AnimatePacket extends DataPacket{
 
 	/** @var int */
 	public $action;
-	/** @var int */
+	/** @var int|string */
 	public $entityRuntimeId;
 	/** @var float */
 	public $float = 0.0; //TODO (Boat rowing time?)

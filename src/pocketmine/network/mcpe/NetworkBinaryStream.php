@@ -272,9 +272,9 @@ class NetworkBinaryStream extends BinaryStream{
 
 	/**
 	 * Reads and returns an EntityUniqueID
-	 * @return int
+	 * @return int|string
 	 */
-	public function getEntityUniqueId() : int{
+	public function getEntityUniqueId(){
 		return $this->getVarLong();
 	}
 

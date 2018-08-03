@@ -33,9 +33,9 @@ use pocketmine\network\mcpe\protocol\types\EntityLink;
 class AddEntityPacket extends DataPacket{
 	public const NETWORK_ID = ProtocolInfo::ADD_ENTITY_PACKET;
 
-	/** @var int|null */
+	/** @var int|string|null */
 	public $entityUniqueId = null; //TODO
-	/** @var int */
+	/** @var int|string */
 	public $entityRuntimeId;
 	/** @var int */
 	public $type;

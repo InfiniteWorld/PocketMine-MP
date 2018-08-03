@@ -32,7 +32,7 @@ use pocketmine\network\mcpe\handler\SessionHandler;
 class SetEntityMotionPacket extends DataPacket{
 	public const NETWORK_ID = ProtocolInfo::SET_ENTITY_MOTION_PACKET;
 
-	/** @var int */
+	/** @var int|string */
 	public $entityRuntimeId;
 	/** @var Vector3 */
 	public $motion;

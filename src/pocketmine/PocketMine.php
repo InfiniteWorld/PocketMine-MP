@@ -66,10 +66,6 @@ namespace pocketmine {
 
 		$messages = [];
 
-		if(PHP_INT_SIZE < 8){
-			$messages[] = "Running " . \pocketmine\NAME . " with 32-bit systems/PHP is no longer supported. Please upgrade to a 64-bit system, or use a 64-bit PHP binary if this is a 64-bit system.";
-		}
-
 		if(php_sapi_name() !== "cli"){
 			$messages[] = "You must run " . \pocketmine\NAME . " using the CLI.";
 		}

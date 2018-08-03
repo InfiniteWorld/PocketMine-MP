@@ -41,7 +41,7 @@ class ContainerOpenPacket extends DataPacket{
 	public $y;
 	/** @var int */
 	public $z;
-	/** @var int */
+	/** @var int|string */
 	public $entityUniqueId = -1;
 
 	protected function decodePayload() : void{

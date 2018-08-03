@@ -28,8 +28,6 @@ Please do not create issues for missing/un-implemented gameplay features - they 
 NOTE: LATEST is not a valid version. PocketMine-MP version should include Jenkins build number and/or git commit hash.
 
 NO support whatsoever will be provided for third-party modified variants of PocketMine-MP. Issues relating to third-party modifications will be closed as spam.
-
-Note that 32-bit platforms are no longer supported by PocketMine-MP and issues concerning 32-bit platforms will be closed.
 -->
 * PocketMine-MP: <!-- LATEST IS NOT A VALID VERSION -->
 * PHP:

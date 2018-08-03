@@ -35,7 +35,7 @@ class MoveEntityAbsolutePacket extends DataPacket{
 	public const FLAG_GROUND = 0x01;
 	public const FLAG_TELEPORT = 0x02;
 
-	/** @var int */
+	/** @var int|string */
 	public $entityRuntimeId;
 	/** @var int */
 	public $flags = 0;

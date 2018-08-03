@@ -45,9 +45,9 @@ class UpdateTradePacket extends DataPacket{
 	public $varint2;
 	/** @var bool */
 	public $isWilling;
-	/** @var int */
+	/** @var int|string */
 	public $traderEid;
-	/** @var int */
+	/** @var int|string */
 	public $playerEid;
 	/** @var string */
 	public $displayName;

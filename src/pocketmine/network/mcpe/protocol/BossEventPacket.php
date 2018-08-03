@@ -48,12 +48,12 @@ class BossEventPacket extends DataPacket{
 	/* S2C: Not implemented :( Intended to alter bar appearance, but these currently produce no effect on client-side whatsoever. */
 	public const TYPE_TEXTURE = 7;
 
-	/** @var int */
+	/** @var int|string */
 	public $bossEid;
 	/** @var int */
 	public $eventType;
 
-	/** @var int (long) */
+	/** @var int|string (long) */
 	public $playerEid;
 	/** @var float */
 	public $healthPercent;

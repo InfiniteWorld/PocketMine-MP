@@ -30,9 +30,9 @@ use pocketmine\network\mcpe\handler\SessionHandler;
 class AddHangingEntityPacket extends DataPacket{
 	public const NETWORK_ID = ProtocolInfo::ADD_HANGING_ENTITY_PACKET;
 
-	/** @var int|null */
+	/** @var int|string|null */
 	public $entityUniqueId = null;
-	/** @var int */
+	/** @var int|string */
 	public $entityRuntimeId;
 	/** @var int */
 	public $x;

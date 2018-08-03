@@ -30,7 +30,7 @@ use pocketmine\network\mcpe\handler\SessionHandler;
 class NpcRequestPacket extends DataPacket{
 	public const NETWORK_ID = ProtocolInfo::NPC_REQUEST_PACKET;
 
-	/** @var int */
+	/** @var int|string */
 	public $entityRuntimeId;
 	/** @var int */
 	public $requestType;

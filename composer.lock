@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "85fe0f9aca77848b0f753dbc28815c79",
+    "content-hash": "8b8c273a641abc3f3dff667fb522fb5e",
     "packages": [
         {
             "name": "fgrosse/phpasn1",
@@ -74,6 +74,180 @@
                 "x690"
             ],
             "time": "2017-12-17T10:21:51+00:00"
+        },
+        {
+            "name": "infiniteworld/binaryutils",
+            "version": "dev-master_32-bit",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/InfiniteWorld/BinaryUtils_MoreSupport.git",
+                "reference": "f452e43b4b245274870f0e2c8f4548a2e236f04a"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/InfiniteWorld/BinaryUtils_MoreSupport/zipball/f452e43b4b245274870f0e2c8f4548a2e236f04a",
+                "reference": "f452e43b4b245274870f0e2c8f4548a2e236f04a",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "pocketmine\\utils\\": "src/"
+                }
+            },
+            "license": [
+                "LGPL-3.0"
+            ],
+            "description": "Classes and methods for conveniently handling binary data",
+            "support": {
+                "source": "https://github.com/InfiniteWorld/BinaryUtils_MoreSupport/tree/master_32-bit"
+            },
+            "time": "2018-08-03T13:04:51+00:00"
+        },
+        {
+            "name": "infiniteworld/math",
+            "version": "dev-master_32-bit",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/InfiniteWorld/Math_MoreSupport.git",
+                "reference": "32b72b7a54a50f905ad370073b0372db3d5bffe6"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/InfiniteWorld/Math_MoreSupport/zipball/32b72b7a54a50f905ad370073b0372db3d5bffe6",
+                "reference": "32b72b7a54a50f905ad370073b0372db3d5bffe6",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.2.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "pocketmine\\math\\": "src/"
+                }
+            },
+            "license": [
+                "LGPL-3.0"
+            ],
+            "description": "PHP library containing math related code used in PocketMine-MP",
+            "support": {
+                "source": "https://github.com/InfiniteWorld/Math_MoreSupport/tree/master_32-bit"
+            },
+            "time": "2018-08-03T13:05:42+00:00"
+        },
+        {
+            "name": "infiniteworld/nbt",
+            "version": "dev-master_32-bit",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/InfiniteWorld/NBT_MoreSupport.git",
+                "reference": "5a2d395b7c152a01e3e63da32ade323cb370dd6b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/InfiniteWorld/NBT_MoreSupport/zipball/5a2d395b7c152a01e3e63da32ade323cb370dd6b",
+                "reference": "5a2d395b7c152a01e3e63da32ade323cb370dd6b",
+                "shasum": ""
+            },
+            "require": {
+                "infiniteworld/binaryutils": "^0.1.0",
+                "php": ">=7.2.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "pocketmine\\nbt\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "pocketmine\\nbt\\": "tests/phpunit/"
+                }
+            },
+            "license": [
+                "LGPL-3.0"
+            ],
+            "description": "PHP library for working with Named Binary Tags",
+            "support": {
+                "source": "https://github.com/InfiniteWorld/NBT_MoreSupport/tree/master_32-bit"
+            },
+            "time": "2018-08-03T13:07:32+00:00"
+        },
+        {
+            "name": "infiniteworld/raklib",
+            "version": "dev-master_32-bit",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/InfiniteWorld/RakLib_MoreSupport.git",
+                "reference": "21aadee4a8c8497b944309e76af1fa1889ac0075"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/InfiniteWorld/RakLib_MoreSupport/zipball/21aadee4a8c8497b944309e76af1fa1889ac0075",
+                "reference": "21aadee4a8c8497b944309e76af1fa1889ac0075",
+                "shasum": ""
+            },
+            "require": {
+                "ext-bcmath": "*",
+                "ext-pthreads": ">=3.1.7dev",
+                "ext-sockets": "*",
+                "infiniteworld/binaryutils": "^0.1.0",
+                "infiniteworld/snooze": "^0.1.0",
+                "php": ">=7.2.0",
+                "php-ipv6": "*",
+                "pocketmine/spl": "^0.3.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "raklib\\": "src/"
+                }
+            },
+            "license": [
+                "GPL-3.0"
+            ],
+            "description": "A RakNet server implementation written in PHP",
+            "support": {
+                "source": "https://github.com/InfiniteWorld/RakLib_MoreSupport/tree/master_32-bit"
+            },
+            "time": "2018-08-03T13:52:23+00:00"
+        },
+        {
+            "name": "infiniteworld/snooze",
+            "version": "dev-master_32-bit",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/InfiniteWorld/Snooze_MoreSupport.git",
+                "reference": "b3f6d6a6d70a718c1ae67a277c1b0ec18c684f92"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/InfiniteWorld/Snooze_MoreSupport/zipball/b3f6d6a6d70a718c1ae67a277c1b0ec18c684f92",
+                "reference": "b3f6d6a6d70a718c1ae67a277c1b0ec18c684f92",
+                "shasum": ""
+            },
+            "require": {
+                "ext-pthreads": ">=3.1.7dev",
+                "php": ">=7.2.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "pocketmine\\snooze\\": "src/"
+                }
+            },
+            "license": [
+                "LGPL-3.0"
+            ],
+            "description": "Thread notification management library for code using the pthreads extension",
+            "support": {
+                "source": "https://github.com/InfiniteWorld/Snooze_MoreSupport/tree/master_32-bit"
+            },
+            "time": "2018-08-03T13:06:24+00:00"
         },
         {
             "name": "mdanter/ecc",
@@ -148,189 +322,6 @@
             "time": "2017-10-09T16:05:37+00:00"
         },
         {
-            "name": "pocketmine/binaryutils",
-            "version": "0.1.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/pmmp/BinaryUtils.git",
-                "reference": "c824ac67eeeb6899c2a9ec91a769eb9ed6e3f595"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/pmmp/BinaryUtils/zipball/c824ac67eeeb6899c2a9ec91a769eb9ed6e3f595",
-                "reference": "c824ac67eeeb6899c2a9ec91a769eb9ed6e3f595",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=7.2",
-                "php-64bit": "*"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "pocketmine\\utils\\": "src/"
-                }
-            },
-            "license": [
-                "LGPL-3.0"
-            ],
-            "description": "Classes and methods for conveniently handling binary data",
-            "support": {
-                "source": "https://github.com/pmmp/BinaryUtils/tree/master",
-                "issues": "https://github.com/pmmp/BinaryUtils/issues"
-            },
-            "time": "2018-04-16T09:05:08+00:00"
-        },
-        {
-            "name": "pocketmine/math",
-            "version": "0.2.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/pmmp/Math.git",
-                "reference": "95ae5600328ed2add44c0bc830a68d3660e9e0ef"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/pmmp/Math/zipball/95ae5600328ed2add44c0bc830a68d3660e9e0ef",
-                "reference": "95ae5600328ed2add44c0bc830a68d3660e9e0ef",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=7.2.0",
-                "php-64bit": "*"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "pocketmine\\math\\": "src/"
-                }
-            },
-            "license": [
-                "LGPL-3.0"
-            ],
-            "description": "PHP library containing math related code used in PocketMine-MP",
-            "support": {
-                "source": "https://github.com/pmmp/Math/tree/master",
-                "issues": "https://github.com/pmmp/Math/issues"
-            },
-            "time": "2018-06-09T09:26:30+00:00"
-        },
-        {
-            "name": "pocketmine/nbt",
-            "version": "0.2.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/pmmp/NBT.git",
-                "reference": "da19487ff92f6f7a16b5ce8894132bb1d1e9ea0c"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/pmmp/NBT/zipball/da19487ff92f6f7a16b5ce8894132bb1d1e9ea0c",
-                "reference": "da19487ff92f6f7a16b5ce8894132bb1d1e9ea0c",
-                "shasum": ""
-            },
-            "require": {
-                "php": ">=7.2.0",
-                "php-64bit": "*",
-                "pocketmine/binaryutils": "^0.1.0"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "pocketmine\\nbt\\": "src/"
-                }
-            },
-            "autoload-dev": {
-                "psr-4": {
-                    "pocketmine\\nbt\\": "tests/phpunit/"
-                }
-            },
-            "license": [
-                "LGPL-3.0"
-            ],
-            "description": "PHP library for working with Named Binary Tags",
-            "support": {
-                "source": "https://github.com/pmmp/NBT/tree/0.2.0",
-                "issues": "https://github.com/pmmp/NBT/issues"
-            },
-            "time": "2018-06-13T09:56:00+00:00"
-        },
-        {
-            "name": "pocketmine/raklib",
-            "version": "0.12.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/pmmp/RakLib.git",
-                "reference": "922da28efd828e2af6c19db1676ea9b6a267071c"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/pmmp/RakLib/zipball/922da28efd828e2af6c19db1676ea9b6a267071c",
-                "reference": "922da28efd828e2af6c19db1676ea9b6a267071c",
-                "shasum": ""
-            },
-            "require": {
-                "ext-bcmath": "*",
-                "ext-pthreads": ">=3.1.7dev",
-                "ext-sockets": "*",
-                "php": ">=7.2.0",
-                "php-64bit": "*",
-                "php-ipv6": "*",
-                "pocketmine/binaryutils": "^0.1.0",
-                "pocketmine/snooze": "^0.1.0",
-                "pocketmine/spl": "^0.3.0"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "raklib\\": "src/"
-                }
-            },
-            "license": [
-                "GPL-3.0"
-            ],
-            "description": "A RakNet server implementation written in PHP",
-            "support": {
-                "source": "https://github.com/pmmp/RakLib/tree/0.12.0",
-                "issues": "https://github.com/pmmp/RakLib/issues"
-            },
-            "time": "2018-06-13T10:06:14+00:00"
-        },
-        {
-            "name": "pocketmine/snooze",
-            "version": "0.1.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/pmmp/Snooze.git",
-                "reference": "3cc9d0164230889acb08e22cc126133809e9d346"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/pmmp/Snooze/zipball/3cc9d0164230889acb08e22cc126133809e9d346",
-                "reference": "3cc9d0164230889acb08e22cc126133809e9d346",
-                "shasum": ""
-            },
-            "require": {
-                "ext-pthreads": ">=3.1.7dev",
-                "php-64bit": ">=7.2.0"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "pocketmine\\snooze\\": "src/"
-                }
-            },
-            "license": [
-                "LGPL-3.0"
-            ],
-            "description": "Thread notification management library for code using the pthreads extension",
-            "support": {
-                "source": "https://github.com/pmmp/Snooze/tree/0.1.0",
-                "issues": "https://github.com/pmmp/Snooze/issues"
-            },
-            "time": "2018-06-13T09:36:11+00:00"
-        },
-        {
             "name": "pocketmine/spl",
             "version": "0.3.1",
             "source": {
@@ -358,22 +349,57 @@
             ],
             "description": "Standard library files required by PocketMine-MP and related projects",
             "support": {
-                "source": "https://github.com/pmmp/SPL/tree/master"
+                "source": "https://github.com/pmmp/SPL/tree/0.3.1"
             },
             "time": "2018-06-09T17:30:36+00:00"
         }
     ],
     "packages-dev": [],
-    "aliases": [],
+    "aliases": [
+        {
+            "alias": "0.12.0",
+            "alias_normalized": "0.12.0.0",
+            "version": "dev-master_32-bit",
+            "package": "infiniteworld/raklib"
+        },
+        {
+            "alias": "0.1.0",
+            "alias_normalized": "0.1.0.0",
+            "version": "dev-master_32-bit",
+            "package": "infiniteworld/binaryutils"
+        },
+        {
+            "alias": "0.2.0",
+            "alias_normalized": "0.2.0.0",
+            "version": "dev-master_32-bit",
+            "package": "infiniteworld/nbt"
+        },
+        {
+            "alias": "0.2.0",
+            "alias_normalized": "0.2.0.0",
+            "version": "dev-master_32-bit",
+            "package": "infiniteworld/math"
+        },
+        {
+            "alias": "0.1.0",
+            "alias_normalized": "0.1.0.0",
+            "version": "dev-master_32-bit",
+            "package": "infiniteworld/snooze"
+        }
+    ],
     "minimum-stability": "stable",
     "stability-flags": {
-        "ext-pthreads": 20
+        "ext-pthreads": 20,
+        "infiniteworld/raklib": 20,
+        "infiniteworld/binaryutils": 20,
+        "infiniteworld/nbt": 20,
+        "infiniteworld/math": 20,
+        "infiniteworld/snooze": 20
     },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
         "php": ">=7.2.0",
-        "php-64bit": "*",
         "ext-bcmath": "*",
         "ext-curl": "*",
         "ext-crypto": "^0.3.1",

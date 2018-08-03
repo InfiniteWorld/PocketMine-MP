@@ -83,7 +83,7 @@ class EntityEventPacket extends DataPacket{
 
 	//TODO: add more events
 
-	/** @var int */
+	/** @var int|string */
 	public $entityRuntimeId;
 	/** @var int */
 	public $event;

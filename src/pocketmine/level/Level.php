@@ -247,20 +247,27 @@ class Level implements ChunkManager, Metadatable{
 	private $closed = false;
 
 	public static function chunkHash(int $x, int $z) : int{
-		return (($x & 0xFFFFFFFF) << 32) | ($z & 0xFFFFFFFF);
+		return PHP_INT_SIZE === 8 ? (($x & 0xFFFFFFFF) << 32) | ($z & 0xFFFFFFFF) : $x . ":" . $z;
 	}
 
 	public static function blockHash(int $x, int $y, int $z) : int{
 		if($y < 0 or $y >= Level::Y_MAX){
 			throw new \InvalidArgumentException("Y coordinate $y is out of range!");
 		}
-		return (($x & 0xFFFFFFF) << 36) | (($y & Level::Y_MASK) << 28) | ($z & 0xFFFFFFF);
+		return PHP_INT_SIZE === 8 ? (($x & 0xFFFFFFF) << 36) | (($y & Level::Y_MASK) << 28) | ($z & 0xFFFFFFF) : $x . ":" . $y . ":" . $z;
 	}
 
 	public static function getBlockXYZ(int $hash, ?int &$x, ?int &$y, ?int &$z) : void{
-		$x = $hash >> 36;
-		$y = ($hash >> 28) & Level::Y_MASK; //it's always positive
-		$z = ($hash & 0xFFFFFFF) << 36 >> 36;
+		if(PHP_INT_SIZE === 8){
+			$x = $hash >> 36;
+			$y = ($hash >> 28) & Level::Y_MASK; //it's always positive
+			$z = ($hash & 0xFFFFFFF) << 36 >> 36;
+		}else{
+			$hash = explode(":", $hash);
+			$x = (int) $hash[0];
+			$y = (int) $hash[1];
+			$z = (int) $hash[2];
+		}
 	}
 
 	/**
@@ -269,8 +276,14 @@ class Level implements ChunkManager, Metadatable{
 	 * @param int|null $z
 	 */
 	public static function getXZ(int $hash, ?int &$x, ?int &$z) : void{
-		$x = $hash >> 32;
-		$z = ($hash & 0xFFFFFFFF) << 32 >> 32;
+		if(PHP_INT_SIZE === 8){
+			$x = $hash >> 32;
+			$z = ($hash & 0xFFFFFFFF) << 32 >> 32;
+		}else{
+			$hash = explode(":", $hash);
+			$x = (int) $hash[0];
+			$z = (int) $hash[1];
+		}
 	}
 
 	public static function generateChunkLoaderId(ChunkLoader $loader) : int{
@@ -340,7 +353,7 @@ class Level implements ChunkManager, Metadatable{
 
 		$this->neighbourBlockUpdateQueue = new \SplQueue();
 
-		$this->time = $this->provider->getTime();
+		$this->time = (int) $this->provider->getTime();
 
 		$this->chunkTickRadius = min($this->server->getViewDistance(), max(1, (int) $this->server->getProperty("chunk-ticking.tick-radius", 4)));
 		$this->chunksPerTick = (int) $this->server->getProperty("chunk-ticking.per-tick", 40);
@@ -673,7 +686,7 @@ class Level implements ChunkManager, Metadatable{
 	 */
 	public function sendTime(Player ...$targets){
 		$pk = new SetTimePacket();
-		$pk->time = $this->time;
+		$pk->time = (int) $this->time;
 
 		if(empty($targets)){
 			$this->addGlobalPacket($pk);
@@ -1042,7 +1055,7 @@ class Level implements ChunkManager, Metadatable{
 
 		$this->server->getPluginManager()->callEvent(new LevelSaveEvent($this));
 
-		$this->provider->setTime($this->time);
+		$this->provider->setTime((int) $this->time);
 		$this->saveChunks();
 		if($this->provider instanceof BaseLevelProvider){
 			$this->provider->saveLevelData();
@@ -2831,7 +2844,7 @@ class Level implements ChunkManager, Metadatable{
 	 * @return int
 	 */
 	public function getTime() : int{
-		return $this->time;
+		return (int) $this->time;
 	}
 
 	/**

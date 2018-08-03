@@ -30,7 +30,7 @@ use pocketmine\network\mcpe\handler\SessionHandler;
 class UpdateBlockSyncedPacket extends UpdateBlockPacket{
 	public const NETWORK_ID = ProtocolInfo::UPDATE_BLOCK_SYNCED_PACKET;
 
-	/** @var int */
+	/** @var int|string */
 	public $entityUniqueId = 0;
 	/** @var int */
 	public $uvarint64_2 = 0;

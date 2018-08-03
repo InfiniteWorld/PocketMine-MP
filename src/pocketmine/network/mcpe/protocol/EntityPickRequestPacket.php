@@ -30,7 +30,7 @@ use pocketmine\network\mcpe\handler\SessionHandler;
 class EntityPickRequestPacket extends DataPacket{
 	public const NETWORK_ID = ProtocolInfo::ENTITY_PICK_REQUEST_PACKET;
 
-	/** @var int */
+	/** @var int|string */
 	public $entityUniqueId;
 	/** @var int */
 	public $hotbarSlot;

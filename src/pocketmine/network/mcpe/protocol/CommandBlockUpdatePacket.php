@@ -48,7 +48,7 @@ class CommandBlockUpdatePacket extends DataPacket{
 	/** @var bool */
 	public $isConditional;
 
-	/** @var int */
+	/** @var int|string */
 	public $minecartEid;
 
 	/** @var string */

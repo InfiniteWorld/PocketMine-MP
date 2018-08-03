@@ -31,7 +31,7 @@ use pocketmine\network\mcpe\handler\SessionHandler;
 class EntityFallPacket extends DataPacket{
 	public const NETWORK_ID = ProtocolInfo::ENTITY_FALL_PACKET;
 
-	/** @var int */
+	/** @var int|string */
 	public $entityRuntimeId;
 	/** @var float */
 	public $fallDistance;

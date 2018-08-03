@@ -38,14 +38,14 @@ class ClientboundMapItemDataPacket extends DataPacket{
 	public const BITFLAG_TEXTURE_UPDATE = 0x02;
 	public const BITFLAG_DECORATION_UPDATE = 0x04;
 
-	/** @var int */
+	/** @var int|string */
 	public $mapId;
 	/** @var int */
 	public $type;
 	/** @var int */
 	public $dimensionId = DimensionIds::OVERWORLD;
 
-	/** @var int[] */
+	/** @var int|string[] */
 	public $eids = [];
 	/** @var int */
 	public $scale;

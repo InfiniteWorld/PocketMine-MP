@@ -1,12 +1,11 @@
 {
-   "name": "pocketmine/pocketmine-mp",
-   "description": "A server software for Minecraft: Pocket Edition written in PHP",
+   "name": "infiniteworld/pocketmine-mp",
+   "description": "A server software for Minecraft: Bedrock Edition written in PHP",
    "type": "project",
    "homepage": "https://pmmp.io",
    "license": "LGPL-3.0",
    "require": {
       "php": ">=7.2.0",
-      "php-64bit": "*",
       "ext-bcmath": "*",
       "ext-curl": "*",
       "ext-crypto": "^0.3.1",
@@ -27,12 +26,12 @@
       "ext-zip": "*",
       "ext-zlib": ">=1.2.11",
       "mdanter/ecc": "^0.5.0",
-      "pocketmine/raklib": "^0.12.0",
+      "infiniteworld/raklib": "dev-master_32-bit as 0.12.0",
       "pocketmine/spl": "^0.3.0",
-      "pocketmine/binaryutils": "^0.1.0",
-      "pocketmine/nbt": "^0.2.0",
-      "pocketmine/math": "^0.2.0",
-      "pocketmine/snooze": "^0.1.0"
+      "infiniteworld/binaryutils": "dev-master_32-bit as 0.1.0",
+      "infiniteworld/nbt": "dev-master_32-bit as 0.2.0",
+      "infiniteworld/math": "dev-master_32-bit as 0.2.0",
+      "infiniteworld/snooze": "dev-master_32-bit as 0.1.0"
    },
    "autoload": {
       "psr-4": {
@@ -47,7 +46,7 @@
    "repositories": [
       {
          "type": "vcs",
-         "url": "https://github.com/pmmp/RakLib"
+         "url": "https://github.com/InfiniteWorld/RakLib_MoreSupport"
       },
       {
          "type": "vcs",
@@ -55,19 +54,19 @@
       },
       {
          "type": "vcs",
-         "url": "https://github.com/pmmp/BinaryUtils"
+         "url": "https://github.com/InfiniteWorld/BinaryUtils_MoreSupport"
       },
       {
          "type": "vcs",
-         "url": "https://github.com/pmmp/NBT"
+         "url": "https://github.com/InfiniteWorld/NBT_MoreSupport"
       },
       {
          "type": "vcs",
-         "url": "https://github.com/pmmp/Math"
+         "url": "https://github.com/InfiniteWorld/Math_MoreSupport"
       },
       {
          "type": "vcs",
-         "url": "https://github.com/pmmp/Snooze"
+         "url": "https://github.com/InfiniteWorld/Snooze_MoreSupport"
       }
    ]
 }

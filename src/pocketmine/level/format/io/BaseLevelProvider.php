@@ -107,19 +107,19 @@ abstract class BaseLevelProvider implements LevelProvider{
 		return $this->levelData->getString("LevelName");
 	}
 
-	public function getTime() : int{
+	public function getTime(){
 		return $this->levelData->getLong("Time", 0, true);
 	}
 
-	public function setTime(int $value){
+	public function setTime($value){
 		$this->levelData->setLong("Time", $value, true); //some older PM worlds had this in the wrong format
 	}
 
-	public function getSeed() : int{
+	public function getSeed(){
 		return $this->levelData->getLong("RandomSeed");
 	}
 
-	public function setSeed(int $value){
+	public function setSeed($value){
 		$this->levelData->setLong("RandomSeed", $value);
 	}
 

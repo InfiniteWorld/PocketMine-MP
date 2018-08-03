@@ -73,7 +73,7 @@ class AdventureSettingsPacket extends DataPacket{
 	public $playerPermission = PlayerPermissions::MEMBER;
 	/** @var int */
 	public $customFlags = 0; //...
-	/** @var int */
+	/** @var int|string */
 	public $entityUniqueId; //This is a little-endian long, NOT a var-long. (WTF Mojang)
 
 	protected function decodePayload() : void{

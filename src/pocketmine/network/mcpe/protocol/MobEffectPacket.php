@@ -35,7 +35,7 @@ class MobEffectPacket extends DataPacket{
 	public const EVENT_MODIFY = 2;
 	public const EVENT_REMOVE = 3;
 
-	/** @var int */
+	/** @var int|string */
 	public $entityRuntimeId;
 	/** @var int */
 	public $eventId;

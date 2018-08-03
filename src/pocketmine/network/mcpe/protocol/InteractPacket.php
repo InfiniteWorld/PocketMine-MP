@@ -38,7 +38,7 @@ class InteractPacket extends DataPacket{
 
 	/** @var int */
 	public $action;
-	/** @var int */
+	/** @var int|string */
 	public $target;
 
 	/** @var float */

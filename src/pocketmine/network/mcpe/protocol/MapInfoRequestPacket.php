@@ -32,7 +32,7 @@ use pocketmine\network\mcpe\handler\SessionHandler;
 class MapInfoRequestPacket extends DataPacket{
 	public const NETWORK_ID = ProtocolInfo::MAP_INFO_REQUEST_PACKET;
 
-	/** @var int */
+	/** @var int|string */
 	public $mapId;
 
 	protected function decodePayload() : void{

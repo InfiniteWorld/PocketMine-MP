@@ -36,7 +36,7 @@ class UpdateEquipPacket extends DataPacket{
 	public $windowType;
 	/** @var int */
 	public $unknownVarint; //TODO: find out what this is (vanilla always sends 0)
-	/** @var int */
+	/** @var int|string */
 	public $entityUniqueId;
 	/** @var string */
 	public $namedtag;

@@ -30,7 +30,7 @@ class MapTrackedObject{
 	/** @var int */
 	public $type;
 
-	/** @var int Only set if is TYPE_ENTITY */
+	/** @var int|string Only set if is TYPE_ENTITY */
 	public $entityUniqueId;
 
 	/** @var int */

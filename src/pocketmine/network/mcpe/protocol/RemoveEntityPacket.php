@@ -31,7 +31,7 @@ use pocketmine\network\mcpe\handler\SessionHandler;
 class RemoveEntityPacket extends DataPacket{
 	public const NETWORK_ID = ProtocolInfo::REMOVE_ENTITY_PACKET;
 
-	/** @var int */
+	/** @var int|string */
 	public $entityUniqueId;
 
 	protected function decodePayload() : void{

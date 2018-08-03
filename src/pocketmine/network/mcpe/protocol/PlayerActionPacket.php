@@ -57,7 +57,7 @@ class PlayerActionPacket extends DataPacket{
 	public const ACTION_START_SPIN_ATTACK = 23;
 	public const ACTION_STOP_SPIN_ATTACK = 24;
 
-	/** @var int */
+	/** @var int|string */
 	public $entityRuntimeId;
 	/** @var int */
 	public $action;

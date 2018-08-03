@@ -37,7 +37,7 @@ class MovePlayerPacket extends DataPacket{
 	public const MODE_TELEPORT = 2;
 	public const MODE_PITCH = 3; //facepalm Mojang
 
-	/** @var int */
+	/** @var int|string */
 	public $entityRuntimeId;
 	/** @var Vector3 */
 	public $position;
@@ -51,7 +51,7 @@ class MovePlayerPacket extends DataPacket{
 	public $mode = self::MODE_NORMAL;
 	/** @var bool */
 	public $onGround = false; //TODO
-	/** @var int */
+	/** @var int|string */
 	public $ridingEid = 0;
 	/** @var int */
 	public $teleportCause = 0;

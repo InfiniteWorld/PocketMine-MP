@@ -29,16 +29,16 @@ class EntityLink{
 	public const TYPE_RIDER = 1;
 	public const TYPE_PASSENGER = 2;
 
-	/** @var int */
+	/** @var int|string */
 	public $fromEntityUniqueId;
-	/** @var int */
+	/** @var int|string */
 	public $toEntityUniqueId;
 	/** @var int */
 	public $type;
 	/** @var bool */
 	public $immediate; //for dismounting on mount death
 
-	public function __construct(?int $fromEntityUniqueId = null, ?int $toEntityUniqueId = null, ?int $type = null, bool $immediate = false){
+	public function __construct($fromEntityUniqueId = null, $toEntityUniqueId = null, ?int $type = null, bool $immediate = false){
 		$this->fromEntityUniqueId = $fromEntityUniqueId;
 		$this->toEntityUniqueId = $toEntityUniqueId;
 		$this->type = $type;

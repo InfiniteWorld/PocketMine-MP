@@ -32,7 +32,7 @@ use pocketmine\network\mcpe\handler\SessionHandler;
 class MobArmorEquipmentPacket extends DataPacket{
 	public const NETWORK_ID = ProtocolInfo::MOB_ARMOR_EQUIPMENT_PACKET;
 
-	/** @var int */
+	/** @var int|string */
 	public $entityRuntimeId;
 	/** @var Item[] */
 	public $slots = [];

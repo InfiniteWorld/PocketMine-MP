@@ -31,7 +31,7 @@ use pocketmine\network\mcpe\handler\SessionHandler;
 class SetEntityDataPacket extends DataPacket{
 	public const NETWORK_ID = ProtocolInfo::SET_ENTITY_DATA_PACKET;
 
-	/** @var int */
+	/** @var int|string */
 	public $entityRuntimeId;
 	/** @var array */
 	public $metadata;
