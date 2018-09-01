@@ -39,9 +39,9 @@ use pocketmine\event\HandlerList;
 use pocketmine\event\level\LevelInitEvent;
 use pocketmine\event\level\LevelLoadEvent;
 use pocketmine\event\player\PlayerDataSaveEvent;
+use pocketmine\event\server\CommandEvent;
 use pocketmine\event\server\DataPacketBroadcastEvent;
 use pocketmine\event\server\QueryRegenerateEvent;
-use pocketmine\event\server\ServerCommandEvent;
 use pocketmine\inventory\CraftingManager;
 use pocketmine\item\enchantment\Enchantment;
 use pocketmine\item\Item;
@@ -71,7 +71,8 @@ use pocketmine\nbt\tag\LongTag;
 use pocketmine\nbt\tag\ShortTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\network\AdvancedNetworkInterface;
-use pocketmine\network\mcpe\CompressBatchedTask;
+use pocketmine\network\mcpe\CompressBatchPromise;
+use pocketmine\network\mcpe\CompressBatchTask;
 use pocketmine\network\mcpe\NetworkCipher;
 use pocketmine\network\mcpe\NetworkCompression;
 use pocketmine\network\mcpe\NetworkSession;
@@ -1030,6 +1031,7 @@ class Server{
 			return false;
 		}
 
+		/** @see LevelProvider::__construct() */
 		$level = new Level($this, $name, new $providerClass($path));
 
 		$this->levels[$level->getId()] = $level;
@@ -1077,6 +1079,7 @@ class Server{
 		/** @var LevelProvider $providerClass */
 		$providerClass::generate($path, $name, $seed, $generator, $options);
 
+		/** @see LevelProvider::__construct() */
 		$level = new Level($this, $name, new $providerClass($path));
 		$this->levels[$level->getId()] = $level;
 
@@ -1137,18 +1140,12 @@ class Server{
 	 * Searches all levels for the entity with the specified ID.
 	 * Useful for tracking entities across multiple worlds without needing strong references.
 	 *
-	 * @param int        $entityId
-	 * @param Level|null $expectedLevel Level to look in first for the target
+	 * @param int $entityId
 	 *
 	 * @return Entity|null
 	 */
-	public function findEntity(int $entityId, Level $expectedLevel = null){
-		$levels = $this->levels;
-		if($expectedLevel !== null){
-			array_unshift($levels, $expectedLevel);
-		}
-
-		foreach($levels as $level){
+	public function findEntity(int $entityId){
+		foreach($this->levels as $level){
 			assert(!$level->isClosed());
 			if(($entity = $level->getEntity($entityId)) instanceof Entity){
 				return $entity;
@@ -1899,52 +1896,53 @@ class Server{
 			$stream->putPacket($packet);
 		}
 
-		//TODO: if under the compression threshold, add to session buffers instead of batching (first we need to implement buffering!)
-		$this->batchPackets($targets, $stream);
+		if(NetworkCompression::$THRESHOLD < 0 or strlen($stream->buffer) < NetworkCompression::$THRESHOLD){
+			foreach($targets as $target){
+				foreach($ev->getPackets() as $pk){
+					$target->addToSendBuffer($pk);
+				}
+			}
+		}else{
+			$promise = $this->prepareBatch($stream);
+			foreach($targets as $target){
+				$target->queueCompressed($promise);
+			}
+		}
+
 		return true;
 	}
 
 	/**
 	 * Broadcasts a list of packets in a batch to a list of players
 	 *
-	 * @param NetworkSession[] $targets
-	 * @param PacketStream     $stream
-	 * @param bool             $forceSync
-	 * @param bool             $immediate
+	 * @param PacketStream $stream
+	 * @param bool         $forceSync
+	 *
+	 * @return CompressBatchPromise
 	 */
-	public function batchPackets(array $targets, PacketStream $stream, bool $forceSync = false, bool $immediate = false){
-		Timings::$playerNetworkSendCompressTimer->startTiming();
+	public function prepareBatch(PacketStream $stream, bool $forceSync = false) : CompressBatchPromise{
+		try{
+			Timings::$playerNetworkSendCompressTimer->startTiming();
 
-		if(!empty($targets)){
 			$compressionLevel = NetworkCompression::$LEVEL;
 			if(NetworkCompression::$THRESHOLD < 0 or strlen($stream->buffer) < NetworkCompression::$THRESHOLD){
 				$compressionLevel = 0; //Do not compress packets under the threshold
 				$forceSync = true;
 			}
 
-			if(!$forceSync and !$immediate and $this->networkCompressionAsync){
-				$task = new CompressBatchedTask($stream, $targets, $compressionLevel);
+			$promise = new CompressBatchPromise();
+			if(!$forceSync and $this->networkCompressionAsync){
+				$task = new CompressBatchTask($stream, $compressionLevel, $promise);
 				$this->asyncPool->submitTask($task);
 			}else{
-				$this->broadcastPacketsCallback(NetworkCompression::compress($stream->buffer), $targets, $immediate);
+				$promise->resolve(NetworkCompression::compress($stream->buffer, $compressionLevel));
 			}
-		}
 
-		Timings::$playerNetworkSendCompressTimer->stopTiming();
-	}
-
-	/**
-	 * @param string           $payload
-	 * @param NetworkSession[] $sessions
-	 * @param bool             $immediate
-	 */
-	public function broadcastPacketsCallback(string $payload, array $sessions, bool $immediate = false){
-		/** @var NetworkSession $session */
-		foreach($sessions as $session){
-			$session->sendEncoded($payload, $immediate);
+			return $promise;
+		}finally{
+			Timings::$playerNetworkSendCompressTimer->stopTiming();
 		}
 	}
-
 
 	/**
 	 * @param int $type
@@ -1976,10 +1974,7 @@ class Server{
 	public function checkConsole(){
 		Timings::$serverCommandTimer->startTiming();
 		while(($line = $this->console->getLine()) !== null){
-			$this->pluginManager->callEvent($ev = new ServerCommandEvent($this->consoleSender, $line));
-			if(!$ev->isCancelled()){
-				$this->dispatchCommand($ev->getSender(), $ev->getCommand());
-			}
+			$this->dispatchCommand($this->consoleSender, $line);
 		}
 		Timings::$serverCommandTimer->stopTiming();
 	}
@@ -1989,10 +1984,20 @@ class Server{
 	 *
 	 * @param CommandSender $sender
 	 * @param string        $commandLine
+	 * @param bool          $internal
 	 *
 	 * @return bool
 	 */
-	public function dispatchCommand(CommandSender $sender, string $commandLine) : bool{
+	public function dispatchCommand(CommandSender $sender, string $commandLine, bool $internal = false) : bool{
+		if(!$internal){
+			$this->pluginManager->callEvent($ev = new CommandEvent($sender, $commandLine));
+			if($ev->isCancelled()){
+				return false;
+			}
+
+			$commandLine = $ev->getCommand();
+		}
+
 		if($this->commandMap->dispatch($sender, $commandLine)){
 			return true;
 		}
@@ -2050,6 +2055,10 @@ class Server{
 	public function forceShutdown(){
 		if($this->hasStopped){
 			return;
+		}
+
+		if($this->doTitleTick){
+			echo "\x1b]0;\x07";
 		}
 
 		try{
@@ -2536,10 +2545,6 @@ class Server{
 
 		++$this->tickCounter;
 
-		Timings::$connectionTimer->startTiming();
-		$this->network->tick();
-		Timings::$connectionTimer->stopTiming();
-
 		Timings::$schedulerTimer->startTiming();
 		$this->pluginManager->tickSchedulers($this->tickCounter);
 		Timings::$schedulerTimer->stopTiming();
@@ -2549,6 +2554,10 @@ class Server{
 		Timings::$schedulerAsyncTimer->stopTiming();
 
 		$this->checkTickUpdates($this->tickCounter);
+
+		Timings::$connectionTimer->startTiming();
+		$this->network->tick();
+		Timings::$connectionTimer->stopTiming();
 
 		if(($this->tickCounter % 20) === 0){
 			if($this->doTitleTick){

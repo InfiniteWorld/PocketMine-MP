@@ -63,6 +63,7 @@ use pocketmine\nbt\tag\FloatTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\network\mcpe\protocol\AddEntityPacket;
+use pocketmine\network\mcpe\protocol\AnimatePacket;
 use pocketmine\network\mcpe\protocol\EntityEventPacket;
 use pocketmine\network\mcpe\protocol\MoveEntityAbsolutePacket;
 use pocketmine\network\mcpe\protocol\RemoveEntityPacket;
@@ -286,6 +287,7 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	public static function createEntity($type, Level $level, CompoundTag $nbt, ...$args) : ?Entity{
 		if(isset(self::$knownEntities[$type])){
 			$class = self::$knownEntities[$type];
+			/** @see Entity::__construct() */
 			return new $class($level, $nbt, ...$args);
 		}
 
@@ -375,13 +377,8 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	/** @var Block[] */
 	protected $blocksAround = [];
 
-	/** @var float|null */
-	public $lastX = null;
-	/** @var float|null */
-	public $lastY = null;
-	/** @var float|null */
-	public $lastZ = null;
-
+	/** @var Location */
+	protected $lastLocation;
 	/** @var Vector3 */
 	protected $motion;
 	/** @var Vector3 */
@@ -391,12 +388,6 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 
 	/** @var Vector3 */
 	public $temporalVector;
-
-
-	/** @var float */
-	public $lastYaw;
-	/** @var float */
-	public $lastPitch;
 
 	/** @var AxisAlignedBB */
 	public $boundingBox;
@@ -435,8 +426,6 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	public $lastUpdate;
 	/** @var int */
 	public $fireTicks = 0;
-	/** @var CompoundTag */
-	public $namedtag;
 	/** @var bool */
 	public $canCollide = true;
 
@@ -494,13 +483,12 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 		}
 
 		$this->id = Entity::$entityCount++;
-		$this->namedtag = $nbt;
 		$this->server = $level->getServer();
 
 		/** @var float[] $pos */
-		$pos = $this->namedtag->getListTag("Pos")->getAllValues();
+		$pos = $nbt->getListTag("Pos")->getAllValues();
 		/** @var float[] $rotation */
-		$rotation = $this->namedtag->getListTag("Rotation")->getAllValues();
+		$rotation = $nbt->getListTag("Rotation")->getAllValues();
 
 		parent::__construct($pos[0], $pos[1], $pos[2], $rotation[0], $rotation[1], $level);
 		assert(!is_nan($this->x) and !is_infinite($this->x) and !is_nan($this->y) and !is_infinite($this->y) and !is_nan($this->z) and !is_infinite($this->z));
@@ -513,15 +501,15 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 			throw new \InvalidStateException("Cannot create entities in unloaded chunks");
 		}
 
-		if($this->namedtag->hasTag("Motion", ListTag::class)){
+		if($nbt->hasTag("Motion", ListTag::class)){
 			/** @var float[] $motion */
-			$motion = $this->namedtag->getListTag("Motion")->getAllValues();
+			$motion = $nbt->getListTag("Motion")->getAllValues();
 			$this->setMotion($this->temporalVector->setComponents(...$motion));
 		}
 
 		$this->resetLastMovements();
 
-		$this->fallDistance = $this->namedtag->getFloat("FallDistance", 0.0);
+		$this->fallDistance = $nbt->getFloat("FallDistance", 0.0);
 
 		$this->propertyManager = new DataPropertyManager();
 
@@ -533,14 +521,14 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 		$this->propertyManager->setFloat(self::DATA_BOUNDING_BOX_WIDTH, $this->width);
 		$this->propertyManager->setFloat(self::DATA_BOUNDING_BOX_HEIGHT, $this->height);
 
-		$this->fireTicks = $this->namedtag->getShort("Fire", 0);
+		$this->fireTicks = $nbt->getShort("Fire", 0);
 		if($this->isOnFire()){
 			$this->setGenericFlag(self::DATA_FLAG_ONFIRE);
 		}
 
-		$this->propertyManager->setShort(self::DATA_AIR, $this->namedtag->getShort("Air", 300));
-		$this->onGround = $this->namedtag->getByte("OnGround", 0) !== 0;
-		$this->invulnerable = $this->namedtag->getByte("Invulnerable", 0) !== 0;
+		$this->propertyManager->setShort(self::DATA_AIR, $nbt->getShort("Air", 300));
+		$this->onGround = $nbt->getByte("OnGround", 0) !== 0;
+		$this->invulnerable = $nbt->getByte("Invulnerable", 0) !== 0;
 
 		$this->attributeMap = new AttributeMap();
 		$this->addAttributes();
@@ -548,7 +536,7 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 		$this->setGenericFlag(self::DATA_FLAG_AFFECTED_BY_GRAVITY, true);
 		$this->setGenericFlag(self::DATA_FLAG_HAS_COLLISION, true);
 
-		$this->initEntity();
+		$this->initEntity($nbt);
 		$this->propertyManager->clearDirtyProperties(); //Prevents resending properties that were set during construction
 
 		$this->chunk->addEntity($this);
@@ -743,7 +731,7 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	public function getOwningEntity() : ?Entity{
 		$eid = $this->getOwningEntityId();
 		if($eid !== null){
-			return $this->server->findEntity($eid, $this->level);
+			return $this->server->findEntity($eid);
 		}
 
 		return null;
@@ -783,7 +771,7 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	public function getTargetEntity() : ?Entity{
 		$eid = $this->getTargetEntityId();
 		if($eid !== null){
-			return $this->server->findEntity($eid, $this->level);
+			return $this->server->findEntity($eid);
 		}
 
 		return null;
@@ -837,54 +825,52 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 		return current(self::$saveNames[static::class]);
 	}
 
-	public function saveNBT() : void{
+	public function saveNBT() : CompoundTag{
+		$nbt = new CompoundTag();
 		if(!($this instanceof Player)){
-			$this->namedtag->setString("id", $this->getSaveId(), true);
+			$nbt->setString("id", $this->getSaveId());
 
 			if($this->getNameTag() !== ""){
-				$this->namedtag->setString("CustomName", $this->getNameTag());
-				$this->namedtag->setByte("CustomNameVisible", $this->isNameTagVisible() ? 1 : 0);
-			}else{
-				$this->namedtag->removeTag("CustomName", "CustomNameVisible");
+				$nbt->setString("CustomName", $this->getNameTag());
+				$nbt->setByte("CustomNameVisible", $this->isNameTagVisible() ? 1 : 0);
 			}
 		}
 
-		$this->namedtag->setTag(new ListTag("Pos", [
+		$nbt->setTag(new ListTag("Pos", [
 			new DoubleTag("", $this->x),
 			new DoubleTag("", $this->y),
 			new DoubleTag("", $this->z)
 		]));
 
-		$this->namedtag->setTag(new ListTag("Motion", [
+		$nbt->setTag(new ListTag("Motion", [
 			new DoubleTag("", $this->motion->x),
 			new DoubleTag("", $this->motion->y),
 			new DoubleTag("", $this->motion->z)
 		]));
 
-		$this->namedtag->setTag(new ListTag("Rotation", [
+		$nbt->setTag(new ListTag("Rotation", [
 			new FloatTag("", $this->yaw),
 			new FloatTag("", $this->pitch)
 		]));
 
-		$this->namedtag->setFloat("FallDistance", $this->fallDistance);
-		$this->namedtag->setShort("Fire", $this->fireTicks);
-		$this->namedtag->setShort("Air", $this->propertyManager->getShort(self::DATA_AIR));
-		$this->namedtag->setByte("OnGround", $this->onGround ? 1 : 0);
-		$this->namedtag->setByte("Invulnerable", $this->invulnerable ? 1 : 0);
+		$nbt->setFloat("FallDistance", $this->fallDistance);
+		$nbt->setShort("Fire", $this->fireTicks);
+		$nbt->setShort("Air", $this->propertyManager->getShort(self::DATA_AIR));
+		$nbt->setByte("OnGround", $this->onGround ? 1 : 0);
+		$nbt->setByte("Invulnerable", $this->invulnerable ? 1 : 0);
+
+		return $nbt;
 	}
 
-	protected function initEntity() : void{
-		assert($this->namedtag instanceof CompoundTag);
+	protected function initEntity(CompoundTag $nbt) : void{
+		if($nbt->hasTag("CustomName", StringTag::class)){
+			$this->setNameTag($nbt->getString("CustomName"));
 
-		if($this->namedtag->hasTag("CustomName", StringTag::class)){
-			$this->setNameTag($this->namedtag->getString("CustomName"));
-
-			if($this->namedtag->hasTag("CustomNameVisible", StringTag::class)){
+			if($nbt->hasTag("CustomNameVisible", StringTag::class)){
 				//Older versions incorrectly saved this as a string (see 890f72dbf23a77f294169b79590770470041adc4)
-				$this->setNameTagVisible($this->namedtag->getString("CustomNameVisible") !== "");
-				$this->namedtag->removeTag("CustomNameVisible");
+				$this->setNameTagVisible($nbt->getString("CustomNameVisible") !== "");
 			}else{
-				$this->setNameTagVisible($this->namedtag->getByte("CustomNameVisible", 1) !== 0);
+				$this->setNameTagVisible($nbt->getByte("CustomNameVisible", 1) !== 0);
 			}
 		}
 	}
@@ -1024,8 +1010,8 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 			$hasUpdate = true;
 		}
 
-		if($this->isOnFire()){
-			$hasUpdate = ($hasUpdate || $this->doOnFireTick($tickDiff));
+		if($this->isOnFire() and $this->doOnFireTick($tickDiff)){
+			$hasUpdate = true;
 		}
 
 		if($this->noDamageTicks > 0){
@@ -1114,18 +1100,13 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	}
 
 	protected function updateMovement(bool $teleport = false) : void{
-		$diffPosition = ($this->x - $this->lastX) ** 2 + ($this->y - $this->lastY) ** 2 + ($this->z - $this->lastZ) ** 2;
-		$diffRotation = ($this->yaw - $this->lastYaw) ** 2 + ($this->pitch - $this->lastPitch) ** 2;
+		$diffPosition = $this->distanceSquared($this->lastLocation);
+		$diffRotation = ($this->yaw - $this->lastLocation->yaw) ** 2 + ($this->pitch - $this->lastLocation->pitch) ** 2;
 
 		$diffMotion = $this->motion->subtract($this->lastMotion)->lengthSquared();
 
 		if($teleport or $diffPosition > 0.0001 or $diffRotation > 1.0){
-			$this->lastX = $this->x;
-			$this->lastY = $this->y;
-			$this->lastZ = $this->z;
-
-			$this->lastYaw = $this->yaw;
-			$this->lastPitch = $this->pitch;
+			$this->lastLocation = $this->asLocation();
 
 			$this->broadcastMovement($teleport);
 		}
@@ -1823,8 +1804,7 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	}
 
 	protected function resetLastMovements() : void{
-		list($this->lastX, $this->lastY, $this->lastZ) = [$this->x, $this->y, $this->z];
-		list($this->lastYaw, $this->lastPitch) = [$this->yaw, $this->pitch];
+		$this->lastLocation = $this->asLocation();
 		$this->lastMotion = clone $this->motion;
 	}
 
@@ -2035,7 +2015,6 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 				$this->setLevel(null);
 			}
 
-			$this->namedtag = null;
 			$this->lastDamageCause = null;
 		}
 	}
@@ -2115,6 +2094,13 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 		$pk->event = $eventId;
 		$pk->data = $eventData ?? 0;
 
+		$this->server->broadcastPacket($players ?? $this->getViewers(), $pk);
+	}
+
+	public function broadcastAnimation(?array $players, int $animationId) : void{
+		$pk = new AnimatePacket();
+		$pk->entityRuntimeId = $this->id;
+		$pk->action = $animationId;
 		$this->server->broadcastPacket($players ?? $this->getViewers(), $pk);
 	}
 

@@ -69,6 +69,7 @@ use pocketmine\metadata\MetadataValue;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\network\mcpe\ChunkRequestTask;
+use pocketmine\network\mcpe\CompressBatchPromise;
 use pocketmine\network\mcpe\protocol\DataPacket;
 use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
@@ -122,7 +123,7 @@ class Level implements ChunkManager, Metadatable{
 	/** @var Block[][] */
 	private $blockCache = [];
 
-	/** @var string[] */
+	/** @var CompressBatchPromise[] */
 	private $chunkCache = [];
 
 	/** @var int */
@@ -190,7 +191,7 @@ class Level implements ChunkManager, Metadatable{
 
 	/** @var Player[][] */
 	private $chunkSendQueue = [];
-	/** @var bool[] */
+	/** @var ChunkRequestTask[] */
 	private $chunkSendTasks = [];
 
 	/** @var bool[] */
@@ -669,18 +670,6 @@ class Level implements ChunkManager, Metadatable{
 	/**
 	 * WARNING: Do not use this, it's only for internal use.
 	 * Changes to this function won't be recorded on the version.
-	 */
-	public function checkTime(){
-		if($this->stopTime){
-			return;
-		}else{
-			++$this->time;
-		}
-	}
-
-	/**
-	 * WARNING: Do not use this, it's only for internal use.
-	 * Changes to this function won't be recorded on the version.
 	 *
 	 * @param Player ...$targets If empty, will send to all players in the level.
 	 */
@@ -709,7 +698,9 @@ class Level implements ChunkManager, Metadatable{
 
 		$this->timings->doTick->startTiming();
 
-		$this->checkTime();
+		if(!$this->stopTime){
+			$this->time++;
+		}
 
 		$this->sunAnglePercentage = $this->computeSunAnglePercentage(); //Sun angle depends on the current time
 		$this->skyLightReduction = $this->computeSkyLightReduction(); //Sky light reduction depends on the sun angle
@@ -768,9 +759,9 @@ class Level implements ChunkManager, Metadatable{
 		$this->timings->tileEntityTick->startTiming();
 		Timings::$tickTileEntityTimer->startTiming();
 		//Update tiles that need update
-		foreach($this->updateTiles as $id => $tile){
+		foreach($this->updateTiles as $blockHash => $tile){
 			if(!$tile->onUpdate()){
-				unset($this->updateTiles[$id]);
+				unset($this->updateTiles[$blockHash]);
 			}
 		}
 		Timings::$tickTileEntityTimer->stopTiming();
@@ -814,8 +805,10 @@ class Level implements ChunkManager, Metadatable{
 			$this->checkSleep();
 		}
 
-		if(!empty($this->players) and !empty($this->globalPackets)){
-			$this->server->broadcastPackets($this->players, $this->globalPackets);
+		if(!empty($this->globalPackets)){
+			if(!empty($this->players)){
+				$this->server->broadcastPackets($this->players, $this->globalPackets);
+			}
 			$this->globalPackets = [];
 		}
 
@@ -1793,7 +1786,7 @@ class Level implements ChunkManager, Metadatable{
 		}
 
 		if($player !== null){
-			$ev = new PlayerInteractEvent($player, $item, $blockClicked, $clickVector, $face, $blockClicked->getId() === 0 ? PlayerInteractEvent::RIGHT_CLICK_AIR : PlayerInteractEvent::RIGHT_CLICK_BLOCK);
+			$ev = new PlayerInteractEvent($player, $item, $blockClicked, $clickVector, $face, PlayerInteractEvent::RIGHT_CLICK_BLOCK);
 			if($this->checkSpawnProtection($player, $blockClicked)){
 				$ev->setCancelled(); //set it to cancelled so plugins can bypass this
 			}
@@ -2020,15 +2013,6 @@ class Level implements ChunkManager, Metadatable{
 	}
 
 	/**
-	 * @param $tileId
-	 *
-	 * @return Tile|null
-	 */
-	public function getTileById(int $tileId){
-		return $this->tiles[$tileId] ?? null;
-	}
-
-	/**
 	 * Returns a list of the players in this level
 	 *
 	 * @return Player[]
@@ -2068,13 +2052,7 @@ class Level implements ChunkManager, Metadatable{
 	 * @return Tile|null
 	 */
 	public function getTileAt(int $x, int $y, int $z) : ?Tile{
-		$chunk = $this->getChunk($x >> 4, $z >> 4);
-
-		if($chunk !== null){
-			return $chunk->getTile($x & 0x0f, $y, $z & 0x0f);
-		}
-
-		return null;
+		return ($chunk = $this->getChunk($x >> 4, $z >> 4)) !== null ? $chunk->getTile($x & 0x0f, $y, $z & 0x0f) : null;
 	}
 
 	/**
@@ -2472,8 +2450,8 @@ class Level implements ChunkManager, Metadatable{
 		$this->chunkSendQueue[$index][$player->getLoaderId()] = $player;
 	}
 
-	private function sendChunkFromCache(int $x, int $z){
-		if(isset($this->chunkSendTasks[$index = Level::chunkHash($x, $z)])){
+	private function sendCachedChunk(int $x, int $z){
+		if(isset($this->chunkSendQueue[$index = Level::chunkHash($x, $z)])){
 			foreach($this->chunkSendQueue[$index] as $player){
 				/** @var Player $player */
 				if($player->isConnected() and isset($player->usedChunks[$index])){
@@ -2481,7 +2459,6 @@ class Level implements ChunkManager, Metadatable{
 				}
 			}
 			unset($this->chunkSendQueue[$index]);
-			unset($this->chunkSendTasks[$index]);
 		}
 	}
 
@@ -2490,15 +2467,23 @@ class Level implements ChunkManager, Metadatable{
 			$this->timings->syncChunkSendTimer->startTiming();
 
 			foreach($this->chunkSendQueue as $index => $players){
-				if(isset($this->chunkSendTasks[$index])){
-					continue;
-				}
 				Level::getXZ($index, $x, $z);
-				$this->chunkSendTasks[$index] = true;
+
+				if(isset($this->chunkSendTasks[$index])){
+					if($this->chunkSendTasks[$index]->isCrashed()){
+						unset($this->chunkSendTasks[$index]);
+						$this->server->getLogger()->error("Failed to prepare chunk $x $z for sending, retrying");
+					}else{
+						//Not ready for sending yet
+						continue;
+					}
+				}
+
 				if(isset($this->chunkCache[$index])){
-					$this->sendChunkFromCache($x, $z);
+					$this->sendCachedChunk($x, $z);
 					continue;
 				}
+
 				$this->timings->syncChunkSendPrepareTimer->startTiming();
 
 				$chunk = $this->chunks[$index] ?? null;
@@ -2507,38 +2492,37 @@ class Level implements ChunkManager, Metadatable{
 				}
 				assert($chunk->getX() === $x and $chunk->getZ() === $z, "Chunk coordinate mismatch: expected $x $z, but chunk has coordinates " . $chunk->getX() . " " . $chunk->getZ() . ", did you forget to clone a chunk before setting?");
 
-				$this->server->getAsyncPool()->submitTask(new ChunkRequestTask($this, $x, $z, $chunk));
+				/*
+				 * we don't send promises directly to the players here because unresolved promises of chunk sending
+				 * would slow down the sending of other packets, especially if a chunk takes a long time to prepare.
+				 */
+
+				$promise = new CompressBatchPromise();
+				$promise->onResolve(function(CompressBatchPromise $promise) use ($x, $z, $index): void{
+					if(!$this->closed){
+						$this->timings->syncChunkSendTimer->startTiming();
+
+						unset($this->chunkSendTasks[$index]);
+
+						$this->chunkCache[$index] = $promise;
+						$this->sendCachedChunk($x, $z);
+						if(!$this->server->getMemoryManager()->canUseChunkCache()){
+							unset($this->chunkCache[$index]);
+						}
+
+						$this->timings->syncChunkSendTimer->stopTiming();
+					}else{
+						$this->server->getLogger()->debug("Dropped prepared chunk $x $z due to level not loaded");
+					}
+				});
+				$this->server->getAsyncPool()->submitTask($task = new ChunkRequestTask($x, $z, $chunk, $promise));
+				$this->chunkSendTasks[$index] = $task;
 
 				$this->timings->syncChunkSendPrepareTimer->stopTiming();
 			}
 
 			$this->timings->syncChunkSendTimer->stopTiming();
 		}
-	}
-
-	public function chunkRequestCallback(int $x, int $z, string $payload){
-		$this->timings->syncChunkSendTimer->startTiming();
-
-		$index = Level::chunkHash($x, $z);
-
-		if(!isset($this->chunkCache[$index]) and $this->server->getMemoryManager()->canUseChunkCache()){
-			$this->chunkCache[$index] = $payload;
-			$this->sendChunkFromCache($x, $z);
-			$this->timings->syncChunkSendTimer->stopTiming();
-			return;
-		}
-
-		if(isset($this->chunkSendTasks[$index])){
-			foreach($this->chunkSendQueue[$index] as $player){
-				/** @var Player $player */
-				if($player->isConnected() and isset($player->usedChunks[$index])){
-					$player->sendChunk($x, $z, $payload);
-				}
-			}
-			unset($this->chunkSendQueue[$index]);
-			unset($this->chunkSendTasks[$index]);
-		}
-		$this->timings->syncChunkSendTimer->stopTiming();
 	}
 
 	/**
@@ -2603,7 +2587,7 @@ class Level implements ChunkManager, Metadatable{
 			throw new \InvalidStateException("Attempted to create tile " . get_class($tile) . " in unloaded chunk $chunkX $chunkZ");
 		}
 
-		$this->tiles[$tile->getId()] = $tile;
+		$this->tiles[Level::blockHash($tile->x, $tile->y, $tile->z)] = $tile;
 		$this->clearChunkCache($chunkX, $chunkZ);
 	}
 
@@ -2617,7 +2601,7 @@ class Level implements ChunkManager, Metadatable{
 			throw new LevelException("Invalid Tile level");
 		}
 
-		unset($this->tiles[$tile->getId()], $this->updateTiles[$tile->getId()]);
+		unset($this->tiles[$blockHash = Level::blockHash($tile->x, $tile->y, $tile->z)], $this->updateTiles[$blockHash]);
 
 		$chunkX = $tile->getFloorX() >> 4;
 		$chunkZ = $tile->getFloorZ() >> 4;
@@ -2771,6 +2755,8 @@ class Level implements ChunkManager, Metadatable{
 		unset($this->chunkCache[$chunkHash]);
 		unset($this->blockCache[$chunkHash]);
 		unset($this->changedBlocks[$chunkHash]);
+		unset($this->chunkSendQueue[$chunkHash]);
+		unset($this->chunkSendTasks[$chunkHash]);
 
 		$this->timings->doChunkUnload->stopTiming();
 

@@ -21,35 +21,40 @@
 
 declare(strict_types=1);
 
-namespace pocketmine\network\mcpe;
+namespace pmmp\TesterPlugin\tests;
 
+use pmmp\TesterPlugin\Test;
 use pocketmine\scheduler\AsyncTask;
-use pocketmine\Server;
 
-class CompressBatchedTask extends AsyncTask{
+class AsyncTaskMemoryLeakTest extends Test{
 
-	private $level;
-	private $data;
-
-	/**
-	 * @param PacketStream     $stream
-	 * @param NetworkSession[] $targets
-	 * @param int              $compressionLevel
-	 */
-	public function __construct(PacketStream $stream, array $targets, int $compressionLevel){
-		$this->data = $stream->buffer;
-		$this->level = $compressionLevel;
-		$this->storeLocal($targets);
+	public function run(){
+		$this->getPlugin()->getServer()->getAsyncPool()->submitTask(new TestAsyncTask());
 	}
 
-	public function onRun() : void{
-		$this->setResult(NetworkCompression::compress($this->data, $this->level), false);
+	public function tick(){
+		if(TestAsyncTask::$destroyed === true){
+			$this->setResult(Test::RESULT_OK);
+		}
 	}
 
-	public function onCompletion(Server $server) : void{
-		/** @var NetworkSession[] $targets */
-		$targets = $this->fetchLocal();
+	public function getName() : string{
+		return "AsyncTask memory leak after completion";
+	}
 
-		$server->broadcastPacketsCallback($this->getResult(), $targets);
+	public function getDescription() : string{
+		return "Regression test for AsyncTasks objects not being destroyed after completion";
+	}
+}
+
+class TestAsyncTask extends AsyncTask{
+	public static $destroyed = false;
+
+	public function onRun(){
+		usleep(50 * 1000); //1 server tick
+	}
+
+	public function __destruct(){
+		self::$destroyed = true;
 	}
 }

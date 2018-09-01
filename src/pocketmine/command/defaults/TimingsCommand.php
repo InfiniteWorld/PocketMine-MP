@@ -30,6 +30,7 @@ use pocketmine\Player;
 use pocketmine\scheduler\BulkCurlTask;
 use pocketmine\Server;
 use pocketmine\timings\TimingsHandler;
+use pocketmine\utils\InternetException;
 
 class TimingsCommand extends VanillaCommand{
 
@@ -121,8 +122,9 @@ class TimingsCommand extends VanillaCommand{
 								CURLOPT_AUTOREFERER => false,
 								CURLOPT_FOLLOWLOCATION => false
 							]]
-						], $sender);
+						]);
 						$this->host = $host;
+						$this->storeLocal($sender);
 					}
 
 					public function onCompletion(Server $server){
@@ -131,8 +133,8 @@ class TimingsCommand extends VanillaCommand{
 							return;
 						}
 						$result = $this->getResult()[0];
-						if($result instanceof \RuntimeException){
-							$server->getLogger()->logException($result);
+						if($result instanceof InternetException){
+							$sender->getServer()->getLogger()->logException($result);
 							return;
 						}
 						if(isset($result[0]) && is_array($response = json_decode($result[0], true)) && isset($response["id"])){

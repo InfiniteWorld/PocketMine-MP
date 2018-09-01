@@ -74,8 +74,8 @@ abstract class Living extends Entity implements Damageable{
 
 	abstract public function getName() : string;
 
-	protected function initEntity() : void{
-		parent::initEntity();
+	protected function initEntity(CompoundTag $nbt) : void{
+		parent::initEntity($nbt);
 
 		$this->armorInventory = new ArmorInventory($this);
 		//TODO: load/save armor inventory contents
@@ -83,21 +83,17 @@ abstract class Living extends Entity implements Damageable{
 
 		$health = $this->getMaxHealth();
 
-		if($this->namedtag->hasTag("HealF", FloatTag::class)){
-			$health = $this->namedtag->getFloat("HealF");
-			$this->namedtag->removeTag("HealF");
-		}elseif($this->namedtag->hasTag("Health")){
-			$healthTag = $this->namedtag->getTag("Health");
+		if($nbt->hasTag("HealF", FloatTag::class)){
+			$health = $nbt->getFloat("HealF");
+		}elseif($nbt->hasTag("Health")){
+			$healthTag = $nbt->getTag("Health");
 			$health = (float) $healthTag->getValue(); //Older versions of PocketMine-MP incorrectly saved this as a short instead of a float
-			if(!($healthTag instanceof FloatTag)){
-				$this->namedtag->removeTag("Health");
-			}
 		}
 
 		$this->setHealth($health);
 
 		/** @var CompoundTag[]|ListTag $activeEffectsTag */
-		$activeEffectsTag = $this->namedtag->getListTag("ActiveEffects");
+		$activeEffectsTag = $nbt->getListTag("ActiveEffects");
 		if($activeEffectsTag !== null){
 			foreach($activeEffectsTag as $e){
 				$effect = Effect::getEffect($e->getByte("Id"));
@@ -150,9 +146,9 @@ abstract class Living extends Entity implements Damageable{
 		$this->attributeMap->getAttribute(Attribute::ABSORPTION)->setValue($absorption);
 	}
 
-	public function saveNBT() : void{
-		parent::saveNBT();
-		$this->namedtag->setFloat("Health", $this->getHealth(), true);
+	public function saveNBT() : CompoundTag{
+		$nbt = parent::saveNBT();
+		$nbt->setFloat("Health", $this->getHealth());
 
 		if(count($this->effects) > 0){
 			$effects = [];
@@ -166,10 +162,10 @@ abstract class Living extends Entity implements Damageable{
 				]);
 			}
 
-			$this->namedtag->setTag(new ListTag("ActiveEffects", $effects));
-		}else{
-			$this->namedtag->removeTag("ActiveEffects");
+			$nbt->setTag(new ListTag("ActiveEffects", $effects));
 		}
+
+		return $nbt;
 	}
 
 
@@ -560,7 +556,7 @@ abstract class Living extends Entity implements Damageable{
 			return;
 		}
 
-		$this->attackTime = 10; //0.5 seconds cooldown
+		$this->attackTime = $source->getAttackCooldown();
 
 		if($source instanceof EntityDamageByEntityEvent){
 			$e = $source->getDamager();
@@ -654,7 +650,9 @@ abstract class Living extends Entity implements Damageable{
 
 		$hasUpdate = parent::entityBaseTick($tickDiff);
 
-		$this->doEffectsTick($tickDiff);
+		if($this->doEffectsTick($tickDiff)){
+			$hasUpdate = true;
+		}
 
 		if($this->isAlive()){
 			if($this->isInsideOfSolid()){
@@ -663,12 +661,8 @@ abstract class Living extends Entity implements Damageable{
 				$this->attack($ev);
 			}
 
-			if(!$this->canBreathe()){
-				$this->setBreathing(false);
-				$this->doAirSupplyTick($tickDiff);
-			}elseif(!$this->isBreathing()){
-				$this->setBreathing(true);
-				$this->setAirSupplyTicks($this->getMaxAirSupplyTicks());
+			if($this->doAirSupplyTick($tickDiff)){
+				$hasUpdate = true;
 			}
 		}
 
@@ -681,7 +675,7 @@ abstract class Living extends Entity implements Damageable{
 		return $hasUpdate;
 	}
 
-	protected function doEffectsTick(int $tickDiff = 1) : void{
+	protected function doEffectsTick(int $tickDiff = 1) : bool{
 		foreach($this->effects as $instance){
 			$type = $instance->getType();
 			if($type->canTick($instance)){
@@ -692,25 +686,47 @@ abstract class Living extends Entity implements Damageable{
 				$this->removeEffect($instance->getId());
 			}
 		}
+
+		return !empty($this->effects);
 	}
 
 	/**
-	 * Ticks the entity's air supply when it cannot breathe.
+	 * Ticks the entity's air supply, consuming it when underwater and regenerating it when out of water.
+	 *
 	 * @param int $tickDiff
+	 *
+	 * @return bool
 	 */
-	protected function doAirSupplyTick(int $tickDiff) : void{
-		if(($respirationLevel = $this->armorInventory->getHelmet()->getEnchantmentLevel(Enchantment::RESPIRATION)) <= 0 or
-			lcg_value() <= (1 / ($respirationLevel + 1))
-		){
-			$ticks = $this->getAirSupplyTicks() - $tickDiff;
+	protected function doAirSupplyTick(int $tickDiff) : bool{
+		$ticks = $this->getAirSupplyTicks();
+		$oldTicks = $ticks;
+		if(!$this->canBreathe()){
+			$this->setBreathing(false);
 
-			if($ticks <= -20){
-				$this->setAirSupplyTicks(0);
-				$this->onAirExpired();
-			}else{
-				$this->setAirSupplyTicks($ticks);
+			if(($respirationLevel = $this->armorInventory->getHelmet()->getEnchantmentLevel(Enchantment::RESPIRATION)) <= 0 or
+				lcg_value() <= (1 / ($respirationLevel + 1))
+			){
+				$ticks -= $tickDiff;
+				if($ticks <= -20){
+					$ticks = 0;
+					$this->onAirExpired();
+				}
+			}
+		}elseif(!$this->isBreathing()){
+			if($ticks < ($max = $this->getMaxAirSupplyTicks())){
+				$ticks += $tickDiff * 5;
+			}
+			if($ticks >= $max){
+				$ticks = $max;
+				$this->setBreathing(true);
 			}
 		}
+
+		if($ticks !== $oldTicks){
+			$this->setAirSupplyTicks($ticks);
+		}
+
+		return $ticks !== $oldTicks;
 	}
 
 	/**
@@ -718,7 +734,7 @@ abstract class Living extends Entity implements Damageable{
 	 * @return bool
 	 */
 	public function canBreathe() : bool{
-		return $this->hasEffect(Effect::WATER_BREATHING) or !$this->isUnderwater();
+		return $this->hasEffect(Effect::WATER_BREATHING) or $this->hasEffect(Effect::CONDUIT_POWER) or !$this->isUnderwater();
 	}
 
 	/**

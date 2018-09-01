@@ -31,7 +31,6 @@ use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\level\Level;
 use pocketmine\math\RayTraceResult;
-use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\EntityEventPacket;
 use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
@@ -67,16 +66,16 @@ class Arrow extends Projectile{
 		$this->setCritical($critical);
 	}
 
-	protected function initEntity() : void{
-		parent::initEntity();
+	protected function initEntity(CompoundTag $nbt) : void{
+		parent::initEntity($nbt);
 
-		$this->pickupMode = $this->namedtag->getByte(self::TAG_PICKUP, self::PICKUP_ANY, true);
+		$this->pickupMode = $nbt->getByte(self::TAG_PICKUP, self::PICKUP_ANY, true);
 	}
 
-	public function saveNBT() : void{
-		parent::saveNBT();
-
-		$this->namedtag->setByte(self::TAG_PICKUP, $this->pickupMode, true);
+	public function saveNBT() : CompoundTag{
+		$nbt = parent::saveNBT();
+		$nbt->setByte(self::TAG_PICKUP, $this->pickupMode);
+		return $nbt;
 	}
 
 	public function isCritical() : bool{
