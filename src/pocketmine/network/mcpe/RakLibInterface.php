@@ -127,7 +127,7 @@ class RakLibInterface implements ServerInstance, AdvancedNetworkInterface{
 		$this->interface->emergencyShutdown();
 	}
 
-	public function openSession(string $identifier, string $address, int $port, int $clientID) : void{
+	public function openSession(string $identifier, string $address, int $port, $clientID) : void{
 		$session = new NetworkSession($this->server, $this, $address, $port);
 		$this->sessions[$identifier] = $session;
 		$this->identifiers[spl_object_hash($session)] = $identifier;

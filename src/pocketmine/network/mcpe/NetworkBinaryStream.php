@@ -289,18 +289,18 @@ class NetworkBinaryStream extends BinaryStream{
 
 	/**
 	 * Reads and returns an EntityRuntimeID
-	 * @return int
+	 * @return int|string
 	 */
-	public function getEntityRuntimeId() : int{
+	public function getEntityRuntimeId(){
 		return $this->getUnsignedVarLong();
 	}
 
 	/**
 	 * Writes an EntityUniqueID
 	 *
-	 * @param int $eid
+	 * @param int|string $eid
 	 */
-	public function putEntityRuntimeId(int $eid) : void{
+	public function putEntityRuntimeId($eid) : void{
 		$this->putUnsignedVarLong($eid);
 	}
 

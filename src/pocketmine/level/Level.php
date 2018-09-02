@@ -247,11 +247,11 @@ class Level implements ChunkManager, Metadatable{
 	/** @var bool */
 	private $closed = false;
 
-	public static function chunkHash(int $x, int $z) : int{
+	public static function chunkHash(int $x, int $z){
 		return PHP_INT_SIZE === 8 ? (($x & 0xFFFFFFFF) << 32) | ($z & 0xFFFFFFFF) : $x . ":" . $z;
 	}
 
-	public static function blockHash(int $x, int $y, int $z) : int{
+	public static function blockHash(int $x, int $y, int $z){
 		if($y < 0 or $y >= Level::Y_MAX){
 			throw new \InvalidArgumentException("Y coordinate $y is out of range!");
 		}
@@ -272,11 +272,11 @@ class Level implements ChunkManager, Metadatable{
 	}
 
 	/**
-	 * @param int      $hash
-	 * @param int|null $x
-	 * @param int|null $z
+	 * @param int|string $hash
+	 * @param int|null   $x
+	 * @param int|null   $z
 	 */
-	public static function getXZ(int $hash, ?int &$x, ?int &$z) : void{
+	public static function getXZ($hash, ?int &$x, ?int &$z) : void{
 		if(PHP_INT_SIZE === 8){
 			$x = $hash >> 32;
 			$z = ($hash & 0xFFFFFFFF) << 32 >> 32;
