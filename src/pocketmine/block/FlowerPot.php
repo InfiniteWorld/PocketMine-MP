@@ -25,6 +25,7 @@ namespace pocketmine\block;
 
 use pocketmine\item\Item;
 use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 use pocketmine\tile\FlowerPot as TileFlowerPot;
@@ -32,14 +33,26 @@ use pocketmine\tile\Tile;
 
 class FlowerPot extends Flowable{
 
-	public const STATE_EMPTY = 0;
-	public const STATE_FULL = 1;
-
 	protected $id = self::FLOWER_POT_BLOCK;
 	protected $itemId = Item::FLOWER_POT;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	/** @var bool */
+	protected $occupied = false;
+
+	public function __construct(){
+
+	}
+
+	protected function writeStateToMeta() : int{
+		return $this->occupied ? 1 : 0;
+	}
+
+	public function readStateFromMeta(int $meta) : void{
+		$this->occupied = $meta !== 0;
+	}
+
+	public function getStateBitmask() : int{
+		return 0b1111; //vanilla uses various values, we only care about 1 and 0 for PE
 	}
 
 	public function getName() : string{
@@ -52,17 +65,20 @@ class FlowerPot extends Flowable{
 	}
 
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		if($this->getSide(Vector3::SIDE_DOWN)->isTransparent()){
+		if($this->getSide(Facing::DOWN)->isTransparent()){
 			return false;
 		}
 
-		$this->getLevel()->setBlock($blockReplace, $this, true, true);
-		Tile::createTile(Tile::FLOWER_POT, $this->getLevel(), TileFlowerPot::createNBT($this, $face, $item, $player));
-		return true;
+		if(parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player)){
+			Tile::createTile(Tile::FLOWER_POT, $this->getLevel(), TileFlowerPot::createNBT($this, $face, $item, $player));
+			return true;
+		}
+
+		return false;
 	}
 
 	public function onNearbyBlockChange() : void{
-		if($this->getSide(Vector3::SIDE_DOWN)->isTransparent()){
+		if($this->getSide(Facing::DOWN)->isTransparent()){
 			$this->getLevel()->useBreakOn($this);
 		}
 	}
@@ -76,15 +92,11 @@ class FlowerPot extends Flowable{
 			return true;
 		}
 
-		$this->setDamage(self::STATE_FULL); //specific damage value is unnecessary, it just needs to be non-zero to show an item.
-		$this->getLevel()->setBlock($this, $this, true, false);
+		$this->occupied = true;
+		$this->getLevel()->setBlock($this, $this, false);
 		$pot->setItem($item->pop());
 
 		return true;
-	}
-
-	public function getVariantBitmask() : int{
-		return 0;
 	}
 
 	public function getDropsForCompatibleTool(Item $item) : array{

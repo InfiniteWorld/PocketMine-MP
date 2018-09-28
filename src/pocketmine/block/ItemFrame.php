@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace pocketmine\block;
 
 use pocketmine\item\Item;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 use pocketmine\tile\ItemFrame as TileItemFrame;
@@ -34,8 +35,23 @@ class ItemFrame extends Flowable{
 
 	protected $itemId = Item::ITEM_FRAME;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	/** @var int */
+	protected $facing = Facing::NORTH;
+
+	public function __construct(){
+
+	}
+
+	protected function writeStateToMeta() : int{
+		return 5 - $this->facing;
+	}
+
+	public function readStateFromMeta(int $meta) : void{
+		$this->facing = 5 - $meta;
+	}
+
+	public function getStateBitmask() : int{
+		return 0b11;
 	}
 
 	public function getName() : string{
@@ -58,40 +74,25 @@ class ItemFrame extends Flowable{
 	}
 
 	public function onNearbyBlockChange() : void{
-		$sides = [
-			0 => Vector3::SIDE_WEST,
-			1 => Vector3::SIDE_EAST,
-			2 => Vector3::SIDE_NORTH,
-			3 => Vector3::SIDE_SOUTH
-		];
-		if(!$this->getSide($sides[$this->meta])->isSolid()){
+		if(!$this->getSide(Facing::opposite($this->facing))->isSolid()){
 			$this->level->useBreakOn($this);
 		}
 	}
 
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		if($face === Vector3::SIDE_DOWN or $face === Vector3::SIDE_UP or !$blockClicked->isSolid()){
+		if($face === Facing::DOWN or $face === Facing::UP or !$blockClicked->isSolid()){
 			return false;
 		}
 
-		$faces = [
-			Vector3::SIDE_NORTH => 3,
-			Vector3::SIDE_SOUTH => 2,
-			Vector3::SIDE_WEST => 1,
-			Vector3::SIDE_EAST => 0
-		];
+		$this->facing = $face;
 
-		$this->meta = $faces[$face];
-		$this->level->setBlock($blockReplace, $this, true, true);
+		if(parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player)){
+			Tile::createTile(Tile::ITEM_FRAME, $this->getLevel(), TileItemFrame::createNBT($this, $face, $item, $player));
+			return true;
+		}
 
-		Tile::createTile(Tile::ITEM_FRAME, $this->getLevel(), TileItemFrame::createNBT($this, $face, $item, $player));
+		return false;
 
-		return true;
-
-	}
-
-	public function getVariantBitmask() : int{
-		return 0;
 	}
 
 	public function getDropsForCompatibleTool(Item $item) : array{

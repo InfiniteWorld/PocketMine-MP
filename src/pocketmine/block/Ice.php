@@ -31,8 +31,8 @@ class Ice extends Transparent{
 
 	protected $id = self::ICE;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(){
+
 	}
 
 	public function getName() : string{
@@ -57,7 +57,7 @@ class Ice extends Transparent{
 
 	public function onBreak(Item $item, Player $player = null) : bool{
 		if(!$item->hasEnchantment(Enchantment::SILK_TOUCH)){
-			return $this->getLevel()->setBlock($this, BlockFactory::get(Block::WATER), true);
+			return $this->getLevel()->setBlock($this, BlockFactory::get(Block::WATER));
 		}
 		return parent::onBreak($item, $player);
 	}

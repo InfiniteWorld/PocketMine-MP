@@ -26,6 +26,7 @@ namespace pocketmine\block;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 use pocketmine\tile\Skull as TileSkull;
@@ -35,8 +36,23 @@ class Skull extends Flowable{
 
 	protected $id = self::SKULL_BLOCK;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	/** @var int */
+	protected $facing = Facing::NORTH;
+
+	public function __construct(){
+
+	}
+
+	protected function writeStateToMeta() : int{
+		return $this->facing;
+	}
+
+	public function readStateFromMeta(int $meta) : void{
+		$this->facing = $meta;
+	}
+
+	public function getStateBitmask() : int{
+		return 0b111;
 	}
 
 	public function getHardness() : float{
@@ -48,32 +64,28 @@ class Skull extends Flowable{
 	}
 
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
-		//TODO: different bounds depending on attached face (meta)
+		//TODO: different bounds depending on attached face
 		static $f = 0.25;
 		return new AxisAlignedBB($f, 0, $f, 1 - $f, 0.5, 1 - $f);
 	}
 
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		if($face === Vector3::SIDE_DOWN){
+		if($face === Facing::DOWN){
 			return false;
 		}
 
-		$this->meta = $face;
-		$this->getLevel()->setBlock($blockReplace, $this, true);
-		Tile::createTile(Tile::SKULL, $this->getLevel(), TileSkull::createNBT($this, $face, $item, $player));
-
-		return true;
-	}
-
-	public function getDropsForCompatibleTool(Item $item) : array{
-		$tile = $this->level->getTile($this);
-		if($tile instanceof TileSkull){
-			return [
-				ItemFactory::get(Item::SKULL, $tile->getType())
-			];
+		$this->facing = $face;
+		if(parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player)){
+			Tile::createTile(Tile::SKULL, $this->getLevel(), TileSkull::createNBT($this, $face, $item, $player));
+			return true;
 		}
 
-		return [];
+		return false;
+	}
+
+	public function getItem() : Item{
+		$tile = $this->level->getTile($this);
+		return ItemFactory::get(Item::SKULL, $tile instanceof TileSkull ? $tile->getType() : 0);
 	}
 
 	public function isAffectedBySilkTouch() : bool{

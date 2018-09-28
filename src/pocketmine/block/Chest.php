@@ -25,6 +25,8 @@ namespace pocketmine\block;
 
 use pocketmine\item\Item;
 use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Bearing;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 use pocketmine\tile\Chest as TileChest;
@@ -34,8 +36,23 @@ class Chest extends Transparent{
 
 	protected $id = self::CHEST;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	/** @var int */
+	protected $facing = Facing::NORTH;
+
+	public function __construct(){
+
+	}
+
+	protected function writeStateToMeta() : int{
+		return $this->facing;
+	}
+
+	public function readStateFromMeta(int $meta) : void{
+		$this->facing = $meta;
+	}
+
+	public function getStateBitmask() : int{
+		return 0b111;
 	}
 
 	public function getHardness() : float{
@@ -56,24 +73,17 @@ class Chest extends Transparent{
 	}
 
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		$faces = [
-			0 => 4,
-			1 => 2,
-			2 => 5,
-			3 => 3
-		];
-
 		$chest = null;
-		$this->meta = $faces[$player instanceof Player ? $player->getDirection() : 0];
+		if($player !== null){
+			$this->facing = Bearing::toFacing(Bearing::opposite($player->getDirection()));
+		}
 
-		for($side = 2; $side <= 5; ++$side){
-			if(($this->meta === 4 or $this->meta === 5) and ($side === 4 or $side === 5)){
-				continue;
-			}elseif(($this->meta === 3 or $this->meta === 2) and ($side === 2 or $side === 3)){
-				continue;
-			}
+		foreach([
+			Bearing::toFacing(Bearing::rotate($player->getDirection(), -1)),
+			Bearing::toFacing(Bearing::rotate($player->getDirection(), 1))
+		] as $side){
 			$c = $this->getSide($side);
-			if($c->getId() === $this->id and $c->getDamage() === $this->meta){
+			if($c instanceof Chest and $c->isSameType($this) and $c->facing === $this->facing){
 				$tile = $this->getLevel()->getTile($c);
 				if($tile instanceof TileChest and !$tile->isPaired()){
 					$chest = $tile;
@@ -82,15 +92,18 @@ class Chest extends Transparent{
 			}
 		}
 
-		$this->getLevel()->setBlock($blockReplace, $this, true, true);
-		$tile = Tile::createTile(Tile::CHEST, $this->getLevel(), TileChest::createNBT($this, $face, $item, $player));
+		if(parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player)){
+			$tile = Tile::createTile(Tile::CHEST, $this->getLevel(), TileChest::createNBT($this, $face, $item, $player));
 
-		if($chest instanceof TileChest and $tile instanceof TileChest){
-			$chest->pairWith($tile);
-			$tile->pairWith($chest);
+			if($chest instanceof TileChest and $tile instanceof TileChest){
+				$chest->pairWith($tile);
+				$tile->pairWith($chest);
+			}
+
+			return true;
 		}
 
-		return true;
+		return false;
 	}
 
 	public function onActivate(Item $item, Player $player = null) : bool{
@@ -105,8 +118,8 @@ class Chest extends Transparent{
 			}
 
 			if(
-				!$this->getSide(Vector3::SIDE_UP)->isTransparent() or
-				($chest->isPaired() and !$chest->getPair()->getBlock()->getSide(Vector3::SIDE_UP)->isTransparent()) or
+				!$this->getSide(Facing::UP)->isTransparent() or
+				($chest->isPaired() and !$chest->getPair()->getBlock()->getSide(Facing::UP)->isTransparent()) or
 				!$chest->canOpenWith($item->getCustomName())
 			){
 				return true;
@@ -116,10 +129,6 @@ class Chest extends Transparent{
 		}
 
 		return true;
-	}
-
-	public function getVariantBitmask() : int{
-		return 0;
 	}
 
 	public function getFuelTime() : int{

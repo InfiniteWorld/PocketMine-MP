@@ -24,17 +24,14 @@ declare(strict_types=1);
 namespace pocketmine\block;
 
 use pocketmine\entity\Entity;
-use pocketmine\item\Item;
-use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
-use pocketmine\Player;
 
 class Water extends Liquid{
 
 	protected $id = self::FLOWING_WATER;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(){
+
 	}
 
 	public function getName() : string{
@@ -46,11 +43,11 @@ class Water extends Liquid{
 	}
 
 	public function getStillForm() : Block{
-		return BlockFactory::get(Block::STILL_WATER, $this->meta);
+		return BlockFactory::get(Block::STILL_WATER, $this->getDamage());
 	}
 
 	public function getFlowingForm() : Block{
-		return BlockFactory::get(Block::FLOWING_WATER, $this->meta);
+		return BlockFactory::get(Block::FLOWING_WATER, $this->getDamage());
 	}
 
 	public function getBucketFillSound() : int{
@@ -72,12 +69,5 @@ class Water extends Liquid{
 		}
 
 		$entity->resetFallDistance();
-	}
-
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		$ret = $this->getLevel()->setBlock($this, $this, true, false);
-		$this->getLevel()->scheduleDelayedBlockUpdate($this, $this->tickRate());
-
-		return $ret;
 	}
 }

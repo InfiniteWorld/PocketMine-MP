@@ -29,7 +29,7 @@ use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\item\Shovel;
 use pocketmine\level\generator\object\TallGrass as TallGrassObject;
-use pocketmine\math\Vector3;
+use pocketmine\math\Facing;
 use pocketmine\Player;
 use pocketmine\utils\Random;
 
@@ -37,8 +37,8 @@ class Grass extends Solid{
 
 	protected $id = self::GRASS;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(){
+
 	}
 
 	public function getName() : string{
@@ -69,7 +69,7 @@ class Grass extends Solid{
 			//grass dies
 			$this->level->getServer()->getPluginManager()->callEvent($ev = new BlockSpreadEvent($this, $this, BlockFactory::get(Block::DIRT)));
 			if(!$ev->isCancelled()){
-				$this->level->setBlock($this, $ev->getNewState(), false, false);
+				$this->level->setBlock($this, $ev->getNewState(), false);
 			}
 		}elseif($lightAbove >= 9){
 			//try grass spread
@@ -88,7 +88,7 @@ class Grass extends Solid{
 
 				$this->level->getServer()->getPluginManager()->callEvent($ev = new BlockSpreadEvent($b = $this->level->getBlockAt($x, $y, $z), $this, BlockFactory::get(Block::GRASS)));
 				if(!$ev->isCancelled()){
-					$this->level->setBlock($b, $ev->getNewState(), false, false);
+					$this->level->setBlock($b, $ev->getNewState(), false);
 				}
 			}
 		}
@@ -105,7 +105,7 @@ class Grass extends Solid{
 			$this->getLevel()->setBlock($this, BlockFactory::get(Block::FARMLAND));
 
 			return true;
-		}elseif($item instanceof Shovel and $this->getSide(Vector3::SIDE_UP)->getId() === Block::AIR){
+		}elseif($item instanceof Shovel and $this->getSide(Facing::UP)->getId() === Block::AIR){
 			$item->applyDamage(1);
 			$this->getLevel()->setBlock($this, BlockFactory::get(Block::GRASS_PATH));
 

@@ -26,10 +26,27 @@ namespace pocketmine\block;
 
 use pocketmine\item\Item;
 use pocketmine\item\TieredTool;
+use pocketmine\math\Bearing;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 
 class GlazedTerracotta extends Solid{
+
+	/** @var int */
+	protected $facing = Facing::NORTH;
+
+	protected function writeStateToMeta() : int{
+		return $this->facing;
+	}
+
+	public function readStateFromMeta(int $meta) : void{
+		$this->facing = $meta;
+	}
+
+	public function getStateBitmask() : int{
+		return 0b111;
+	}
 
 	public function getHardness() : float{
 		return 1.4;
@@ -45,19 +62,9 @@ class GlazedTerracotta extends Solid{
 
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
 		if($player !== null){
-			$faces = [
-				0 => 4,
-				1 => 3,
-				2 => 5,
-				3 => 2
-			];
-			$this->meta = $faces[(~($player->getDirection() - 1)) & 0x03];
+			$this->facing = Bearing::toFacing(Bearing::opposite($player->getDirection()));
 		}
 
-		return $this->getLevel()->setBlock($blockReplace, $this, true, true);
-	}
-
-	public function getVariantBitmask() : int{
-		return 0;
+		return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 	}
 }

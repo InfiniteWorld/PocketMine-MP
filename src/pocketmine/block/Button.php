@@ -24,28 +24,60 @@ declare(strict_types=1);
 namespace pocketmine\block;
 
 use pocketmine\item\Item;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\Player;
 
 abstract class Button extends Flowable{
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	/** @var int */
+	protected $facing = Facing::DOWN;
+	/** @var bool */
+	protected $powered = false;
+
+	public function __construct(){
+
 	}
 
-	public function getVariantBitmask() : int{
-		return 0;
+	protected function writeStateToMeta() : int{
+		return $this->facing | ($this->powered ? 0x08 : 0);
+	}
+
+	public function readStateFromMeta(int $meta) : void{
+		//TODO: in PC it's (6 - facing) for every meta except 0 (down)
+		$this->facing = $meta & 0x07;
+		$this->powered = ($meta & 0x08) !== 0;
+	}
+
+	public function getStateBitmask() : int{
+		return 0b1111;
 	}
 
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
 		//TODO: check valid target block
-		$this->meta = $face;
-
-		return $this->level->setBlock($this, $this, true, true);
+		$this->facing = $face;
+		return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 	}
 
+	abstract protected function getActivationTime() : int;
+
 	public function onActivate(Item $item, Player $player = null) : bool{
-		//TODO
+		if(!$this->powered){
+			$this->powered = true;
+			$this->level->setBlock($this, $this);
+			$this->level->scheduleDelayedBlockUpdate($this, $this->getActivationTime());
+			$this->level->broadcastLevelSoundEvent($this->add(0.5, 0.5, 0.5), LevelSoundEventPacket::SOUND_POWER_ON);
+		}
+
 		return true;
+	}
+
+	public function onScheduledUpdate() : void{
+		if($this->powered){
+			$this->powered = false;
+			$this->level->setBlock($this, $this);
+			$this->level->broadcastLevelSoundEvent($this->add(0.5, 0.5, 0.5), LevelSoundEventPacket::SOUND_POWER_OFF);
+		}
 	}
 }

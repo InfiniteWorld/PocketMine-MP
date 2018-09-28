@@ -26,6 +26,7 @@ namespace pocketmine\block;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\item\TieredTool;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 
@@ -33,8 +34,23 @@ class SnowLayer extends Flowable{
 
 	protected $id = self::SNOW_LAYER;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	/** @var int */
+	protected $layers = 1;
+
+	public function __construct(){
+
+	}
+
+	protected function writeStateToMeta() : int{
+		return $this->layers - 1;
+	}
+
+	public function readStateFromMeta(int $meta) : void{
+		$this->layers = $meta + 1;
+	}
+
+	public function getStateBitmask() : int{
+		return 0b111;
 	}
 
 	public function getName() : string{
@@ -58,19 +74,17 @@ class SnowLayer extends Flowable{
 	}
 
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		if($blockReplace->getSide(Vector3::SIDE_DOWN)->isSolid()){
+		if($blockReplace->getSide(Facing::DOWN)->isSolid()){
 			//TODO: fix placement
-			$this->getLevel()->setBlock($blockReplace, $this, true);
-
-			return true;
+			return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 		}
 
 		return false;
 	}
 
 	public function onNearbyBlockChange() : void{
-		if(!$this->getSide(Vector3::SIDE_DOWN)->isSolid()){
-			$this->getLevel()->setBlock($this, BlockFactory::get(Block::AIR), false, false);
+		if(!$this->getSide(Facing::DOWN)->isSolid()){
+			$this->getLevel()->setBlock($this, BlockFactory::get(Block::AIR), false);
 		}
 	}
 
@@ -80,7 +94,7 @@ class SnowLayer extends Flowable{
 
 	public function onRandomTick() : void{
 		if($this->level->getBlockLightAt($this->x, $this->y, $this->z) >= 12){
-			$this->getLevel()->setBlock($this, BlockFactory::get(Block::AIR), false, false);
+			$this->getLevel()->setBlock($this, BlockFactory::get(Block::AIR), false);
 		}
 	}
 

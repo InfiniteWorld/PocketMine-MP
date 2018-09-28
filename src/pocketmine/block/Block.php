@@ -32,6 +32,7 @@ use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\level\Position;
 use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
 use pocketmine\math\RayTraceResult;
 use pocketmine\math\Vector3;
 use pocketmine\metadata\Metadatable;
@@ -59,7 +60,7 @@ class Block extends Position implements BlockIds, Metadatable{
 	/** @var int */
 	protected $id;
 	/** @var int */
-	protected $meta = 0;
+	protected $variant = 0;
 	/** @var string|null */
 	protected $fallbackName;
 	/** @var int|null */
@@ -73,14 +74,18 @@ class Block extends Position implements BlockIds, Metadatable{
 	protected $collisionBoxes = null;
 
 	/**
-	 * @param int         $id     The block type's ID, 0-255
-	 * @param int         $meta   Meta value of the block type
-	 * @param string|null $name   English name of the block type (TODO: implement translations)
-	 * @param int         $itemId The item ID of the block type, used for block picking and dropping items.
+	 * @param int         $id      The block type's ID, 0-255
+	 * @param int         $variant Meta value of the block type
+	 * @param string|null $name    English name of the block type (TODO: implement translations)
+	 * @param int         $itemId  The item ID of the block type, used for block picking and dropping items.
 	 */
-	public function __construct(int $id, int $meta = 0, string $name = null, int $itemId = null){
+	public function __construct(int $id, int $variant = 0, string $name = null, int $itemId = null){
 		$this->id = $id;
-		$this->meta = $meta;
+
+		if(($variant & $this->getStateBitmask()) !== 0){
+			throw new \InvalidArgumentException("Variant 0x" . dechex($variant) . " collides with state bitmask 0x" . dechex($this->getStateBitmask()));
+		}
+		$this->variant = $variant;
 		$this->fallbackName = $name;
 		$this->itemId = $itemId;
 	}
@@ -95,7 +100,7 @@ class Block extends Position implements BlockIds, Metadatable{
 	/**
 	 * @return int
 	 */
-	final public function getId() : int{
+	public function getId() : int{
 		return $this->id;
 	}
 
@@ -106,37 +111,51 @@ class Block extends Position implements BlockIds, Metadatable{
 	 * @return int
 	 */
 	public function getItemId() : int{
-		return $this->itemId ?? $this->getId();
-	}
-
-	/**
-	 * @return int
-	 */
-	final public function getDamage() : int{
-		return $this->meta;
-	}
-
-	/**
-	 * @param int $meta
-	 */
-	final public function setDamage(int $meta) : void{
-		if($meta < 0 or $meta > 0xf){
-			throw new \InvalidArgumentException("Block damage values must be 0-15, not $meta");
+		if($this->itemId !== null){
+			return $this->itemId;
 		}
-		$this->meta = $meta;
+		if($this->id > 255){
+			return 255 - $this->id;
+		}
+		return $this->id;
+	}
+
+	public function getItem() : Item{
+		return ItemFactory::get($this->getItemId(), $this->getVariant());
 	}
 
 	/**
-	 * Bitmask to use to remove superfluous information from block meta when getting its item form or name.
-	 * This defaults to -1 (don't remove any data). Used to remove rotation data and bitflags from block drops.
-	 *
-	 * If your block should not have any meta value when it's dropped as an item, override this to return 0 in
-	 * descendent classes.
+	 * @internal
+	 * @return int
+	 */
+	public function getRuntimeId() : int{
+		return BlockFactory::toStaticRuntimeId($this->getId(), $this->getDamage());
+	}
+
+	/**
+	 * @return int
+	 */
+	public function getDamage() : int{
+		$stateMeta = $this->writeStateToMeta();
+		assert(($stateMeta & ~$this->getStateBitmask()) === 0);
+		return $this->variant | $stateMeta;
+	}
+
+	protected function writeStateToMeta() : int{
+		return 0;
+	}
+
+	public function readStateFromMeta(int $meta) : void{
+		//NOOP
+	}
+
+	/**
+	 * Returns a bitmask used to extract state bits from block metadata.
 	 *
 	 * @return int
 	 */
-	public function getVariantBitmask() : int{
-		return -1;
+	public function getStateBitmask() : int{
+		return 0;
 	}
 
 	/**
@@ -144,9 +163,19 @@ class Block extends Position implements BlockIds, Metadatable{
 	 * @return int
 	 */
 	public function getVariant() : int{
-		return $this->meta & $this->getVariantBitmask();
+		return $this->variant;
 	}
 
+	/**
+	 * Returns whether the given block has an equivalent type to this one.
+	 *
+	 * @param Block $other
+	 *
+	 * @return bool
+	 */
+	public function isSameType(Block $other) : bool{
+		return $this->getId() === $other->getId() and $this->getVariant() === $other->getVariant();
+	}
 
 	/**
 	 * AKA: Block->isPlaceable
@@ -180,7 +209,7 @@ class Block extends Position implements BlockIds, Metadatable{
 	 * @return bool
 	 */
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		return $this->getLevel()->setBlock($this, $this, true, true);
+		return $this->getLevel()->setBlock($blockReplace, $this);
 	}
 
 	/**
@@ -248,7 +277,7 @@ class Block extends Position implements BlockIds, Metadatable{
 	 * @return bool
 	 */
 	public function onBreak(Item $item, Player $player = null) : bool{
-		return $this->getLevel()->setBlock($this, BlockFactory::get(Block::AIR), true, true);
+		return $this->getLevel()->setBlock($this, BlockFactory::get(Block::AIR));
 	}
 
 
@@ -396,10 +425,6 @@ class Block extends Position implements BlockIds, Metadatable{
 		return false;
 	}
 
-	public function canPassThrough() : bool{
-		return false;
-	}
-
 	/**
 	 * Returns whether entities can climb up this block.
 	 * @return bool
@@ -453,9 +478,7 @@ class Block extends Position implements BlockIds, Metadatable{
 	 * @return Item[]
 	 */
 	public function getDropsForCompatibleTool(Item $item) : array{
-		return [
-			ItemFactory::get($this->getItemId(), $this->getVariant())
-		];
+		return [$this->getItem()];
 	}
 
 	/**
@@ -466,9 +489,7 @@ class Block extends Position implements BlockIds, Metadatable{
 	 * @return Item[]
 	 */
 	public function getSilkTouchDrops(Item $item) : array{
-		return [
-			ItemFactory::get($this->getItemId(), $this->getVariant())
-		];
+		return [$this->getItem()];
 	}
 
 	/**
@@ -510,7 +531,7 @@ class Block extends Position implements BlockIds, Metadatable{
 	 * @return Item
 	 */
 	public function getPickedItem() : Item{
-		return ItemFactory::get($this->getItemId(), $this->getVariant());
+		return $this->getItem();
 	}
 
 	/**
@@ -588,10 +609,10 @@ class Block extends Position implements BlockIds, Metadatable{
 	 */
 	public function getHorizontalSides() : array{
 		return [
-			$this->getSide(Vector3::SIDE_NORTH),
-			$this->getSide(Vector3::SIDE_SOUTH),
-			$this->getSide(Vector3::SIDE_WEST),
-			$this->getSide(Vector3::SIDE_EAST)
+			$this->getSide(Facing::NORTH),
+			$this->getSide(Facing::SOUTH),
+			$this->getSide(Facing::WEST),
+			$this->getSide(Facing::EAST)
 		];
 	}
 
@@ -603,8 +624,8 @@ class Block extends Position implements BlockIds, Metadatable{
 	public function getAllSides() : array{
 		return array_merge(
 			[
-				$this->getSide(Vector3::SIDE_DOWN),
-				$this->getSide(Vector3::SIDE_UP)
+				$this->getSide(Facing::DOWN),
+				$this->getSide(Facing::UP)
 			],
 			$this->getHorizontalSides()
 		);

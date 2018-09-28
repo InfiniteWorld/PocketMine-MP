@@ -26,6 +26,7 @@ namespace pocketmine\block;
 use pocketmine\inventory\EnchantInventory;
 use pocketmine\item\Item;
 use pocketmine\item\TieredTool;
+use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 use pocketmine\tile\EnchantTable as TileEnchantTable;
@@ -35,16 +36,17 @@ class EnchantingTable extends Transparent{
 
 	protected $id = self::ENCHANTING_TABLE;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(){
+
 	}
 
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		$this->getLevel()->setBlock($blockReplace, $this, true, true);
+		if(parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player)){
+			Tile::createTile(Tile::ENCHANT_TABLE, $this->getLevel(), TileEnchantTable::createNBT($this, $face, $item, $player));
+			return true;
+		}
 
-		Tile::createTile(Tile::ENCHANT_TABLE, $this->getLevel(), TileEnchantTable::createNBT($this, $face, $item, $player));
-
-		return true;
+		return false;
 	}
 
 	public function getHardness() : float{
@@ -65,6 +67,10 @@ class EnchantingTable extends Transparent{
 
 	public function getToolHarvestLevel() : int{
 		return TieredTool::TIER_WOODEN;
+	}
+
+	protected function recalculateBoundingBox() : ?AxisAlignedBB{
+		return new AxisAlignedBB(0, 0, 0, 1, 0.75, 1);
 	}
 
 	public function onActivate(Item $item, Player $player = null) : bool{

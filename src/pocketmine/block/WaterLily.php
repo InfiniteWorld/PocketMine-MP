@@ -25,6 +25,7 @@ namespace pocketmine\block;
 
 use pocketmine\item\Item;
 use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 
@@ -32,8 +33,8 @@ class WaterLily extends Flowable{
 
 	protected $id = self::WATER_LILY;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(){
+
 	}
 
 	public function getName() : string{
@@ -51,10 +52,9 @@ class WaterLily extends Flowable{
 
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
 		if($blockClicked instanceof Water){
-			$up = $blockClicked->getSide(Vector3::SIDE_UP);
-			if($up->getId() === Block::AIR){
-				$this->getLevel()->setBlock($up, $this, true, true);
-				return true;
+			$up = $blockClicked->getSide(Facing::UP);
+			if($up->canBeReplaced()){
+				return parent::place($item, $up, $blockClicked, $face, $clickVector, $player);
 			}
 		}
 
@@ -62,12 +62,8 @@ class WaterLily extends Flowable{
 	}
 
 	public function onNearbyBlockChange() : void{
-		if(!($this->getSide(Vector3::SIDE_DOWN) instanceof Water)){
+		if(!($this->getSide(Facing::DOWN) instanceof Water)){
 			$this->getLevel()->useBreakOn($this);
 		}
-	}
-
-	public function getVariantBitmask() : int{
-		return 0;
 	}
 }

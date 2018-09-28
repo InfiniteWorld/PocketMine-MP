@@ -25,66 +25,94 @@ namespace pocketmine\block;
 
 use pocketmine\item\Item;
 use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Bearing;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 
 abstract class Stair extends Transparent{
+	/** @var int */
+	protected $facing = Facing::NORTH;
+	/** @var bool */
+	protected $upsideDown = false;
+
+	protected function writeStateToMeta() : int{
+		return (5 - $this->facing) | ($this->upsideDown ? 0x04 : 0);
+	}
+
+	public function readStateFromMeta(int $meta) : void{
+		$this->facing = 5 - ($meta & 0x03);
+		$this->upsideDown = ($meta & 0x04) !== 0;
+	}
+
+	public function getStateBitmask() : int{
+		return 0b111;
+	}
 
 	protected function recalculateCollisionBoxes() : array{
-		//TODO: handle corners
-
-		$minYSlab = ($this->meta & 0x04) === 0 ? 0 : 0.5;
-		$maxYSlab = $minYSlab + 0.5;
+		$minYSlab = $this->upsideDown ? 0.5 : 0;
 
 		$bbs = [
-			new AxisAlignedBB(0, $minYSlab, 0, 1, $maxYSlab, 1)
+			new AxisAlignedBB(0, $minYSlab, 0, 1, $minYSlab + 0.5, 1)
 		];
 
-		$minY = ($this->meta & 0x04) === 0 ? 0.5 : 0;
-		$maxY = $minY + 0.5;
+		$minY = $this->upsideDown ? 0 : 0.5;
 
-		$rotationMeta = $this->meta & 0x03;
+		$topStep = new AxisAlignedBB(0, $minY, 0, 1, $minY + 0.5, 1);
+		self::setBoundsForFacing($topStep, $this->facing);
 
-		$minX = $minZ = 0;
-		$maxX = $maxZ = 1;
-
-		switch($rotationMeta){
-			case 0:
-				$minX = 0.5;
-				break;
-			case 1:
-				$maxX = 0.5;
-				break;
-			case 2:
-				$minZ = 0.5;
-				break;
-			case 3:
-				$maxZ = 0.5;
-				break;
+		/** @var Stair $corner */
+		if(($backFacing = $this->getPossibleCornerFacing(false)) !== null){
+			self::setBoundsForFacing($topStep, $backFacing);
+		}elseif(($frontFacing = $this->getPossibleCornerFacing(true)) !== null){
+			//add an extra cube
+			$extraCube = new AxisAlignedBB(0, $minY, 0, 1, $minY + 0.5, 1);
+			self::setBoundsForFacing($extraCube, Facing::opposite($this->facing));
+			self::setBoundsForFacing($extraCube, $frontFacing);
+			$bbs[] = $extraCube;
 		}
 
-		$bbs[] = new AxisAlignedBB($minX, $minY, $minZ, $maxX, $maxY, $maxZ);
+		$bbs[] = $topStep;
 
 		return $bbs;
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		$faces = [
-			0 => 0,
-			1 => 2,
-			2 => 1,
-			3 => 3
-		];
-		$this->meta = $faces[$player->getDirection()] & 0x03;
-		if(($clickVector->y > 0.5 and $face !== Vector3::SIDE_UP) or $face === Vector3::SIDE_DOWN){
-			$this->meta |= 0x04; //Upside-down stairs
+	private function getPossibleCornerFacing(bool $oppositeFacing) : ?int{
+		$side = $this->getSide($oppositeFacing ? Facing::opposite($this->facing) : $this->facing);
+		if($side instanceof Stair and $side->upsideDown === $this->upsideDown and (
+			$side->facing === Facing::rotate($this->facing, Facing::AXIS_Y, true) or
+			$side->facing === Facing::rotate($this->facing, Facing::AXIS_Y, false))
+		){
+			return $side->facing;
 		}
-		$this->getLevel()->setBlock($blockReplace, $this, true, true);
-
-		return true;
+		return null;
 	}
 
-	public function getVariantBitmask() : int{
-		return 0;
+	private static function setBoundsForFacing(AxisAlignedBB $bb, int $facing) : void{
+		switch($facing){
+			case Facing::EAST:
+				$bb->minX = 0.5;
+				break;
+			case Facing::WEST:
+				$bb->maxX = 0.5;
+				break;
+			case Facing::SOUTH:
+				$bb->minZ = 0.5;
+				break;
+			case Facing::NORTH:
+				$bb->maxZ = 0.5;
+				break;
+			default:
+				throw new \InvalidArgumentException("Facing must be horizontal");
+		}
+	}
+
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+		if($player !== null){
+			$this->facing = Bearing::toFacing($player->getDirection());
+		}
+		$this->upsideDown = (($clickVector->y > 0.5 and $face !== Facing::UP) or $face === Facing::DOWN);
+
+		return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 	}
 }

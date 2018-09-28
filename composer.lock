@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "8b8c273a641abc3f3dff667fb522fb5e",
+    "content-hash": "5f6377b90eaf07e1254b112293f12334",
     "packages": [
         {
             "name": "fgrosse/phpasn1",
@@ -81,12 +81,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/BinaryUtils_MoreSupport.git",
-                "reference": "f452e43b4b245274870f0e2c8f4548a2e236f04a"
+                "reference": "5f53cd84d817cc49351cf9bb5ec4e6e9667f0c21"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/BinaryUtils_MoreSupport/zipball/f452e43b4b245274870f0e2c8f4548a2e236f04a",
-                "reference": "f452e43b4b245274870f0e2c8f4548a2e236f04a",
+                "url": "https://api.github.com/repos/InfiniteWorld/BinaryUtils_MoreSupport/zipball/5f53cd84d817cc49351cf9bb5ec4e6e9667f0c21",
+                "reference": "5f53cd84d817cc49351cf9bb5ec4e6e9667f0c21",
                 "shasum": ""
             },
             "require": {
@@ -105,7 +105,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/BinaryUtils_MoreSupport/tree/master_32-bit"
             },
-            "time": "2018-08-03T13:04:51+00:00"
+            "time": "2018-09-02T05:24:52+00:00"
         },
         {
             "name": "infiniteworld/math",
@@ -113,12 +113,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/Math_MoreSupport.git",
-                "reference": "32b72b7a54a50f905ad370073b0372db3d5bffe6"
+                "reference": "662098535b3ef45fcd2df60bdd94d7752bd5d4a0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/Math_MoreSupport/zipball/32b72b7a54a50f905ad370073b0372db3d5bffe6",
-                "reference": "32b72b7a54a50f905ad370073b0372db3d5bffe6",
+                "url": "https://api.github.com/repos/InfiniteWorld/Math_MoreSupport/zipball/662098535b3ef45fcd2df60bdd94d7752bd5d4a0",
+                "reference": "662098535b3ef45fcd2df60bdd94d7752bd5d4a0",
                 "shasum": ""
             },
             "require": {
@@ -130,6 +130,11 @@
                     "pocketmine\\math\\": "src/"
                 }
             },
+            "autoload-dev": {
+                "psr-4": {
+                    "pocketmine\\math\\": "tests/phpunit/"
+                }
+            },
             "license": [
                 "LGPL-3.0"
             ],
@@ -137,7 +142,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/Math_MoreSupport/tree/master_32-bit"
             },
-            "time": "2018-08-03T13:05:42+00:00"
+            "time": "2018-09-28T09:25:47+00:00"
         },
         {
             "name": "infiniteworld/nbt",
@@ -145,12 +150,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/NBT_MoreSupport.git",
-                "reference": "5a2d395b7c152a01e3e63da32ade323cb370dd6b"
+                "reference": "7b6ad4dd28c6d4a245698515db7143269acf59ba"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/NBT_MoreSupport/zipball/5a2d395b7c152a01e3e63da32ade323cb370dd6b",
-                "reference": "5a2d395b7c152a01e3e63da32ade323cb370dd6b",
+                "url": "https://api.github.com/repos/InfiniteWorld/NBT_MoreSupport/zipball/7b6ad4dd28c6d4a245698515db7143269acf59ba",
+                "reference": "7b6ad4dd28c6d4a245698515db7143269acf59ba",
                 "shasum": ""
             },
             "require": {
@@ -175,7 +180,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/NBT_MoreSupport/tree/master_32-bit"
             },
-            "time": "2018-08-03T13:07:32+00:00"
+            "time": "2018-09-28T09:26:39+00:00"
         },
         {
             "name": "infiniteworld/raklib",
@@ -183,12 +188,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/RakLib_MoreSupport.git",
-                "reference": "21aadee4a8c8497b944309e76af1fa1889ac0075"
+                "reference": "b25233943820e37ee7a77dfc5cf735a3591ba1c9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/RakLib_MoreSupport/zipball/21aadee4a8c8497b944309e76af1fa1889ac0075",
-                "reference": "21aadee4a8c8497b944309e76af1fa1889ac0075",
+                "url": "https://api.github.com/repos/InfiniteWorld/RakLib_MoreSupport/zipball/b25233943820e37ee7a77dfc5cf735a3591ba1c9",
+                "reference": "b25233943820e37ee7a77dfc5cf735a3591ba1c9",
                 "shasum": ""
             },
             "require": {
@@ -214,7 +219,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/RakLib_MoreSupport/tree/master_32-bit"
             },
-            "time": "2018-08-03T13:52:23+00:00"
+            "time": "2018-09-02T05:26:36+00:00"
         },
         {
             "name": "infiniteworld/snooze",
@@ -369,16 +374,10 @@
             "package": "infiniteworld/binaryutils"
         },
         {
-            "alias": "0.2.0",
-            "alias_normalized": "0.2.0.0",
+            "alias": "0.2.1",
+            "alias_normalized": "0.2.1.0",
             "version": "dev-master_32-bit",
             "package": "infiniteworld/nbt"
-        },
-        {
-            "alias": "0.2.0",
-            "alias_normalized": "0.2.0.0",
-            "version": "dev-master_32-bit",
-            "package": "infiniteworld/math"
         },
         {
             "alias": "0.1.0",

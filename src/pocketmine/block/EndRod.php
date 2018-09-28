@@ -25,6 +25,7 @@ namespace pocketmine\block;
 
 use pocketmine\item\Item;
 use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 
@@ -32,8 +33,30 @@ class EndRod extends Flowable{
 
 	protected $id = Block::END_ROD;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	/** @var int */
+	protected $facing = Facing::DOWN;
+
+	public function __construct(){
+
+	}
+
+	protected function writeStateToMeta() : int{
+		if(Facing::axis($this->facing) === Facing::AXIS_Y){
+			return $this->facing;
+		}
+		return $this->facing ^ 1; //TODO: in PC this is always the same as facing, just PE is stupid
+	}
+
+	public function readStateFromMeta(int $meta) : void{
+		if($meta === 0 or $meta === 1){
+			$this->facing = $meta;
+		}else{
+			$this->facing = $meta ^ 1; //TODO: see above
+		}
+	}
+
+	public function getStateBitmask() : int{
+		return 0b111;
 	}
 
 	public function getName() : string{
@@ -41,16 +64,12 @@ class EndRod extends Flowable{
 	}
 
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		if($face === Vector3::SIDE_UP or $face === Vector3::SIDE_DOWN){
-			$this->meta = $face;
-		}else{
-			$this->meta = $face ^ 0x01;
-		}
-		if($blockClicked instanceof EndRod and $blockClicked->getDamage() === $this->meta){
-			$this->meta ^= 0x01;
+		$this->facing = $face;
+		if($blockClicked instanceof EndRod and $blockClicked->facing === $this->facing){
+			$this->facing = Facing::opposite($face);
 		}
 
-		return $this->level->setBlock($blockReplace, $this, true, true);
+		return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 	}
 
 	public function isSolid() : bool{
@@ -62,11 +81,11 @@ class EndRod extends Flowable{
 	}
 
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
-		$m = $this->meta & ~0x01;
+		$m = Facing::axis($this->facing);
 		$width = 0.375;
 
 		switch($m){
-			case 0x00: //up/down
+			case Facing::AXIS_Y:
 				return new AxisAlignedBB(
 					$width,
 					0,
@@ -75,16 +94,7 @@ class EndRod extends Flowable{
 					1,
 					1 - $width
 				);
-			case 0x02: //north/south
-				return new AxisAlignedBB(
-					0,
-					$width,
-					$width,
-					1,
-					1 - $width,
-					1 - $width
-				);
-			case 0x04: //east/west
+			case Facing::AXIS_Z:
 				return new AxisAlignedBB(
 					$width,
 					$width,
@@ -93,12 +103,18 @@ class EndRod extends Flowable{
 					1 - $width,
 					1
 				);
+
+			case Facing::AXIS_X:
+				return new AxisAlignedBB(
+					0,
+					$width,
+					$width,
+					1,
+					1 - $width,
+					1 - $width
+				);
 		}
 
 		return null;
-	}
-
-	public function getVariantBitmask() : int{
-		return 0;
 	}
 }

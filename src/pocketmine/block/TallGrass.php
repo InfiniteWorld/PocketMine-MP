@@ -25,44 +25,28 @@ namespace pocketmine\block;
 
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 
 class TallGrass extends Flowable{
 
-	protected $id = self::TALL_GRASS;
-
-	public function __construct(int $meta = 1){
-		$this->meta = $meta;
-	}
-
 	public function canBeReplaced() : bool{
 		return true;
 	}
 
-	public function getName() : string{
-		static $names = [
-			0 => "Dead Shrub",
-			1 => "Tall Grass",
-			2 => "Fern"
-		];
-		return $names[$this->getVariant()] ?? "Unknown";
-	}
-
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		$down = $this->getSide(Vector3::SIDE_DOWN);
+		$down = $this->getSide(Facing::DOWN);
 		if($down->getId() === self::GRASS){
-			$this->getLevel()->setBlock($blockReplace, $this, true);
-
-			return true;
+			return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 		}
 
 		return false;
 	}
 
 	public function onNearbyBlockChange() : void{
-		if($this->getSide(Vector3::SIDE_DOWN)->isTransparent()){ //Replace with common break method
-			$this->getLevel()->setBlock($this, BlockFactory::get(Block::AIR), true, true);
+		if($this->getSide(Facing::DOWN)->isTransparent()){ //Replace with common break method
+			$this->getLevel()->setBlock($this, BlockFactory::get(Block::AIR));
 		}
 	}
 

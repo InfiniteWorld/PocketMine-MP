@@ -27,6 +27,7 @@ namespace pocketmine\block;
 use pocketmine\event\block\BlockGrowEvent;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 
@@ -35,8 +36,23 @@ class NetherWartPlant extends Flowable{
 
 	protected $itemId = Item::NETHER_WART;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	/** @var int */
+	protected $age = 0;
+
+	public function __construct(){
+
+	}
+
+	protected function writeStateToMeta() : int{
+		return $this->age;
+	}
+
+	public function readStateFromMeta(int $meta) : void{
+		$this->age = $meta;
+	}
+
+	public function getStateBitmask() : int{
+		return 0b11;
 	}
 
 	public function getName() : string{
@@ -44,18 +60,16 @@ class NetherWartPlant extends Flowable{
 	}
 
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		$down = $this->getSide(Vector3::SIDE_DOWN);
+		$down = $this->getSide(Facing::DOWN);
 		if($down->getId() === Block::SOUL_SAND){
-			$this->getLevel()->setBlock($blockReplace, $this, false, true);
-
-			return true;
+			return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 		}
 
 		return false;
 	}
 
 	public function onNearbyBlockChange() : void{
-		if($this->getSide(Vector3::SIDE_DOWN)->getId() !== Block::SOUL_SAND){
+		if($this->getSide(Facing::DOWN)->getId() !== Block::SOUL_SAND){
 			$this->getLevel()->useBreakOn($this);
 		}
 	}
@@ -65,20 +79,20 @@ class NetherWartPlant extends Flowable{
 	}
 
 	public function onRandomTick() : void{
-		if($this->meta < 3 and mt_rand(0, 10) === 0){ //Still growing
+		if($this->age < 3 and mt_rand(0, 10) === 0){ //Still growing
 			$block = clone $this;
-			$block->meta++;
+			$block->age++;
 			$this->getLevel()->getServer()->getPluginManager()->callEvent($ev = new BlockGrowEvent($this, $block));
 
 			if(!$ev->isCancelled()){
-				$this->getLevel()->setBlock($this, $ev->getNewState(), false, true);
+				$this->getLevel()->setBlock($this, $ev->getNewState());
 			}
 		}
 	}
 
 	public function getDropsForCompatibleTool(Item $item) : array{
 		return [
-			ItemFactory::get($this->getItemId(), 0, ($this->getDamage() === 3 ? mt_rand(2, 4) : 1))
+			ItemFactory::get($this->getItemId(), 0, ($this->age === 3 ? mt_rand(2, 4) : 1))
 		];
 	}
 

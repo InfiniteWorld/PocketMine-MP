@@ -54,6 +54,9 @@ class ItemEntity extends Entity{
 
 	public $canCollide = false;
 
+	/** @var int */
+	protected $age = 0;
+
 	protected function initEntity(CompoundTag $nbt) : void{
 		parent::initEntity($nbt);
 
@@ -71,6 +74,9 @@ class ItemEntity extends Entity{
 		}
 
 		$this->item = Item::nbtDeserialize($itemTag);
+		if($this->item->isNull()){
+			throw new \UnexpectedValueException("Item for " . get_class($this) . " is invalid");
+		}
 
 
 		$this->server->getPluginManager()->callEvent(new ItemSpawnEvent($this));
@@ -83,14 +89,13 @@ class ItemEntity extends Entity{
 
 		$hasUpdate = parent::entityBaseTick($tickDiff);
 
-		if(!$this->isFlaggedForDespawn()){
-			if($this->pickupDelay > 0 and $this->pickupDelay < 32767){ //Infinite delay
-				$this->pickupDelay -= $tickDiff;
-				if($this->pickupDelay < 0){
-					$this->pickupDelay = 0;
-				}
+		if(!$this->isFlaggedForDespawn() and $this->pickupDelay > -1 and $this->pickupDelay < 32767){ //Infinite delay
+			$this->pickupDelay -= $tickDiff;
+			if($this->pickupDelay < 0){
+				$this->pickupDelay = 0;
 			}
 
+			$this->age += $tickDiff;
 			if($this->age > 6000){
 				$this->server->getPluginManager()->callEvent($ev = new ItemDespawnEvent($this));
 				if($ev->isCancelled()){
@@ -100,7 +105,6 @@ class ItemEntity extends Entity{
 					$hasUpdate = true;
 				}
 			}
-
 		}
 
 		return $hasUpdate;

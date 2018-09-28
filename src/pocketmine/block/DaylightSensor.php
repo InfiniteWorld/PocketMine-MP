@@ -23,12 +23,46 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\item\Item;
+use pocketmine\math\AxisAlignedBB;
+use pocketmine\Player;
+
 class DaylightSensor extends Transparent{
 
-	protected $id = self::DAYLIGHT_SENSOR;
+	protected $itemId = self::DAYLIGHT_SENSOR;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	/** @var int */
+	protected $power = 0;
+
+	/** @var bool */
+	protected $inverted = false;
+
+	public function __construct(){
+
+	}
+
+	public function getId() : int{
+		return $this->inverted ? self::DAYLIGHT_SENSOR_INVERTED : self::DAYLIGHT_SENSOR;
+	}
+
+	protected function writeStateToMeta() : int{
+		return $this->power;
+	}
+
+	public function readStateFromMeta(int $meta) : void{
+		$this->power = $meta;
+	}
+
+	public function getStateBitmask() : int{
+		return 0b1111;
+	}
+
+	public function isInverted() : bool{
+		return $this->inverted;
+	}
+
+	public function setInverted(bool $inverted = true) : void{
+		$this->inverted = $inverted;
 	}
 
 	public function getName() : string{
@@ -45,6 +79,16 @@ class DaylightSensor extends Transparent{
 
 	public function getToolType() : int{
 		return BlockToolType::TYPE_AXE;
+	}
+
+	protected function recalculateBoundingBox() : ?AxisAlignedBB{
+		return new AxisAlignedBB(0, 0, 0, 1, 0.5, 1);
+	}
+
+	public function onActivate(Item $item, Player $player = null) : bool{
+		$this->inverted = !$this->inverted;
+		$this->level->setBlock($this, $this);
+		return true;
 	}
 
 	//TODO

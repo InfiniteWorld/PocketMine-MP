@@ -25,27 +25,52 @@ namespace pocketmine\block;
 
 use pocketmine\item\Item;
 use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 
 abstract class Slab extends Transparent{
+	/** @var int */
+	protected $doubleId;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	/** @var bool */
+	protected $top = false;
+
+	public function __construct(int $id, int $doubleId, int $variant = 0, ?string $name = null){
+		parent::__construct($id, $variant, $name . " Slab");
+		$this->doubleId = $doubleId;
 	}
 
-	abstract public function getDoubleSlabId() : int;
+	protected function writeStateToMeta() : int{
+		return ($this->top ? 0x08 : 0);
+	}
+
+	public function readStateFromMeta(int $meta) : void{
+		$this->top = ($meta & 0x08) !== 0;
+	}
+
+	public function getStateBitmask() : int{
+		return 0b1000;
+	}
+
+	public function getDoubleSlabId() : int{
+		return $this->doubleId;
+	}
+
+	protected function getDouble() : Block{
+		return BlockFactory::get($this->doubleId, $this->variant);
+	}
 
 	public function canBePlacedAt(Block $blockReplace, Vector3 $clickVector, int $face, bool $isClickedBlock) : bool{
 		if(parent::canBePlacedAt($blockReplace, $clickVector, $face, $isClickedBlock)){
 			return true;
 		}
 
-		if($blockReplace->getId() === $this->getId() and $blockReplace->getVariant() === $this->getVariant()){
-			if(($blockReplace->getDamage() & 0x08) !== 0){ //Trying to combine with top slab
-				return $clickVector->y <= 0.5 or (!$isClickedBlock and $face === Vector3::SIDE_UP);
+		if($blockReplace instanceof Slab and $blockReplace->isSameType($this)){
+			if($blockReplace->top){ //Trying to combine with top slab
+				return $clickVector->y <= 0.5 or (!$isClickedBlock and $face === Facing::UP);
 			}else{
-				return $clickVector->y >= 0.5 or (!$isClickedBlock and $face === Vector3::SIDE_DOWN);
+				return $clickVector->y >= 0.5 or (!$isClickedBlock and $face === Facing::DOWN);
 			}
 		}
 
@@ -53,60 +78,30 @@ abstract class Slab extends Transparent{
 	}
 
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		$this->meta &= 0x07;
-		if($face === Vector3::SIDE_DOWN){
-			if($blockClicked->getId() === $this->id and ($blockClicked->getDamage() & 0x08) === 0x08 and $blockClicked->getVariant() === $this->getVariant()){
-				$this->getLevel()->setBlock($blockClicked, BlockFactory::get($this->getDoubleSlabId(), $this->getVariant()), true);
+		/* note these conditions can't be merged, since one targets clicked and the other replace */
 
-				return true;
-			}elseif($blockReplace->getId() === $this->id and $blockReplace->getVariant() === $this->getVariant()){
-				$this->getLevel()->setBlock($blockReplace, BlockFactory::get($this->getDoubleSlabId(), $this->getVariant()), true);
-
-				return true;
-			}else{
-				$this->meta |= 0x08;
-			}
-		}elseif($face === Vector3::SIDE_UP){
-			if($blockClicked->getId() === $this->id and ($blockClicked->getDamage() & 0x08) === 0 and $blockClicked->getVariant() === $this->getVariant()){
-				$this->getLevel()->setBlock($blockClicked, BlockFactory::get($this->getDoubleSlabId(), $this->getVariant()), true);
-
-				return true;
-			}elseif($blockReplace->getId() === $this->id and $blockReplace->getVariant() === $this->getVariant()){
-				$this->getLevel()->setBlock($blockReplace, BlockFactory::get($this->getDoubleSlabId(), $this->getVariant()), true);
-
-				return true;
-			}
-		}else{ //TODO: collision
-			if($blockReplace->getId() === $this->id){
-				if($blockReplace->getVariant() === $this->meta){
-					$this->getLevel()->setBlock($blockReplace, BlockFactory::get($this->getDoubleSlabId(), $this->getVariant()), true);
-
-					return true;
-				}
-
-				return false;
-			}else{
-				if($clickVector->y > 0.5){
-					$this->meta |= 0x08;
-				}
-			}
+		if($blockClicked instanceof Slab and $blockClicked->isSameType($this) and (
+			($face === Facing::DOWN and $blockClicked->top) or //Bottom face of top slab
+			($face === Facing::UP and !$blockClicked->top) //Top face of bottom slab
+		)){
+			return $this->level->setBlock($blockClicked, $this->getDouble());
 		}
 
-		if($blockReplace->getId() === $this->id and $blockClicked->getVariant() !== $this->getVariant()){
-			return false;
+		if($blockReplace instanceof Slab and $blockReplace->isSameType($this) and (
+			($blockReplace->top and $clickVector->y <= 0.5) or
+			(!$blockReplace->top and $clickVector->y >= 0.5)
+		)){
+			//Clicked in empty half of existing slab
+			return $this->level->setBlock($blockReplace, $this->getDouble());
 		}
-		$this->getLevel()->setBlock($blockReplace, $this, true, true);
 
-		return true;
-	}
+		$this->top = ($face !== Facing::UP && $clickVector->y > 0.5) || $face === Facing::DOWN;
 
-	public function getVariantBitmask() : int{
-		return 0x07;
+		return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 	}
 
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
-
-		if(($this->meta & 0x08) > 0){
+		if($this->top){
 			return new AxisAlignedBB(0, 0.5, 0, 1, 1, 1);
 		}else{
 			return new AxisAlignedBB(0, 0, 0, 1, 0.5, 1);

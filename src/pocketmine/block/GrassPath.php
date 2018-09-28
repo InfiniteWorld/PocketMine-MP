@@ -26,14 +26,14 @@ namespace pocketmine\block;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Vector3;
+use pocketmine\math\Facing;
 
 class GrassPath extends Transparent{
 
 	protected $id = self::GRASS_PATH;
 
-	public function __construct(int $meta = 0){
-		$this->meta = $meta;
+	public function __construct(){
+
 	}
 
 	public function getName() : string{
@@ -53,8 +53,8 @@ class GrassPath extends Transparent{
 	}
 
 	public function onNearbyBlockChange() : void{
-		if($this->getSide(Vector3::SIDE_UP)->isSolid()){
-			$this->level->setBlock($this, BlockFactory::get(Block::DIRT), true);
+		if($this->getSide(Facing::UP)->isSolid()){
+			$this->level->setBlock($this, BlockFactory::get(Block::DIRT));
 		}
 	}
 

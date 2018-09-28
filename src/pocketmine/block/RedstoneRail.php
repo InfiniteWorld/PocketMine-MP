@@ -23,36 +23,26 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-use pocketmine\item\Item;
-use pocketmine\Player;
+class RedstoneRail extends BaseRail{
+	protected const FLAG_POWERED = 0x08;
 
-class GlowingRedstoneOre extends RedstoneOre{
+	/** @var bool */
+	protected $powered = false;
 
-	protected $id = self::GLOWING_REDSTONE_ORE;
-
-	protected $itemId = self::REDSTONE_ORE;
-
-	public function getName() : string{
-		return "Glowing Redstone Ore";
+	protected function writeStateToMeta() : int{
+		return parent::writeStateToMeta() | ($this->powered ? self::FLAG_POWERED : 0);
 	}
 
-	public function getLightLevel() : int{
-		return 9;
+	public function readStateFromMeta(int $meta) : void{
+		parent::readStateFromMeta($meta);
+		$this->powered = ($meta & self::FLAG_POWERED) !== 0;
 	}
 
-	public function onActivate(Item $item, Player $player = null) : bool{
-		return false;
+	public function getStateBitmask() : int{
+		return 0b1111;
 	}
 
-	public function onNearbyBlockChange() : void{
-
-	}
-
-	public function ticksRandomly() : bool{
-		return true;
-	}
-
-	public function onRandomTick() : void{
-		$this->getLevel()->setBlock($this, BlockFactory::get(Block::REDSTONE_ORE, $this->meta), false, false);
+	protected function getConnectionsFromMeta(int $meta) : array{
+		return self::CONNECTIONS[$meta & ~self::FLAG_POWERED] ?? [];
 	}
 }

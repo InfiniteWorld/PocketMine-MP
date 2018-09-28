@@ -71,7 +71,7 @@ class FallingBlock extends Entity{
 
 		$this->block = BlockFactory::get($blockId, $damage);
 
-		$this->propertyManager->setInt(self::DATA_VARIANT, BlockFactory::toStaticRuntimeId($this->block->getId(), $this->block->getDamage()));
+		$this->propertyManager->setInt(self::DATA_VARIANT, $this->block->getRuntimeId());
 	}
 
 	public function canCollideWith(Entity $entity) : bool{
@@ -115,7 +115,7 @@ class FallingBlock extends Entity{
 				}else{
 					$this->server->getPluginManager()->callEvent($ev = new EntityBlockChangeEvent($this, $block, $blockTarget ?? $this->block));
 					if(!$ev->isCancelled()){
-						$this->getLevel()->setBlock($pos, $ev->getTo(), true);
+						$this->getLevel()->setBlock($pos, $ev->getTo());
 					}
 				}
 				$hasUpdate = true;

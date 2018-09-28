@@ -27,7 +27,6 @@ declare(strict_types=1);
 namespace pocketmine\entity;
 
 use pocketmine\block\Block;
-use pocketmine\block\BlockFactory;
 use pocketmine\block\Water;
 use pocketmine\entity\object\ExperienceOrb;
 use pocketmine\entity\object\FallingBlock;
@@ -53,6 +52,8 @@ use pocketmine\level\Level;
 use pocketmine\level\Location;
 use pocketmine\level\Position;
 use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Bearing;
+use pocketmine\math\Facing;
 use pocketmine\math\Vector2;
 use pocketmine\math\Vector3;
 use pocketmine\metadata\Metadatable;
@@ -393,8 +394,6 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	public $boundingBox;
 	/** @var bool */
 	public $onGround;
-	/** @var int */
-	protected $age = 0;
 
 	/** @var float */
 	public $eyeHeight = null;
@@ -1021,7 +1020,6 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 			}
 		}
 
-		$this->age += $tickDiff;
 		$this->ticksLived += $tickDiff;
 
 		return $hasUpdate;
@@ -1195,79 +1193,79 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 		$diffY = $y - $floorY;
 		$diffZ = $z - $floorZ;
 
-		if(BlockFactory::$solid[$this->level->getBlockIdAt($floorX, $floorY, $floorZ)]){
-			$westNonSolid  = !BlockFactory::$solid[$this->level->getBlockIdAt($floorX - 1, $floorY, $floorZ)];
-			$eastNonSolid  = !BlockFactory::$solid[$this->level->getBlockIdAt($floorX + 1, $floorY, $floorZ)];
-			$downNonSolid  = !BlockFactory::$solid[$this->level->getBlockIdAt($floorX, $floorY - 1, $floorZ)];
-			$upNonSolid    = !BlockFactory::$solid[$this->level->getBlockIdAt($floorX, $floorY + 1, $floorZ)];
-			$northNonSolid = !BlockFactory::$solid[$this->level->getBlockIdAt($floorX, $floorY, $floorZ - 1)];
-			$southNonSolid = !BlockFactory::$solid[$this->level->getBlockIdAt($floorX, $floorY, $floorZ + 1)];
+		if($this->level->getBlockAt($floorX, $floorY, $floorZ)->isSolid()){
+			$westNonSolid  = !$this->level->getBlockAt($floorX - 1, $floorY, $floorZ)->isSolid();
+			$eastNonSolid  = !$this->level->getBlockAt($floorX + 1, $floorY, $floorZ)->isSolid();
+			$downNonSolid  = !$this->level->getBlockAt($floorX, $floorY - 1, $floorZ)->isSolid();
+			$upNonSolid    = !$this->level->getBlockAt($floorX, $floorY + 1, $floorZ)->isSolid();
+			$northNonSolid = !$this->level->getBlockAt($floorX, $floorY, $floorZ - 1)->isSolid();
+			$southNonSolid = !$this->level->getBlockAt($floorX, $floorY, $floorZ + 1)->isSolid();
 
 			$direction = -1;
 			$limit = 9999;
 
 			if($westNonSolid){
 				$limit = $diffX;
-				$direction = Vector3::SIDE_WEST;
+				$direction = Facing::WEST;
 			}
 
 			if($eastNonSolid and 1 - $diffX < $limit){
 				$limit = 1 - $diffX;
-				$direction = Vector3::SIDE_EAST;
+				$direction = Facing::EAST;
 			}
 
 			if($downNonSolid and $diffY < $limit){
 				$limit = $diffY;
-				$direction = Vector3::SIDE_DOWN;
+				$direction = Facing::DOWN;
 			}
 
 			if($upNonSolid and 1 - $diffY < $limit){
 				$limit = 1 - $diffY;
-				$direction = Vector3::SIDE_UP;
+				$direction = Facing::UP;
 			}
 
 			if($northNonSolid and $diffZ < $limit){
 				$limit = $diffZ;
-				$direction = Vector3::SIDE_NORTH;
+				$direction = Facing::NORTH;
 			}
 
 			if($southNonSolid and 1 - $diffZ < $limit){
-				$direction = Vector3::SIDE_SOUTH;
+				$direction = Facing::SOUTH;
 			}
 
 			$force = lcg_value() * 0.2 + 0.1;
 
-			if($direction === Vector3::SIDE_WEST){
+			if($direction === Facing::WEST){
 				$this->motion->x = -$force;
 
 				return true;
 			}
 
-			if($direction === Vector3::SIDE_EAST){
+			if($direction === Facing::EAST){
 				$this->motion->x = $force;
 
 				return true;
 			}
 
-			if($direction === Vector3::SIDE_DOWN){
+			if($direction === Facing::DOWN){
 				$this->motion->y = -$force;
 
 				return true;
 			}
 
-			if($direction === Vector3::SIDE_UP){
+			if($direction === Facing::UP){
 				$this->motion->y = $force;
 
 				return true;
 			}
 
-			if($direction === Vector3::SIDE_NORTH){
+			if($direction === Facing::NORTH){
 				$this->motion->z = -$force;
 
 				return true;
 			}
 
-			if($direction === Vector3::SIDE_SOUTH){
+			if($direction === Facing::SOUTH){
 				$this->motion->z = $force;
 
 				return true;
@@ -1277,25 +1275,8 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 		return false;
 	}
 
-	/**
-	 * @return int|null
-	 */
-	public function getDirection() : ?int{
-		$rotation = ($this->yaw - 90) % 360;
-		if($rotation < 0){
-			$rotation += 360.0;
-		}
-		if((0 <= $rotation and $rotation < 45) or (315 <= $rotation and $rotation < 360)){
-			return 2; //North
-		}elseif(45 <= $rotation and $rotation < 135){
-			return 3; //East
-		}elseif(135 <= $rotation and $rotation < 225){
-			return 0; //South
-		}elseif(225 <= $rotation and $rotation < 315){
-			return 1; //West
-		}else{
-			return null;
-		}
+	public function getDirection() : int{
+		return Bearing::fromAngle($this->yaw);
 	}
 
 	/**
