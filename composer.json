@@ -29,7 +29,7 @@
       "infiniteworld/raklib": "dev-master_32-bit as 0.12.0",
       "pocketmine/spl": "^0.3.0",
       "infiniteworld/binaryutils": "dev-master_32-bit as 0.1.0",
-      "infiniteworld/nbt": "dev-master_32-bit as 0.2.1",
+      "infiniteworld/nbt": "dev-master_32-bit",
       "infiniteworld/math": "dev-master_32-bit",
       "infiniteworld/snooze": "dev-master_32-bit as 0.1.0"
    },

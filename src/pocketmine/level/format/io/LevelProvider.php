@@ -24,7 +24,6 @@ declare(strict_types=1);
 namespace pocketmine\level\format\io;
 
 use pocketmine\level\format\Chunk;
-use pocketmine\math\Vector3;
 
 interface LevelProvider{
 
@@ -32,13 +31,6 @@ interface LevelProvider{
 	 * @param string $path
 	 */
 	public function __construct(string $path);
-
-	/**
-	 * Returns the full provider name, like "anvil" or "mcregion", will be used to find the correct format.
-	 *
-	 * @return string
-	 */
-	public static function getProviderName() : string;
 
 	/**
 	 * Gets the build height limit of this world
@@ -71,19 +63,7 @@ interface LevelProvider{
 	 * @param string  $generator
 	 * @param array[] $options
 	 */
-	public static function generate(string $path, string $name, int $seed, string $generator, array $options = []);
-
-	/**
-	 * Returns the generator name
-	 *
-	 * @return string
-	 */
-	public function getGenerator() : string;
-
-	/**
-	 * @return array
-	 */
-	public function getGeneratorOptions() : array;
+	public static function generate(string $path, string $name, int $seed, string $generator, array $options = []) : void;
 
 	/**
 	 * Saves a chunk (usually to disk).
@@ -106,104 +86,27 @@ interface LevelProvider{
 	public function loadChunk(int $chunkX, int $chunkZ) : ?Chunk;
 
 	/**
-	 * @return string
-	 */
-	public function getName() : string;
-
-	/**
-	 * @return int|string int, or the string numeric representation of a long in 32-bit systems
-	 */
-	public function getTime();
-
-	/**
-	 * @param int|string int, or the string numeric representation of a long in 32-bit systems
-	 */
-	public function setTime($value);
-
-	/**
-	 * @return int|string int, or the string numeric representation of a long in 32-bit systems
-	 */
-	public function getSeed();
-
-	/**
-	 * @param int|string int, or the string numeric representation of a long in 32-bit systems
-	 */
-	public function setSeed($value);
-
-	/**
-	 * @return Vector3
-	 */
-	public function getSpawn() : Vector3;
-
-	/**
-	 * @param Vector3 $pos
-	 */
-	public function setSpawn(Vector3 $pos);
-
-	/**
-	 * Returns the world difficulty. This will be one of the Level constants.
-	 * @return int
-	 */
-	public function getDifficulty() : int;
-
-	/**
-	 * Sets the world difficulty.
-	 * @param int $difficulty
-	 */
-	public function setDifficulty(int $difficulty);
-
-	/**
-	 * Returns the time in ticks to the next rain level change.
-	 * @return int
-	 */
-	public function getRainTime() : int;
-
-	/**
-	 * Sets the time in ticks to the next rain level change.
-	 * @param int $ticks
-	 */
-	public function setRainTime(int $ticks) : void;
-
-	/**
-	 * @return float 0.0 - 1.0
-	 */
-	public function getRainLevel() : float;
-
-	/**
-	 * @param float $level 0.0 - 1.0
-	 */
-	public function setRainLevel(float $level) : void;
-
-	/**
-	 * Returns the time in ticks to the next lightning level change.
-	 * @return int
-	 */
-	public function getLightningTime() : int;
-
-	/**
-	 * Sets the time in ticks to the next lightning level change.
-	 * @param int $ticks
-	 */
-	public function setLightningTime(int $ticks) : void;
-
-	/**
-	 * @return float 0.0 - 1.0
-	 */
-	public function getLightningLevel() : float;
-
-	/**
-	 * @param float $level 0.0 - 1.0
-	 */
-	public function setLightningLevel(float $level) : void;
-
-	/**
 	 * Performs garbage collection in the level provider, such as cleaning up regions in Region-based worlds.
 	 */
-	public function doGarbageCollection();
+	public function doGarbageCollection() : void;
+
+	/**
+	 * Returns information about the world
+	 *
+	 * @return LevelData
+	 */
+	public function getLevelData() : LevelData;
 
 	/**
 	 * Performs cleanups necessary when the level provider is closed and no longer needed.
 	 */
-	public function close();
+	public function close() : void;
+
+	/**
+	 * Returns a generator which yields all the chunks in this level.
+	 *
+	 * @return \Generator|Chunk[]
+	 */
+	public function getAllChunks() : \Generator;
 
 }

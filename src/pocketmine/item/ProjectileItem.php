@@ -27,8 +27,8 @@ use pocketmine\entity\Entity;
 use pocketmine\entity\projectile\Projectile;
 use pocketmine\event\entity\ProjectileLaunchEvent;
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\Player;
 
 abstract class ProjectileItem extends Item{
@@ -55,10 +55,11 @@ abstract class ProjectileItem extends Item{
 			$projectile->setMotion($projectile->getMotion()->multiply($this->getThrowForce()));
 		}
 
-		$this->count--;
+		$this->pop();
 
 		if($projectile instanceof Projectile){
-			$player->getServer()->getPluginManager()->callEvent($projectileEv = new ProjectileLaunchEvent($projectile));
+			$projectileEv = new ProjectileLaunchEvent($projectile);
+			$projectileEv->call();
 			if($projectileEv->isCancelled()){
 				$projectile->flagForDespawn();
 			}else{

@@ -23,7 +23,17 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-class Purpur extends Quartz{
+use pocketmine\item\TieredTool;
+
+class Purpur extends Solid{
+
+	public function getToolType() : int{
+		return BlockToolType::TYPE_PICKAXE;
+	}
+
+	public function getToolHarvestLevel() : int{
+		return TieredTool::TIER_WOODEN;
+	}
 
 	public function getHardness() : float{
 		return 1.5;

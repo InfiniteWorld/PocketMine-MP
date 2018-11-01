@@ -95,7 +95,7 @@ class FloatingTextParticle extends Particle{
 
 			$add = new PlayerListPacket();
 			$add->type = PlayerListPacket::TYPE_ADD;
-			$add->entries = [PlayerListEntry::createAdditionEntry($uuid, $this->entityId, $name, $name, 0, new Skin("Standard_Custom", str_repeat("\x00", 8192)))];
+			$add->entries = [PlayerListEntry::createAdditionEntry($uuid, $this->entityId, $name, new Skin("Standard_Custom", str_repeat("\x00", 8192)))];
 			$p[] = $add;
 
 			$pk = new AddPlayerPacket();
@@ -109,8 +109,8 @@ class FloatingTextParticle extends Particle{
 				1 << Entity::DATA_FLAG_IMMOBILE
 			);
 			$pk->metadata = [
-				Entity::DATA_FLAGS =>   [Entity::DATA_TYPE_LONG,   $flags],
-				Entity::DATA_SCALE =>   [Entity::DATA_TYPE_FLOAT,  0.01] //zero causes problems on debug builds
+				Entity::DATA_FLAGS => [Entity::DATA_TYPE_LONG, $flags],
+				Entity::DATA_SCALE => [Entity::DATA_TYPE_FLOAT, 0.01] //zero causes problems on debug builds
 			];
 
 			$p[] = $pk;

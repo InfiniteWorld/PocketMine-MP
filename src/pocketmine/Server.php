@@ -50,6 +50,7 @@ use pocketmine\lang\Language;
 use pocketmine\lang\LanguageNotFoundException;
 use pocketmine\lang\TextContainer;
 use pocketmine\level\biome\Biome;
+use pocketmine\level\format\io\exception\UnsupportedLevelFormatException;
 use pocketmine\level\format\io\LevelProvider;
 use pocketmine\level\format\io\LevelProviderManager;
 use pocketmine\level\generator\Generator;
@@ -122,9 +123,6 @@ class Server{
 
 	/** @var Server */
 	private static $instance = null;
-
-	/** @var \Threaded */
-	private static $sleeper = null;
 
 	/** @var SleeperHandler */
 	private $tickSleeper;
@@ -559,14 +557,6 @@ class Server{
 	}
 
 	/**
-	 * @deprecated
-	 * @return bool
-	 */
-	public function getAllowFlight() : bool{
-		return true;
-	}
-
-	/**
 	 * @return bool
 	 */
 	public function isHardcore() : bool{
@@ -761,12 +751,7 @@ class Server{
 			if(file_exists($path . "$name.dat")){
 				try{
 					$nbt = new BigEndianNBTStream();
-					$compound = $nbt->readCompressed(file_get_contents($path . "$name.dat"));
-					if(!($compound instanceof CompoundTag)){
-						throw new \RuntimeException("Invalid data found in \"$name.dat\", expected " . CompoundTag::class . ", got " . (is_object($compound) ? get_class($compound) : gettype($compound)));
-					}
-
-					return $compound;
+					return $nbt->readCompressed(file_get_contents($path . "$name.dat"));
 				}catch(\Throwable $e){ //zlib decode error / corrupt data
 					rename($path . "$name.dat", $path . "$name.dat.bak");
 					$this->logger->notice($this->getLanguage()->translateString("pocketmine.data.playerCorrupted", [$name]));
@@ -826,7 +811,7 @@ class Server{
 		$ev = new PlayerDataSaveEvent($nbtTag, $name);
 		$ev->setCancelled(!$this->shouldSavePlayerData());
 
-		$this->pluginManager->callEvent($ev);
+		$ev->call();
 
 		if(!$ev->isCancelled()){
 			$nbt = new BigEndianNBTStream();
@@ -1001,11 +986,12 @@ class Server{
 			throw new \InvalidStateException("The default level cannot be unloaded while running, please switch levels.");
 		}
 
-		return $level->unload($forceUnload);
+		return $level->onUnload($forceUnload);
 	}
 
 	/**
 	 * @internal
+	 *
 	 * @param Level $level
 	 */
 	public function removeLevel(Level $level) : void{
@@ -1035,20 +1021,29 @@ class Server{
 
 		$path = $this->getDataPath() . "worlds/" . $name . "/";
 
-		$providerClass = LevelProviderManager::getProvider($path);
+		$providers = LevelProviderManager::getMatchingProviders($path);
+		if(count($providers) !== 1){
+			$this->logger->error($this->language->translateString("pocketmine.level.loadError", [
+				$name,
+				empty($providers) ?
+					$this->language->translateString("pocketmine.level.unknownFormat") :
+					$this->language->translateString("pocketmine.level.ambiguousFormat", [implode(", ", array_keys($providers))])
+			]));
+			return false;
+		}
+		$providerClass = array_shift($providers);
 
-		if($providerClass === null){
-			$this->logger->error($this->getLanguage()->translateString("pocketmine.level.loadError", [$name, "Cannot identify format of world"]));
-
+		try{
+			/** @see LevelProvider::__construct() */
+			$level = new Level($this, $name, new $providerClass($path));
+		}catch(UnsupportedLevelFormatException $e){
+			$this->logger->error($this->language->translateString("pocketmine.level.loadError", [$name, $e->getMessage()]));
 			return false;
 		}
 
-		/** @see LevelProvider::__construct() */
-		$level = new Level($this, $name, new $providerClass($path));
-
 		$this->levels[$level->getId()] = $level;
 
-		$this->getPluginManager()->callEvent(new LevelLoadEvent($level));
+		(new LevelLoadEvent($level))->call();
 
 		$level->setTickRate($this->baseTickRate);
 
@@ -1080,12 +1075,7 @@ class Server{
 			$generator = GeneratorManager::getGenerator($this->getLevelType());
 		}
 
-		if(($providerClass = LevelProviderManager::getProviderByName($this->getProperty("level-settings.default-format", "pmanvil"))) === null){
-			$providerClass = LevelProviderManager::getProviderByName("pmanvil");
-			if($providerClass === null){
-				throw new \InvalidStateException("Default level provider has not been registered");
-			}
-		}
+		$providerClass = LevelProviderManager::getDefault();
 
 		$path = $this->getDataPath() . "worlds/" . $name . "/";
 		/** @var LevelProvider $providerClass */
@@ -1097,9 +1087,9 @@ class Server{
 
 		$level->setTickRate($this->baseTickRate);
 
-		$this->getPluginManager()->callEvent(new LevelInitEvent($level));
+		(new LevelInitEvent($level))->call();
 
-		$this->getPluginManager()->callEvent(new LevelLoadEvent($level));
+		(new LevelLoadEvent($level))->call();
 
 		$this->getLogger()->notice($this->getLanguage()->translateString("pocketmine.level.backgroundGeneration", [$name]));
 
@@ -1140,9 +1130,7 @@ class Server{
 		}
 		$path = $this->getDataPath() . "worlds/" . $name . "/";
 		if(!($this->getLevelByName($name) instanceof Level)){
-			return is_dir($path) and !empty(array_filter(scandir($path, SCANDIR_SORT_NONE), function($v){
-				return $v !== ".." and $v !== ".";
-			}));
+			return !empty(LevelProviderManager::getMatchingProviders($path));
 		}
 
 		return true;
@@ -1403,12 +1391,6 @@ class Server{
 		return self::$instance;
 	}
 
-	public static function microSleep(int $microseconds){
-		Server::$sleeper->synchronized(function(int $ms){
-			Server::$sleeper->wait($ms);
-		}, $microseconds);
-	}
-
 	/**
 	 * @param \ClassLoader              $autoloader
 	 * @param \AttachableThreadedLogger $logger
@@ -1420,7 +1402,7 @@ class Server{
 			throw new \InvalidStateException("Only one server instance can exist at once");
 		}
 		self::$instance = $this;
-		self::$sleeper = new \Threaded;
+
 		$this->tickSleeper = new SleeperHandler();
 		$this->autoloader = $autoloader;
 		$this->logger = $logger;
@@ -1677,6 +1659,12 @@ class Server{
 			$this->network->registerInterface(new RakLibInterface($this));
 
 			LevelProviderManager::init();
+			if(($format = LevelProviderManager::getProviderByName($formatName = (string) $this->getProperty("level-settings.default-format"))) !== null){
+				LevelProviderManager::setDefault($format);
+			}elseif($formatName !== ""){
+				$this->logger->warning($this->language->translateString("pocketmine.level.badDefaultFormat", [$formatName]));
+			}
+
 			if(extension_loaded("leveldb")){
 				$this->logger->debug($this->getLanguage()->translateString("pocketmine.debug.enable"));
 			}
@@ -1886,7 +1874,8 @@ class Server{
 			throw new \InvalidArgumentException("Cannot broadcast empty list of packets");
 		}
 
-		$this->pluginManager->callEvent($ev = new DataPacketBroadcastEvent($players, $packets));
+		$ev = new DataPacketBroadcastEvent($players, $packets);
+		$ev->call();
 		if($ev->isCancelled()){
 			return false;
 		}
@@ -2001,7 +1990,8 @@ class Server{
 	 */
 	public function dispatchCommand(CommandSender $sender, string $commandLine, bool $internal = false) : bool{
 		if(!$internal){
-			$this->pluginManager->callEvent($ev = new CommandEvent($sender, $commandLine));
+			$ev = new CommandEvent($sender, $commandLine);
+			$ev->call();
 			if($ev->isCancelled()){
 				return false;
 			}
@@ -2252,6 +2242,14 @@ class Server{
 
 			if($this->getProperty("auto-report.enabled", true) !== false){
 				$report = true;
+
+				$stamp = $this->getDataPath() . "crashdumps/.last_crash";
+				$crashInterval = 120; //2 minutes
+				if(file_exists($stamp) and !($report = (filemtime($stamp) + $crashInterval < time()))){
+					$this->logger->debug("Not sending crashdump due to last crash less than $crashInterval seconds ago");
+				}
+				@touch($stamp); //update file timestamp
+
 				$plugin = $dump->getData()["plugin"];
 				if(is_string($plugin)){
 					$p = $this->pluginManager->getPlugin($plugin);
@@ -2366,7 +2364,7 @@ class Server{
 		$pk = new PlayerListPacket();
 		$pk->type = PlayerListPacket::TYPE_ADD;
 
-		$pk->entries[] = PlayerListEntry::createAdditionEntry($uuid, $entityId, $name, "", 0, $skin, $xboxUserId);
+		$pk->entries[] = PlayerListEntry::createAdditionEntry($uuid, $entityId, $name, $skin, $xboxUserId);
 
 		$this->broadcastPacket($players ?? $this->playerList, $pk);
 	}
@@ -2389,7 +2387,7 @@ class Server{
 		$pk = new PlayerListPacket();
 		$pk->type = PlayerListPacket::TYPE_ADD;
 		foreach($this->playerList as $player){
-			$pk->entries[] = PlayerListEntry::createAdditionEntry($player->getUniqueId(), $player->getId(), $player->getDisplayName(), "", 0, $player->getSkin(), $player->getXuid());
+			$pk->entries[] = PlayerListEntry::createAdditionEntry($player->getUniqueId(), $player->getId(), $player->getDisplayName(), $player->getSkin(), $player->getXuid());
 		}
 
 		$p->sendDataPacket($pk);
@@ -2578,7 +2576,7 @@ class Server{
 		}
 
 		if(($this->tickCounter & 0b111111111) === 0){
-			$this->getPluginManager()->callEvent($this->queryRegenerateTask = new QueryRegenerateEvent($this, 5));
+			($this->queryRegenerateTask = new QueryRegenerateEvent($this, 5))->call();
 			if($this->queryHandler !== null){
 				$this->queryHandler->regenerateInfo();
 			}

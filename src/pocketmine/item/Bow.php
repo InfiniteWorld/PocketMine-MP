@@ -33,8 +33,8 @@ use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\Player;
 
 class Bow extends Tool{
-	public function __construct(int $meta = 0){
-		parent::__construct(self::BOW, $meta, "Bow");
+	public function __construct(){
+		parent::__construct(self::BOW, 0, "Bow");
 	}
 
 	public function getFuelTime() : int{
@@ -87,7 +87,7 @@ class Bow extends Tool{
 				$ev->setCancelled();
 			}
 
-			$player->getServer()->getPluginManager()->callEvent($ev);
+			$ev->call();
 
 			$entity = $ev->getProjectile(); //This might have been changed by plugins
 
@@ -104,7 +104,8 @@ class Bow extends Tool{
 				}
 
 				if($entity instanceof Projectile){
-					$player->getServer()->getPluginManager()->callEvent($projectileEv = new ProjectileLaunchEvent($entity));
+					$projectileEv = new ProjectileLaunchEvent($entity);
+					$projectileEv->call();
 					if($projectileEv->isCancelled()){
 						$ev->getProjectile()->flagForDespawn();
 					}else{

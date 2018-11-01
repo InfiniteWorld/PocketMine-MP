@@ -109,6 +109,8 @@ abstract class LightUpdate{
 		while(!$this->spreadQueue->isEmpty()){
 			list($x, $y, $z) = $this->spreadQueue->dequeue();
 
+			unset($this->spreadVisited[Level::blockHash($x, $y, $z)]);
+
 			if(!$this->subChunkHandler->moveTo($x, $y, $z)){
 				continue;
 			}
@@ -157,7 +159,7 @@ abstract class LightUpdate{
 
 	protected function computeSpreadLight(int $x, int $y, int $z, int $newAdjacentLevel){
 		$current = $this->getLight($x, $y, $z);
-		$potentialLight = $newAdjacentLevel - BlockFactory::$lightFilter[$this->subChunkHandler->currentSubChunk->getBlockId($x & 0x0f, $y & 0x0f, $z & 0x0f)];
+		$potentialLight = $newAdjacentLevel - BlockFactory::$lightFilter[$this->subChunkHandler->currentSubChunk->getFullBlock($x & 0x0f, $y & 0x0f, $z & 0x0f)];
 
 		if($current < $potentialLight){
 			$this->setLight($x, $y, $z, $potentialLight);

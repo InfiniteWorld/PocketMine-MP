@@ -147,6 +147,7 @@ class PacketPool{
 		static::registerPacket(new SetLocalPlayerAsInitializedPacket());
 		static::registerPacket(new UpdateSoftEnumPacket());
 		static::registerPacket(new NetworkStackLatencyPacket());
+		static::registerPacket(new ScriptCustomEventPacket());
 	}
 
 	/**
@@ -158,6 +159,7 @@ class PacketPool{
 
 	/**
 	 * @param int $pid
+	 *
 	 * @return DataPacket
 	 */
 	public static function getPacketById(int $pid) : DataPacket{
@@ -166,6 +168,7 @@ class PacketPool{
 
 	/**
 	 * @param string $buffer
+	 *
 	 * @return DataPacket
 	 */
 	public static function getPacket(string $buffer) : DataPacket{

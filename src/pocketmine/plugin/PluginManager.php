@@ -41,7 +41,6 @@ use pocketmine\utils\Utils;
  * Manages all the plugins
  */
 class PluginManager{
-	private const MAX_EVENT_CALL_DEPTH = 50;
 
 	/** @var Server */
 	private $server;
@@ -63,9 +62,6 @@ class PluginManager{
 	 * @var PluginLoader[]
 	 */
 	protected $fileAssociations = [];
-
-	/** @var int */
-	private $eventCallDepth = 0;
 
 	/** @var string|null */
 	private $pluginDataDirectory;
@@ -356,6 +352,7 @@ class PluginManager{
 	 * Returns whether a specified API version string is considered compatible with the server's API version.
 	 *
 	 * @param string ...$versions
+	 *
 	 * @return bool
 	 */
 	public function isCompatibleApi(string ...$versions) : bool{
@@ -416,11 +413,11 @@ class PluginManager{
 					$permManager->addPermission($perm);
 				}
 				$plugin->getScheduler()->setEnabled(true);
-				$plugin->setEnabled(true);
+				$plugin->onEnableStateChange(true);
 
 				$this->enabledPlugins[$plugin->getDescription()->getName()] = $plugin;
 
-				$this->server->getPluginManager()->callEvent(new PluginEnableEvent($plugin));
+				(new PluginEnableEvent($plugin))->call();
 			}catch(\Throwable $e){
 				$this->server->getLogger()->logException($e);
 				$this->disablePlugin($plugin);
@@ -497,12 +494,12 @@ class PluginManager{
 	public function disablePlugin(Plugin $plugin){
 		if($plugin->isEnabled()){
 			$this->server->getLogger()->info($this->server->getLanguage()->translateString("pocketmine.plugin.disable", [$plugin->getDescription()->getFullName()]));
-			$this->callEvent(new PluginDisableEvent($plugin));
+			(new PluginDisableEvent($plugin))->call();
 
 			unset($this->enabledPlugins[$plugin->getDescription()->getName()]);
 
 			try{
-				$plugin->setEnabled(false);
+				$plugin->onEnableStateChange(false);
 			}catch(\Throwable $e){
 				$this->server->getLogger()->logException($e);
 			}
@@ -526,49 +523,6 @@ class PluginManager{
 		$this->plugins = [];
 		$this->enabledPlugins = [];
 		$this->fileAssociations = [];
-	}
-
-	/**
-	 * Calls an event
-	 *
-	 * @param Event $event
-	 */
-	public function callEvent(Event $event){
-		if($this->eventCallDepth >= self::MAX_EVENT_CALL_DEPTH){
-			//this exception will be caught by the parent event call if all else fails
-			throw new \RuntimeException("Recursive event call detected (reached max depth of " . self::MAX_EVENT_CALL_DEPTH . " calls)");
-		}
-
-		$handlerList = HandlerList::getHandlerListFor(get_class($event));
-		assert($handlerList !== null, "Called event should have a valid HandlerList");
-
-		++$this->eventCallDepth;
-		foreach(EventPriority::ALL as $priority){
-			$currentList = $handlerList;
-			while($currentList !== null){
-				foreach($currentList->getListenersByPriority($priority) as $registration){
-					if(!$registration->getPlugin()->isEnabled()){
-						continue;
-					}
-
-					try{
-						$registration->callEvent($event);
-					}catch(\Throwable $e){
-						$this->server->getLogger()->critical(
-							$this->server->getLanguage()->translateString("pocketmine.plugin.eventError", [
-								$event->getEventName(),
-								$registration->getPlugin()->getDescription()->getFullName(),
-								$e->getMessage(),
-								get_class($registration->getListener())
-							]));
-						$this->server->getLogger()->logException($e);
-					}
-				}
-
-				$currentList = $currentList->getParent();
-			}
-		}
-		--$this->eventCallDepth;
 	}
 
 	/**

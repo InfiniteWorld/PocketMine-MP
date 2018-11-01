@@ -269,7 +269,8 @@ class Human extends Creature implements ProjectileSource, InventoryHolder{
 	 * @return float the amount of exhaustion level increased
 	 */
 	public function exhaust(float $amount, int $cause = PlayerExhaustEvent::CAUSE_CUSTOM) : float{
-		$this->server->getPluginManager()->callEvent($ev = new PlayerExhaustEvent($this, $amount, $cause));
+		$ev = new PlayerExhaustEvent($this, $amount, $cause);
+		$ev->call();
 		if($ev->isCancelled()){
 			return 0.0;
 		}
@@ -466,7 +467,7 @@ class Human extends Creature implements ProjectileSource, InventoryHolder{
 	protected function setXpAndProgress(?int $level, ?float $progress) : bool{
 		if(!$this->justCreated){
 			$ev = new PlayerExperienceChangeEvent($this, $this->getXpLevel(), $this->getXpProgress(), $level, $progress);
-			$this->server->getPluginManager()->callEvent($ev);
+			$ev->call();
 
 			if($ev->isCancelled()){
 				return false;
@@ -845,7 +846,7 @@ class Human extends Creature implements ProjectileSource, InventoryHolder{
 			/* we don't use Server->updatePlayerListData() because that uses batches, which could cause race conditions in async compression mode */
 			$pk = new PlayerListPacket();
 			$pk->type = PlayerListPacket::TYPE_ADD;
-			$pk->entries = [PlayerListEntry::createAdditionEntry($this->uuid, $this->id, $this->getName(), $this->getName(), 0, $this->skin)];
+			$pk->entries = [PlayerListEntry::createAdditionEntry($this->uuid, $this->id, $this->getName(), $this->skin)];
 			$player->sendDataPacket($pk);
 		}
 
@@ -892,6 +893,7 @@ class Human extends Creature implements ProjectileSource, InventoryHolder{
 	 * Wrapper around {@link Entity#getDataFlag} for player-specific data flag reading.
 	 *
 	 * @param int $flagId
+	 *
 	 * @return bool
 	 */
 	public function getPlayerFlag(int $flagId) : bool{
