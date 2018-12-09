@@ -24,6 +24,8 @@ declare(strict_types=1);
 namespace pocketmine\block;
 
 use pocketmine\entity\Entity;
+use pocketmine\event\block\BlockFormEvent;
+use pocketmine\event\block\BlockSpreadEvent;
 use pocketmine\item\Item;
 use pocketmine\level\Level;
 use pocketmine\math\AxisAlignedBB;
@@ -31,6 +33,8 @@ use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 
 abstract class Liquid extends Transparent{
+	/** @var int */
+	private $stillId;
 
 	public $adjacentSources = 0;
 
@@ -48,6 +52,17 @@ abstract class Liquid extends Transparent{
 	protected $falling = false;
 	/** @var int */
 	protected $decay = 0; //PC "level" property
+	/** @var bool */
+	protected $still = false;
+
+	public function __construct(int $id, int $stillId, string $name){
+		parent::__construct($id, 0, $name);
+		$this->stillId = $stillId;
+	}
+
+	public function getId() : int{
+		return $this->still ? $this->stillId : parent::getId();
+	}
 
 	protected function writeStateToMeta() : int{
 		return $this->decay | ($this->falling ? 0x08 : 0);
@@ -94,9 +109,17 @@ abstract class Liquid extends Transparent{
 		return [];
 	}
 
-	abstract public function getStillForm() : Block;
+	public function getStillForm() : Block{
+		$b = clone $this;
+		$b->still = true;
+		return $b;
+	}
 
-	abstract public function getFlowingForm() : Block;
+	public function getFlowingForm() : Block{
+		$b = clone $this;
+		$b->still = false;
+		return $b;
+	}
 
 	abstract public function getBucketFillSound() : int;
 
@@ -110,6 +133,20 @@ abstract class Liquid extends Transparent{
 		return (($this->falling ? 0 : $this->decay) + 1) / 9;
 	}
 
+	public function isStill() : bool{
+		return $this->still;
+	}
+
+	/**
+	 * @param bool $still
+	 *
+	 * @return $this
+	 */
+	public function setStill(bool $still = true) : self{
+		$this->still = $still;
+		return $this;
+	}
+
 	protected function getEffectiveFlowDecay(Block $block) : int{
 		if(!($block instanceof Liquid) or !$block->isSameType($this)){
 			return -1;
@@ -118,8 +155,8 @@ abstract class Liquid extends Transparent{
 		return $block->falling ? 0 : $block->decay;
 	}
 
-	public function clearCaches() : void{
-		parent::clearCaches();
+	public function readStateFromWorld() : void{
+		parent::readStateFromWorld();
 		$this->flowVector = null;
 	}
 
@@ -295,14 +332,19 @@ abstract class Liquid extends Transparent{
 
 	protected function flowIntoBlock(Block $block, int $newFlowDecay, bool $falling) : void{
 		if($this->canFlowInto($block) and !($block instanceof Liquid)){
-			if($block->getId() > 0){
-				$this->level->useBreakOn($block);
-			}
-
 			$new = clone $this;
 			$new->falling = $falling;
 			$new->decay = $falling ? 0 : $newFlowDecay;
-			$this->level->setBlock($block, $new);
+
+			$ev = new BlockSpreadEvent($block, $this, $new);
+			$ev->call();
+			if(!$ev->isCancelled()){
+				if($block->getId() > 0){
+					$this->level->useBreakOn($block);
+				}
+
+				$this->level->setBlock($block, $ev->getNewState());
+			}
 		}
 	}
 
@@ -430,14 +472,16 @@ abstract class Liquid extends Transparent{
 	}
 
 	protected function liquidCollide(Block $cause, Block $result) : bool{
-		//TODO: add events
-
-		$this->level->setBlock($this, $result);
-		$this->level->broadcastLevelSoundEvent($this->add(0.5, 0.5, 0.5), LevelSoundEventPacket::SOUND_FIZZ, (int) ((2.6 + (lcg_value() - lcg_value()) * 0.8) * 1000));
+		$ev = new BlockFormEvent($this, $result);
+		$ev->call();
+		if(!$ev->isCancelled()){
+			$this->level->setBlock($this, $ev->getNewState());
+			$this->level->broadcastLevelSoundEvent($this->add(0.5, 0.5, 0.5), LevelSoundEventPacket::SOUND_FIZZ, (int) ((2.6 + (lcg_value() - lcg_value()) * 0.8) * 1000));
+		}
 		return true;
 	}
 
 	protected function canFlowInto(Block $block) : bool{
-		return $block->canBeFlowedInto() and !($block instanceof Liquid and $block->isSource()); //TODO: I think this should only be liquids of the same type
+		return $this->level->isInWorld($block->x, $block->y, $block->z) and $block->canBeFlowedInto() and !($block instanceof Liquid and $block->isSource()); //TODO: I think this should only be liquids of the same type
 	}
 }

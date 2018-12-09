@@ -26,7 +26,6 @@ namespace pocketmine\block;
 use pocketmine\item\Item;
 use pocketmine\level\sound\DoorSound;
 use pocketmine\math\AxisAlignedBB;
-use pocketmine\math\Bearing;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
@@ -73,32 +72,12 @@ class Trapdoor extends Transparent{
 	}
 
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
-		$f = 0.1875;
-
-		if($this->top){
-			$bb = new AxisAlignedBB(0, 1 - $f, 0, 1, 1, 1);
-		}else{
-			$bb = new AxisAlignedBB(0, 0, 0, 1, $f, 1);
-		}
-
-		if($this->open){
-			if($this->facing === Facing::NORTH){
-				$bb->setBounds(0, 0, 1 - $f, 1, 1, 1);
-			}elseif($this->facing === Facing::SOUTH){
-				$bb->setBounds(0, 0, 0, 1, 1, $f);
-			}elseif($this->facing === Facing::WEST){
-				$bb->setBounds(1 - $f, 0, 0, 1, 1, 1);
-			}elseif($this->facing === Facing::EAST){
-				$bb->setBounds(0, 0, 0, $f, 1, 1);
-			}
-		}
-
-		return $bb;
+		return AxisAlignedBB::one()->trim($this->open ? $this->facing : ($this->top ? Facing::DOWN : Facing::UP), 13 / 16);
 	}
 
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
 		if($player !== null){
-			$this->facing = Bearing::toFacing(Bearing::opposite($player->getDirection()));
+			$this->facing = Facing::opposite($player->getHorizontalFacing());
 		}
 		if(($clickVector->y > 0.5 and $face !== Facing::UP) or $face === Facing::DOWN){
 			$this->top = true;

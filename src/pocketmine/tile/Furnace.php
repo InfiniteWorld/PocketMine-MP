@@ -29,11 +29,9 @@ use pocketmine\event\inventory\FurnaceSmeltEvent;
 use pocketmine\inventory\FurnaceInventory;
 use pocketmine\inventory\FurnaceRecipe;
 use pocketmine\inventory\Inventory;
-use pocketmine\inventory\InventoryEventProcessor;
 use pocketmine\inventory\InventoryHolder;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
-use pocketmine\level\Level;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\ContainerSetDataPacket;
 
@@ -56,13 +54,6 @@ class Furnace extends Spawnable implements InventoryHolder, Container, Nameable{
 	/** @var int */
 	private $maxTime;
 
-	public function __construct(Level $level, CompoundTag $nbt){
-		parent::__construct($level, $nbt);
-		if($this->burnTime > 0){
-			$this->scheduleUpdate();
-		}
-	}
-
 	protected function readSaveData(CompoundTag $nbt) : void{
 		$this->burnTime = max(0, $nbt->getShort(self::TAG_BURN_TIME, 0, true));
 
@@ -81,18 +72,9 @@ class Furnace extends Spawnable implements InventoryHolder, Container, Nameable{
 		$this->inventory = new FurnaceInventory($this);
 		$this->loadItems($nbt);
 
-		$this->inventory->setEventProcessor(new class($this) implements InventoryEventProcessor{
-			/** @var Furnace */
-			private $furnace;
-
-			public function __construct(Furnace $furnace){
-				$this->furnace = $furnace;
-			}
-
-			public function onSlotChange(Inventory $inventory, int $slot, Item $oldItem, Item $newItem) : ?Item{
-				$this->furnace->scheduleUpdate();
-				return $newItem;
-			}
+		$this->inventory->setSlotChangeListener(function(Inventory $inventory, int $slot, Item $oldItem, Item $newItem) : ?Item{
+			$this->scheduleUpdate();
+			return $newItem;
 		});
 	}
 
@@ -174,7 +156,7 @@ class Furnace extends Spawnable implements InventoryHolder, Container, Nameable{
 		$fuel = $this->inventory->getFuel();
 		$raw = $this->inventory->getSmelting();
 		$product = $this->inventory->getResult();
-		$smelt = $this->server->getCraftingManager()->matchFurnaceRecipe($raw);
+		$smelt = $this->level->getServer()->getCraftingManager()->matchFurnaceRecipe($raw);
 		$canSmelt = ($smelt instanceof FurnaceRecipe and $raw->getCount() > 0 and (($smelt->getResult()->equals($product) and $product->getCount() < $product->getMaxStackSize()) or $product->isNull()));
 
 		if($this->burnTime <= 0 and $canSmelt and $fuel->getFuelTime() > 0 and $fuel->getCount() > 0){

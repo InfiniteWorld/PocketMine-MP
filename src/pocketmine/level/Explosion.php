@@ -200,6 +200,7 @@ class Explosion{
 
 
 		$air = ItemFactory::get(Item::AIR);
+		$airBlock = BlockFactory::get(Block::AIR);
 
 		foreach($this->affectedBlocks as $block){
 			$yieldDrops = false;
@@ -212,8 +213,7 @@ class Explosion{
 				}
 			}
 
-			$this->level->setBlockIdAt($block->x, $block->y, $block->z, 0);
-			$this->level->setBlockDataAt($block->x, $block->y, $block->z, 0);
+			$this->level->setBlockAt($block->x, $block->y, $block->z, $airBlock, false); //TODO: should updating really be disabled here?
 
 			$t = $this->level->getTileAt($block->x, $block->y, $block->z);
 			if($t instanceof Tile){
@@ -239,7 +239,7 @@ class Explosion{
 					$ev = new BlockUpdateEvent($this->level->getBlockAt($sideBlock->x, $sideBlock->y, $sideBlock->z));
 					$ev->call();
 					if(!$ev->isCancelled()){
-						foreach($this->level->getNearbyEntities(new AxisAlignedBB($sideBlock->x - 1, $sideBlock->y - 1, $sideBlock->z - 1, $sideBlock->x + 2, $sideBlock->y + 2, $sideBlock->z + 2)) as $entity){
+						foreach($this->level->getNearbyEntities(AxisAlignedBB::one()->offset($sideBlock->x, $sideBlock->y, $sideBlock->z)->expand(1, 1, 1)) as $entity){
 							$entity->onNearbyBlockChange();
 						}
 						$ev->getBlock()->onNearbyBlockChange();

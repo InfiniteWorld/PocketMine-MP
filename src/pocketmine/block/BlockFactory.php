@@ -94,15 +94,16 @@ class BlockFactory{
 
 		foreach(WoodType::ALL as $type){
 			//TODO: find a better way to deal with this split
-			self::registerBlock(new Wood($type >= 4 ? Block::WOOD2 : Block::WOOD, $type & 0x03, WoodType::NAMES[$type] . " Wood"));
+			self::registerBlock(new Log($type >= 4 ? Block::WOOD2 : Block::WOOD, $type & 0x03, WoodType::NAMES[$type] . " Log"));
+			self::registerBlock(new Wood($type >= 4 ? Block::WOOD2 : Block::WOOD, ($type & 0x03) | 0b1100, WoodType::NAMES[$type] . " Wood"));
 			self::registerBlock(new Leaves($type >= 4 ? Block::LEAVES2 : Block::LEAVES, $type & 0x03, $type, WoodType::NAMES[$type] . " Leaves"));
 		}
 
 		self::registerBlock(new Bedrock());
 		self::registerBlock(new Water());
-		self::registerBlock(new StillWater());
+		self::registerBlock((new Water())->setStill()); //flattening hack
 		self::registerBlock(new Lava());
-		self::registerBlock(new StillLava());
+		self::registerBlock((new Lava())->setStill()); //flattening hack
 
 		self::registerBlock(new Sand(Block::SAND, 0, "Sand"));
 		self::registerBlock(new Sand(Block::SAND, 1, "Red Sand"));
@@ -201,7 +202,7 @@ class BlockFactory{
 		self::registerBlock(new MonsterSpawner());
 		self::registerBlock(new WoodenStairs(Block::OAK_STAIRS, 0, "Oak Stairs"));
 		self::registerBlock(new Chest());
-		//TODO: REDSTONE_WIRE
+		self::registerBlock(new RedstoneWire());
 		self::registerBlock(new DiamondOre());
 		self::registerBlock(new Diamond());
 		self::registerBlock(new CraftingTable());
@@ -209,10 +210,7 @@ class BlockFactory{
 		self::registerBlock(new Farmland());
 
 		self::registerBlock(new Furnace());
-
-		$furnace = new Furnace();
-		$furnace->setLit();
-		self::registerBlock($furnace); //flattening hack
+		self::registerBlock((new Furnace())->setLit()); //flattening hack
 
 		self::registerBlock(new SignPost());
 		self::registerBlock(new WoodenDoor(Block::OAK_DOOR_BLOCK, 0, "Oak Door", Item::OAK_DOOR));
@@ -225,16 +223,9 @@ class BlockFactory{
 		self::registerBlock(new IronDoor());
 		self::registerBlock(new WoodenPressurePlate());
 		self::registerBlock(new RedstoneOre());
-
-		$litRedstone = new RedstoneOre();
-		$litRedstone->setLit();
-		self::registerBlock($litRedstone); //flattening hack
-
+		self::registerBlock((new RedstoneOre())->setLit()); //flattening hack
 		self::registerBlock(new RedstoneTorch());
-		$unlitRedstoneTorch = new RedstoneTorch();
-		$unlitRedstoneTorch->setLit(false);
-		self::registerBlock($unlitRedstoneTorch); //flattening hack
-
+		self::registerBlock((new RedstoneTorch())->setLit(false)); //flattening hack
 		self::registerBlock(new StoneButton());
 		self::registerBlock(new SnowLayer());
 		self::registerBlock(new Ice());
@@ -251,8 +242,8 @@ class BlockFactory{
 		//TODO: PORTAL
 		self::registerBlock(new LitPumpkin());
 		self::registerBlock(new Cake());
-		//TODO: REPEATER_BLOCK
-		//TODO: POWERED_REPEATER
+		self::registerBlock(new RedstoneRepeater());
+		self::registerBlock((new RedstoneRepeater())->setPowered());
 		//TODO: INVISIBLEBEDROCK
 		self::registerBlock(new Trapdoor());
 		//TODO: MONSTER_EGG
@@ -287,10 +278,7 @@ class BlockFactory{
 		self::registerBlock(new EndStone());
 		//TODO: DRAGON_EGG
 		self::registerBlock(new RedstoneLamp());
-		$litLamp = new RedstoneLamp();
-		$litLamp->setLit();
-		self::registerBlock($litLamp); //flattening hack
-
+		self::registerBlock((new RedstoneLamp())->setLit()); //flattening hack
 		//TODO: DROPPER
 		self::registerBlock(new ActivatorRail());
 		self::registerBlock(new CocoaBlock());
@@ -325,9 +313,7 @@ class BlockFactory{
 		//TODO: COMPARATOR_BLOCK
 		//TODO: POWERED_COMPARATOR
 		self::registerBlock(new DaylightSensor());
-		$invertedSensor = new DaylightSensor();
-		$invertedSensor->setInverted();
-		self::registerBlock($invertedSensor); //flattening hack
+		self::registerBlock((new DaylightSensor())->setInverted()); //flattening hack
 
 		self::registerBlock(new Redstone());
 		self::registerBlock(new NetherQuartzOre());
@@ -533,10 +519,7 @@ class BlockFactory{
 		}
 
 		if($pos !== null){
-			$block->x = $pos->getFloorX();
-			$block->y = $pos->getFloorY();
-			$block->z = $pos->getFloorZ();
-			$block->level = $pos->level;
+			$block->position($pos->getLevel(), $pos->getFloorX(), $pos->getFloorY(), $pos->getFloorZ());
 		}
 
 		return $block;

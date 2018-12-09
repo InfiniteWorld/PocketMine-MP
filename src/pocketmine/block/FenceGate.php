@@ -64,30 +64,12 @@ class FenceGate extends Transparent{
 			return null;
 		}
 
-		if(Facing::axis($this->facing) === Facing::AXIS_Z){
-			return new AxisAlignedBB(
-				0,
-				0,
-				0.375,
-				1,
-				1.5,
-				0.625
-			);
-		}else{
-			return new AxisAlignedBB(
-				0.375,
-				0,
-				0,
-				0.625,
-				1.5,
-				1
-			);
-		}
+		return AxisAlignedBB::one()->extend(Facing::UP, 0.5)->squash(Facing::axis($this->facing), 6 / 16);
 	}
 
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
 		if($player !== null){
-			$this->facing = Bearing::toFacing($player->getDirection());
+			$this->facing = $player->getHorizontalFacing();
 		}
 
 		return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
@@ -96,7 +78,7 @@ class FenceGate extends Transparent{
 	public function onActivate(Item $item, Player $player = null) : bool{
 		$this->open = !$this->open;
 		if($this->open and $player !== null){
-			$playerFacing = Bearing::toFacing($player->getDirection());
+			$playerFacing = $player->getHorizontalFacing();
 			if($playerFacing === Facing::opposite($this->facing)){
 				$this->facing = $playerFacing;
 			}

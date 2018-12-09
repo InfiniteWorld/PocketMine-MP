@@ -27,6 +27,7 @@ declare(strict_types=1);
 
 namespace pocketmine\utils;
 
+use DaveRandom\CallbackValidator\CallbackType;
 use pocketmine\ThreadManager;
 
 /**
@@ -50,6 +51,51 @@ class Utils{
 		}else{
 			return sha1(strtolower($variable));
 		}
+	}
+
+	/**
+	 * Returns a readable identifier for the given Closure, including file and line.
+	 *
+	 * @param \Closure $closure
+	 *
+	 * @return string
+	 * @throws \ReflectionException
+	 */
+	public static function getNiceClosureName(\Closure $closure) : string{
+		$func = new \ReflectionFunction($closure);
+		if($func->getName() !== "{closure}"){
+			//closure wraps a named function, can be done with reflection or fromCallable()
+			//isClosure() is useless here because it just tells us if $func is reflecting a Closure object
+
+			$scope = $func->getClosureScopeClass();
+			if($scope !== null){ //class method
+				return
+					$scope->getName() .
+					($func->getClosureThis() !== null ? "->" : "::") .
+					$func->getName(); //name doesn't include class in this case
+			}
+
+			//non-class function
+			return $func->getName();
+		}
+		return "closure@" . self::cleanPath($func->getFileName()) . "#L" . $func->getStartLine();
+	}
+
+	/**
+	 * Returns a readable identifier for the class of the given object. Sanitizes class names for anonymous classes.
+	 *
+	 * @param object $obj
+	 *
+	 * @return string
+	 * @throws \ReflectionException
+	 */
+	public static function getNiceClassName(object $obj) : string{
+		$reflect = new \ReflectionClass($obj);
+		if($reflect->isAnonymous()){
+			return "anonymous@" . self::cleanPath($reflect->getFileName()) . "#L" . $reflect->getStartLine();
+		}
+
+		return $reflect->getName();
 	}
 
 	/**
@@ -377,8 +423,9 @@ class Utils{
 	}
 
 	public static function kill($pid) : void{
-		if(MainLogger::isRegisteredStatic()){
-			MainLogger::getLogger()->syncFlushBuffer();
+		$logger = \GlobalLogger::get();
+		if($logger instanceof MainLogger){
+			$logger->syncFlushBuffer();
 		}
 		switch(Utils::getOS()){
 			case "win":
@@ -502,6 +549,22 @@ class Utils{
 		}
 		if(!$class->isInstantiable()){
 			throw new \InvalidArgumentException("Class $className cannot be constructed");
+		}
+	}
+
+	/**
+	 * Verifies that the given callable is compatible with the desired signature. Throws a TypeError if they are
+	 * incompatible.
+	 *
+	 * @param callable $signature Dummy callable with the required parameters and return type
+	 * @param callable $subject Callable to check the signature of
+	 *
+	 * @throws \DaveRandom\CallbackValidator\InvalidCallbackException
+	 * @throws \TypeError
+	 */
+	public static function validateCallableSignature(callable $signature, callable $subject) : void{
+		if(!($sigType = CallbackType::createFromCallable($signature))->isSatisfiedBy($subject)){
+			throw new \TypeError("Declaration of callable `" . CallbackType::createFromCallable($subject) . "` must be compatible with `" . $sigType . "`");
 		}
 	}
 }

@@ -23,82 +23,92 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-use pocketmine\entity\Entity;
 use pocketmine\item\Item;
 use pocketmine\math\AxisAlignedBB;
+use pocketmine\math\Bearing;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 
-class Ladder extends Transparent{
+class RedstoneRepeater extends Flowable{
+	/** @var int */
+	protected $itemId = Item::REPEATER;
 
-	protected $id = self::LADDER;
-
+	/** @var bool */
+	protected $powered = false;
 	/** @var int */
 	protected $facing = Facing::NORTH;
+	/** @var int */
+	protected $delay = 1;
 
 	public function __construct(){
 
 	}
 
-	protected function writeStateToMeta() : int{
-		return $this->facing;
+	public function getId() : int{
+		return $this->powered ? Block::POWERED_REPEATER : Block::UNPOWERED_REPEATER;
 	}
 
 	public function readStateFromMeta(int $meta) : void{
-		$this->facing = $meta;
+		$this->facing = Bearing::toFacing($meta & 0x03);
+		$this->delay = ($meta >> 2) + 1;
+	}
+
+	public function writeStateToMeta() : int{
+		return Bearing::fromFacing($this->facing) | (($this->delay - 1) << 2);
 	}
 
 	public function getStateBitmask() : int{
-		return 0b111;
+		return 0b1111;
 	}
 
 	public function getName() : string{
-		return "Ladder";
-	}
-
-	public function hasEntityCollision() : bool{
-		return true;
-	}
-
-	public function isSolid() : bool{
-		return false;
-	}
-
-	public function getHardness() : float{
-		return 0.4;
-	}
-
-	public function canClimb() : bool{
-		return true;
-	}
-
-	public function onEntityCollide(Entity $entity) : void{
-		$entity->resetFallDistance();
-		$entity->onGround = true;
+		return "Redstone Repeater";
 	}
 
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
-		return AxisAlignedBB::one()->trim($this->facing, 13 / 16);
+		return AxisAlignedBB::one()->trim(Facing::UP, 7 / 8);
 	}
 
+	public function isPowered() : bool{
+		return $this->powered;
+	}
+
+	/**
+	 * @param bool $powered
+	 *
+	 * @return $this
+	 */
+	public function setPowered(bool $powered = true) : self{
+		$this->powered = $powered;
+		return $this;
+	}
 
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		if(!$blockClicked->isTransparent() and Facing::axis($face) !== Facing::AXIS_Y){
-			$this->facing = $face;
+		if(!$blockReplace->getSide(Facing::DOWN)->isTransparent()){
+			if($player !== null){
+				$this->facing = Facing::opposite($player->getHorizontalFacing());
+			}
+
 			return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 		}
 
 		return false;
 	}
 
+	public function onActivate(Item $item, Player $player = null) : bool{
+		if(++$this->delay > 4){
+			$this->delay = 1;
+		}
+		$this->level->setBlock($this, $this);
+		return true;
+	}
+
 	public function onNearbyBlockChange() : void{
-		if(!$this->getSide(Facing::opposite($this->facing))->isSolid()){ //Replace with common break method
+		if($this->getSide(Facing::DOWN)->isTransparent()){
 			$this->level->useBreakOn($this);
 		}
 	}
 
-	public function getToolType() : int{
-		return BlockToolType::TYPE_AXE;
-	}
+	//TODO: redstone functionality
 }

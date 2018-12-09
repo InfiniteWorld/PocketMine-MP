@@ -74,36 +74,12 @@ class CocoaBlock extends Transparent{
 	}
 
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
-		static $logDistance = 1 / 16;
-
-		$widthInset = (6 - $this->age) / 16;
-		$faceDistance = (5 + $this->age * 2) / 16;
-
-		$minY = (7 - $this->age * 2) / 16;
-
-		if(Facing::isPositive($this->facing)){
-			$minFacing = $logDistance;
-			$maxFacing = $faceDistance;
-		}else{
-			$minFacing = 1 - $faceDistance;
-			$maxFacing = 1 - $logDistance;
-		}
-
-		if(Facing::axis($this->facing) === Facing::AXIS_Z){
-			$minX = $widthInset;
-			$maxX = 1 - $widthInset;
-
-			$minZ = $minFacing;
-			$maxZ = $maxFacing;
-		}else{
-			$minX = $minFacing;
-			$maxX = $maxFacing;
-
-			$minZ = $widthInset;
-			$maxZ = 1 - $widthInset;
-		}
-
-		return new AxisAlignedBB($minX, $minY, $minZ, $maxX, 0.75, $maxZ);
+		return AxisAlignedBB::one()
+			->squash(Facing::axis(Facing::rotateY($this->facing, true)), (6 - $this->age) / 16) //sides
+			->trim(Facing::DOWN, (7 - $this->age * 2) / 16)
+			->trim(Facing::UP, 0.25)
+			->trim(Facing::opposite($this->facing), 1 / 16) //gap between log and pod
+			->trim($this->facing, (11 - $this->age * 2) / 16); //outward face
 	}
 
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{

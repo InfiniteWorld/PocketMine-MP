@@ -176,16 +176,16 @@ class Chunk{
 	/**
 	 * Sets block ID and meta in one call at the specified chunk block coordinates
 	 *
-	 * @param int      $x 0-15
-	 * @param int      $y
-	 * @param int      $z 0-15
-	 * @param int|null $blockId 0-255 if null, does not change
-	 * @param int|null $meta 0-15 if null, does not change
+	 * @param int $x 0-15
+	 * @param int $y
+	 * @param int $z 0-15
+	 * @param int $blockId 0-255
+	 * @param int $meta 0-15
 	 *
 	 * @return bool
 	 */
-	public function setBlock(int $x, int $y, int $z, ?int $blockId = null, ?int $meta = null) : bool{
-		if($this->getSubChunk($y >> 4, true)->setBlock($x, $y & 0x0f, $z, $blockId !== null ? ($blockId & 0xff) : null, $meta !== null ? ($meta & 0x0f) : null)){
+	public function setBlock(int $x, int $y, int $z, int $blockId, int $meta) : bool{
+		if($this->getSubChunk($y >> 4, true)->setBlock($x, $y & 0x0f, $z, $blockId & 0xff, $meta & 0x0f)){
 			$this->hasChanged = true;
 			return true;
 		}
@@ -206,20 +206,6 @@ class Chunk{
 	}
 
 	/**
-	 * Sets the block ID at the specified chunk block coordinates
-	 *
-	 * @param int $x 0-15
-	 * @param int $y
-	 * @param int $z 0-15
-	 * @param int $id 0-255
-	 */
-	public function setBlockId(int $x, int $y, int $z, int $id){
-		if($this->getSubChunk($y >> 4, true)->setBlockId($x, $y & 0x0f, $z, $id)){
-			$this->hasChanged = true;
-		}
-	}
-
-	/**
 	 * Returns the block meta value at the specified chunk block coordinates
 	 *
 	 * @param int $x 0-15
@@ -230,20 +216,6 @@ class Chunk{
 	 */
 	public function getBlockData(int $x, int $y, int $z) : int{
 		return $this->getSubChunk($y >> 4)->getBlockData($x, $y & 0x0f, $z);
-	}
-
-	/**
-	 * Sets the block meta value at the specified chunk block coordinates
-	 *
-	 * @param int $x 0-15
-	 * @param int $y
-	 * @param int $z 0-15
-	 * @param int $data 0-15
-	 */
-	public function setBlockData(int $x, int $y, int $z, int $data){
-		if($this->getSubChunk($y >> 4, true)->setBlockData($x, $y & 0x0f, $z, $data)){
-			$this->hasChanged = true;
-		}
 	}
 
 	/**
@@ -767,18 +739,17 @@ class Chunk{
 	}
 
 	/**
-	 * Disposes of empty subchunks
+	 * Disposes of empty subchunks and frees data where possible
 	 */
-	public function pruneEmptySubChunks(){
+	public function collectGarbage() : void{
 		foreach($this->subChunks as $y => $subChunk){
-			if($subChunk instanceof EmptySubChunk){
-				continue;
-			}elseif($subChunk->isEmpty()){ //normal subchunk full of air, remove it and replace it with an empty stub
-				$this->subChunks[$y] = $this->emptySubChunk;
-			}else{
-				continue; //do not set changed
+			if($subChunk instanceof SubChunk){
+				if($subChunk->isEmpty()){
+					$this->subChunks[$y] = $this->emptySubChunk;
+				}else{
+					$subChunk->collectGarbage();
+				}
 			}
-			$this->hasChanged = true;
 		}
 	}
 
@@ -818,20 +789,31 @@ class Chunk{
 		$stream = new BinaryStream();
 		$stream->putInt($this->x);
 		$stream->putInt($this->z);
-		$count = 0;
-		$subChunks = "";
-		foreach($this->subChunks as $y => $subChunk){
-			if($subChunk instanceof EmptySubChunk){
-				continue;
+		$stream->putByte(($this->lightPopulated ? 4 : 0) | ($this->terrainPopulated ? 2 : 0) | ($this->terrainGenerated ? 1 : 0));
+		if($this->terrainGenerated){
+			//subchunks
+			$count = 0;
+			$subChunks = "";
+			foreach($this->subChunks as $y => $subChunk){
+				if($subChunk instanceof EmptySubChunk){
+					continue;
+				}
+				++$count;
+				$subChunks .= chr($y) . $subChunk->getBlockIdArray() . $subChunk->getBlockDataArray();
+				if($this->lightPopulated){
+					$subChunks .= $subChunk->getBlockSkyLightArray() . $subChunk->getBlockLightArray();
+				}
 			}
-			++$count;
-			$subChunks .= chr($y) . $subChunk->fastSerialize();
+			$stream->putByte($count);
+			$stream->put($subChunks);
+
+			//biomes
+			$stream->put($this->biomeIds);
+			if($this->lightPopulated){
+				$stream->put(pack("v*", ...$this->heightMap));
+			}
 		}
-		$stream->putByte($count);
-		$stream->put($subChunks);
-		$stream->put(pack("v*", ...$this->heightMap) .
-			$this->biomeIds .
-			chr(($this->lightPopulated ? 4 : 0) | ($this->terrainPopulated ? 2 : 0) | ($this->terrainGenerated ? 1 : 0)));
+
 		return $stream->getBuffer();
 	}
 
@@ -847,19 +829,36 @@ class Chunk{
 
 		$x = $stream->getInt();
 		$z = $stream->getInt();
+		$flags = $stream->getByte();
+		$lightPopulated = (bool) ($flags & 4);
+		$terrainPopulated = (bool) ($flags & 2);
+		$terrainGenerated = (bool) ($flags & 1);
+
 		$subChunks = [];
-		$count = $stream->getByte();
-		for($y = 0; $y < $count; ++$y){
-			$subChunks[$stream->getByte()] = SubChunk::fastDeserialize($stream->get(10240));
+		$biomeIds = "";
+		$heightMap = [];
+		if($terrainGenerated){
+			$count = $stream->getByte();
+			for($y = 0; $y < $count; ++$y){
+				$subChunks[$stream->getByte()] = new SubChunk(
+					$stream->get(4096), //blockids
+					$stream->get(2048), //blockdata
+					$lightPopulated ? $stream->get(2048) : "", //skylight
+					$lightPopulated ? $stream->get(2048) : "" //blocklight
+				);
+			}
+
+			$biomeIds = $stream->get(256);
+			if($lightPopulated){
+				$heightMap = array_values(unpack("v*", $stream->get(512)));
+			}
 		}
-		$heightMap = array_values(unpack("v*", $stream->get(512)));
-		$biomeIds = $stream->get(256);
 
 		$chunk = new Chunk($x, $z, $subChunks, [], [], $biomeIds, $heightMap);
-		$flags = $stream->getByte();
-		$chunk->lightPopulated = (bool) ($flags & 4);
-		$chunk->terrainPopulated = (bool) ($flags & 2);
-		$chunk->terrainGenerated = (bool) ($flags & 1);
+		$chunk->setGenerated($terrainGenerated);
+		$chunk->setPopulated($terrainPopulated);
+		$chunk->setLightPopulated($lightPopulated);
+
 		return $chunk;
 	}
 

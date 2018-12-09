@@ -29,8 +29,6 @@ use pocketmine\block\Fallable;
 use pocketmine\entity\Entity;
 use pocketmine\event\entity\EntityBlockChangeEvent;
 use pocketmine\event\entity\EntityDamageEvent;
-use pocketmine\item\ItemFactory;
-use pocketmine\level\Position;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
@@ -96,9 +94,9 @@ class FallingBlock extends Entity{
 		$hasUpdate = parent::entityBaseTick($tickDiff);
 
 		if(!$this->isFlaggedForDespawn()){
-			$pos = Position::fromObject($this->add(-$this->width / 2, $this->height, -$this->width / 2)->floor(), $this->getLevel());
+			$pos = $this->add(-$this->width / 2, $this->height, -$this->width / 2)->floor();
 
-			$this->block->position($pos);
+			$this->block->position($this->level, $pos->x, $pos->y, $pos->z);
 
 			$blockTarget = null;
 			if($this->block instanceof Fallable){
@@ -111,7 +109,7 @@ class FallingBlock extends Entity{
 				$block = $this->level->getBlock($pos);
 				if($block->getId() > 0 and $block->isTransparent() and !$block->canBeReplaced()){
 					//FIXME: anvils are supposed to destroy torches
-					$this->getLevel()->dropItem($this, ItemFactory::get($this->getBlock(), $this->getDamage()));
+					$this->getLevel()->dropItem($this, $this->block->getItem());
 				}else{
 					$ev = new EntityBlockChangeEvent($this, $block, $blockTarget ?? $this->block);
 					$ev->call();
@@ -126,12 +124,8 @@ class FallingBlock extends Entity{
 		return $hasUpdate;
 	}
 
-	public function getBlock() : int{
-		return $this->block->getId();
-	}
-
-	public function getDamage() : int{
-		return $this->block->getDamage();
+	public function getBlock() : Block{
+		return $this->block;
 	}
 
 	public function saveNBT() : CompoundTag{

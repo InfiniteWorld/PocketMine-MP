@@ -23,11 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-use pocketmine\block\utils\PillarRotationTrait;
-
 class Wood extends Solid{
-	use PillarRotationTrait;
-
 	public const OAK = 0;
 	public const SPRUCE = 1;
 	public const BIRCH = 2;

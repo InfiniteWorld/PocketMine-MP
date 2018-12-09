@@ -25,7 +25,6 @@ namespace pocketmine\block;
 
 use pocketmine\item\Item;
 use pocketmine\item\TieredTool;
-use pocketmine\math\Bearing;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
@@ -85,16 +84,22 @@ class Furnace extends Solid{
 		return $this->lit;
 	}
 
-	public function setLit(bool $lit = true) : void{
+	/**
+	 * @param bool $lit
+	 *
+	 * @return $this
+	 */
+	public function setLit(bool $lit = true) : self{
 		$this->lit = $lit;
+		return $this;
 	}
 
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
 		if($player !== null){
-			$this->facing = Bearing::toFacing(Bearing::opposite($player->getDirection()));
+			$this->facing = Facing::opposite($player->getHorizontalFacing());
 		}
 		if(parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player)){
-			Tile::createTile(Tile::FURNACE, $this->getLevel(), TileFurnace::createNBT($this, $face, $item, $player));
+			Tile::createTile(Tile::FURNACE, $this->getLevel(), TileFurnace::createNBT($this, $item));
 			return true;
 		}
 

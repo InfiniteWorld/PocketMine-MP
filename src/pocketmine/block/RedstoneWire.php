@@ -21,17 +21,41 @@
 
 declare(strict_types=1);
 
-namespace pocketmine;
+namespace pocketmine\block;
 
-abstract class Collectable extends \Threaded{
+use pocketmine\item\Item;
 
-	private $isGarbage = false;
+class RedstoneWire extends Flowable{
+	/** @var int */
+	protected $id = Block::REDSTONE_WIRE;
+	/** @var int */
+	protected $itemId = Item::REDSTONE;
 
-	public function isGarbage() : bool{
-		return $this->isGarbage;
+	/** @var int */
+	protected $power = 0;
+
+	public function __construct(){
+
 	}
 
-	public function setGarbage(){
-		$this->isGarbage = true;
+	public function readStateFromMeta(int $meta) : void{
+		$this->power = $meta;
+	}
+
+	protected function writeStateToMeta() : int{
+		return $this->power;
+	}
+
+	public function getStateBitmask() : int{
+		return 0b1111;
+	}
+
+	public function getName() : string{
+		return "Redstone";
+	}
+
+	public function readStateFromWorld() : void{
+		parent::readStateFromWorld();
+		//TODO: check connections to nearby redstone components
 	}
 }

@@ -4,31 +4,71 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "86aa4b535386f32a740d19af6f6375d5",
+    "content-hash": "c907ce3a2d90fa68c332ff5fe6310199",
     "packages": [
         {
-            "name": "fgrosse/phpasn1",
-            "version": "2.0.1",
+            "name": "daverandom/callback-validator",
+            "version": "dev-master",
             "source": {
                 "type": "git",
-                "url": "https://github.com/fgrosse/PHPASN1.git",
-                "reference": "0e27e71e3d0a8d5c3f1471d727fd9574d920f33c"
+                "url": "https://github.com/DaveRandom/CallbackValidator.git",
+                "reference": "d87a08cddbc6099816ed01e50ce25cdfc43b542f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/fgrosse/PHPASN1/zipball/0e27e71e3d0a8d5c3f1471d727fd9574d920f33c",
-                "reference": "0e27e71e3d0a8d5c3f1471d727fd9574d920f33c",
+                "url": "https://api.github.com/repos/DaveRandom/CallbackValidator/zipball/d87a08cddbc6099816ed01e50ce25cdfc43b542f",
+                "reference": "d87a08cddbc6099816ed01e50ce25cdfc43b542f",
                 "shasum": ""
             },
             "require": {
-                "ext-gmp": "*",
+                "ext-reflection": "*",
+                "php": ">=7.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "DaveRandom\\CallbackValidator\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Chris Wright",
+                    "email": "cw@daverandom.com"
+                }
+            ],
+            "description": "Tools for validating callback signatures",
+            "time": "2017-04-03T15:22:41+00:00"
+        },
+        {
+            "name": "fgrosse/phpasn1",
+            "version": "v2.1.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/fgrosse/PHPASN1.git",
+                "reference": "7ebf2a09084a7bbdb7b879c66fdf7ad80461bbe8"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/fgrosse/PHPASN1/zipball/7ebf2a09084a7bbdb7b879c66fdf7ad80461bbe8",
+                "reference": "7ebf2a09084a7bbdb7b879c66fdf7ad80461bbe8",
+                "shasum": ""
+            },
+            "require": {
                 "php": ">=7.0.0"
             },
             "require-dev": {
                 "phpunit/phpunit": "~6.3",
-                "satooshi/php-coveralls": "dev-master"
+                "satooshi/php-coveralls": "~2.0"
             },
             "suggest": {
+                "ext-gmp": "GMP is the preferred extension for big integer calculations",
                 "php-curl": "For loading OID information from the web if they have not bee defined statically"
             },
             "type": "library",
@@ -73,7 +113,7 @@
                 "x509",
                 "x690"
             ],
-            "time": "2017-12-17T10:21:51+00:00"
+            "time": "2018-12-02T01:34:34+00:00"
         },
         {
             "name": "infiniteworld/binaryutils",
@@ -113,12 +153,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/Math_MoreSupport.git",
-                "reference": "662098535b3ef45fcd2df60bdd94d7752bd5d4a0"
+                "reference": "68596cf2bca33749fc296b5940dc256e255942ef"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/Math_MoreSupport/zipball/662098535b3ef45fcd2df60bdd94d7752bd5d4a0",
-                "reference": "662098535b3ef45fcd2df60bdd94d7752bd5d4a0",
+                "url": "https://api.github.com/repos/InfiniteWorld/Math_MoreSupport/zipball/68596cf2bca33749fc296b5940dc256e255942ef",
+                "reference": "68596cf2bca33749fc296b5940dc256e255942ef",
                 "shasum": ""
             },
             "require": {
@@ -142,7 +182,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/Math_MoreSupport/tree/master_32-bit"
             },
-            "time": "2018-09-28T09:25:47+00:00"
+            "time": "2018-12-09T01:35:04+00:00"
         },
         {
             "name": "infiniteworld/nbt",
@@ -150,15 +190,16 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/NBT_MoreSupport.git",
-                "reference": "7b6ad4dd28c6d4a245698515db7143269acf59ba"
+                "reference": "b7b7cbcac54649252b5cc3f6f7673e6694a56160"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/NBT_MoreSupport/zipball/7b6ad4dd28c6d4a245698515db7143269acf59ba",
-                "reference": "7b6ad4dd28c6d4a245698515db7143269acf59ba",
+                "url": "https://api.github.com/repos/InfiniteWorld/NBT_MoreSupport/zipball/b7b7cbcac54649252b5cc3f6f7673e6694a56160",
+                "reference": "b7b7cbcac54649252b5cc3f6f7673e6694a56160",
                 "shasum": ""
             },
             "require": {
+                "ext-zlib": "*",
                 "infiniteworld/binaryutils": "^0.1.0",
                 "php": ">=7.2.0"
             },
@@ -180,7 +221,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/NBT_MoreSupport/tree/master_32-bit"
             },
-            "time": "2018-09-28T09:26:39+00:00"
+            "time": "2018-12-09T01:37:11+00:00"
         },
         {
             "name": "infiniteworld/raklib",
@@ -188,12 +229,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/RakLib_MoreSupport.git",
-                "reference": "b25233943820e37ee7a77dfc5cf735a3591ba1c9"
+                "reference": "97d5eff03326394dacc8598a888108d50df2c0bf"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/RakLib_MoreSupport/zipball/b25233943820e37ee7a77dfc5cf735a3591ba1c9",
-                "reference": "b25233943820e37ee7a77dfc5cf735a3591ba1c9",
+                "url": "https://api.github.com/repos/InfiniteWorld/RakLib_MoreSupport/zipball/97d5eff03326394dacc8598a888108d50df2c0bf",
+                "reference": "97d5eff03326394dacc8598a888108d50df2c0bf",
                 "shasum": ""
             },
             "require": {
@@ -204,7 +245,7 @@
                 "infiniteworld/snooze": "^0.1.0",
                 "php": ">=7.2.0",
                 "php-ipv6": "*",
-                "pocketmine/spl": "^0.3.0"
+                "pocketmine/spl": "dev-master"
             },
             "type": "library",
             "autoload": {
@@ -219,7 +260,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/RakLib_MoreSupport/tree/master_32-bit"
             },
-            "time": "2018-09-02T05:26:36+00:00"
+            "time": "2018-12-09T01:39:09+00:00"
         },
         {
             "name": "infiniteworld/snooze",
@@ -256,27 +297,27 @@
         },
         {
             "name": "mdanter/ecc",
-            "version": "v0.5.0",
+            "version": "v0.5.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpecc/phpecc.git",
-                "reference": "ed5c6d496f5310de1b7071b8375fafa3559a1344"
+                "reference": "b95f25cc1bacc83a9f0ccd375900b7cfd343029e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpecc/phpecc/zipball/ed5c6d496f5310de1b7071b8375fafa3559a1344",
-                "reference": "ed5c6d496f5310de1b7071b8375fafa3559a1344",
+                "url": "https://api.github.com/repos/phpecc/phpecc/zipball/b95f25cc1bacc83a9f0ccd375900b7cfd343029e",
+                "reference": "b95f25cc1bacc83a9f0ccd375900b7cfd343029e",
                 "shasum": ""
             },
             "require": {
                 "ext-gmp": "*",
-                "fgrosse/phpasn1": "v2.0.x",
-                "php": ">=7.0"
+                "fgrosse/phpasn1": "^2.0",
+                "php": "^7.0"
             },
             "require-dev": {
                 "phpunit/phpunit": "^6.0",
-                "squizlabs/php_codesniffer": "~2",
-                "symfony/yaml": "~2.6|~3.0"
+                "squizlabs/php_codesniffer": "^2.0",
+                "symfony/yaml": "^2.6|^3.0"
             },
             "type": "library",
             "autoload": {
@@ -324,20 +365,20 @@
                 "secp256k1",
                 "secp256r1"
             ],
-            "time": "2017-10-09T16:05:37+00:00"
+            "time": "2018-12-03T18:17:01+00:00"
         },
         {
             "name": "pocketmine/spl",
-            "version": "0.3.2",
+            "version": "dev-master",
             "source": {
                 "type": "git",
                 "url": "https://github.com/pmmp/SPL.git",
-                "reference": "7fd53857cd000491ba69e8db865792a024dd2c49"
+                "reference": "985e212ac528412ec00ddd3b88c5fc11549a2fe0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/pmmp/SPL/zipball/7fd53857cd000491ba69e8db865792a024dd2c49",
-                "reference": "7fd53857cd000491ba69e8db865792a024dd2c49",
+                "url": "https://api.github.com/repos/pmmp/SPL/zipball/985e212ac528412ec00ddd3b88c5fc11549a2fe0",
+                "reference": "985e212ac528412ec00ddd3b88c5fc11549a2fe0",
                 "shasum": ""
             },
             "type": "library",
@@ -356,17 +397,11 @@
             "support": {
                 "source": "https://github.com/pmmp/SPL/tree/master"
             },
-            "time": "2018-08-12T15:17:39+00:00"
+            "time": "2018-10-21T17:32:00+00:00"
         }
     ],
     "packages-dev": [],
     "aliases": [
-        {
-            "alias": "0.12.0",
-            "alias_normalized": "0.12.0.0",
-            "version": "dev-master_32-bit",
-            "package": "infiniteworld/raklib"
-        },
         {
             "alias": "0.1.0",
             "alias_normalized": "0.1.0.0",
@@ -384,10 +419,12 @@
     "stability-flags": {
         "ext-pthreads": 20,
         "infiniteworld/raklib": 20,
+        "pocketmine/spl": 20,
         "infiniteworld/binaryutils": 20,
         "infiniteworld/nbt": 20,
         "infiniteworld/math": 20,
-        "infiniteworld/snooze": 20
+        "infiniteworld/snooze": 20,
+        "daverandom/callback-validator": 20
     },
     "prefer-stable": false,
     "prefer-lowest": false,

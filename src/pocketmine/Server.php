@@ -97,7 +97,6 @@ use pocketmine\plugin\PluginManager;
 use pocketmine\plugin\ScriptPluginLoader;
 use pocketmine\resourcepacks\ResourcePackManager;
 use pocketmine\scheduler\AsyncPool;
-use pocketmine\scheduler\FileWriteTask;
 use pocketmine\scheduler\SendUsageTask;
 use pocketmine\snooze\SleeperHandler;
 use pocketmine\snooze\SleeperNotifier;
@@ -200,9 +199,6 @@ class Server{
 
 	/** @var ResourcePackManager */
 	private $resourceManager;
-
-	/** @var ConsoleCommandSender */
-	private $consoleSender;
 
 	/** @var int */
 	private $maxPlayers;
@@ -805,9 +801,8 @@ class Server{
 	/**
 	 * @param string      $name
 	 * @param CompoundTag $nbtTag
-	 * @param bool        $async
 	 */
-	public function saveOfflinePlayerData(string $name, CompoundTag $nbtTag, bool $async = false){
+	public function saveOfflinePlayerData(string $name, CompoundTag $nbtTag){
 		$ev = new PlayerDataSaveEvent($nbtTag, $name);
 		$ev->setCancelled(!$this->shouldSavePlayerData());
 
@@ -816,11 +811,7 @@ class Server{
 		if(!$ev->isCancelled()){
 			$nbt = new BigEndianNBTStream();
 			try{
-				if($async){
-					$this->asyncPool->submitTask(new FileWriteTask($this->getDataPath() . "players/" . strtolower($name) . ".dat", $nbt->writeCompressed($ev->getSaveData())));
-				}else{
-					file_put_contents($this->getDataPath() . "players/" . strtolower($name) . ".dat", $nbt->writeCompressed($ev->getSaveData()));
-				}
+				file_put_contents($this->getDataPath() . "players/" . strtolower($name) . ".dat", $nbt->writeCompressed($ev->getSaveData()));
 			}catch(\Throwable $e){
 				$this->logger->critical($this->getLanguage()->translateString("pocketmine.data.saveError", [$name, $e->getMessage()]));
 				$this->logger->logException($e);
@@ -1433,52 +1424,6 @@ class Server{
 			}
 			$this->config = new Config($this->dataPath . "pocketmine.yml", Config::YAML, []);
 
-			define('pocketmine\DEBUG', (int) $this->getProperty("debug.level", 1));
-
-			$this->forceLanguage = (bool) $this->getProperty("settings.force-language", false);
-			$selectedLang = $this->getProperty("settings.language", Language::FALLBACK_LANGUAGE);
-			try{
-				$this->language = new Language($selectedLang);
-			}catch(LanguageNotFoundException $e){
-				$this->logger->error($e->getMessage());
-				try{
-					$this->language = new Language(Language::FALLBACK_LANGUAGE);
-				}catch(LanguageNotFoundException $e){
-					$this->logger->emergency("Fallback language \"" . Language::FALLBACK_LANGUAGE . "\" not found");
-					return;
-				}
-			}
-
-			$this->logger->info($this->getLanguage()->translateString("language.selected", [$this->getLanguage()->getName(), $this->getLanguage()->getLang()]));
-
-			if(\pocketmine\IS_DEVELOPMENT_BUILD){
-				if(!((bool) $this->getProperty("settings.enable-dev-builds", false))){
-					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error1", [\pocketmine\NAME]));
-					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error2"));
-					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error3"));
-					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error4", ["settings.enable-dev-builds"]));
-					$this->forceShutdown();
-
-					return;
-				}
-
-				$this->logger->warning(str_repeat("-", 40));
-				$this->logger->warning($this->language->translateString("pocketmine.server.devBuild.warning1", [\pocketmine\NAME]));
-				$this->logger->warning($this->language->translateString("pocketmine.server.devBuild.warning2"));
-				$this->logger->warning($this->language->translateString("pocketmine.server.devBuild.warning3"));
-				$this->logger->warning(str_repeat("-", 40));
-			}
-
-			if(((int) ini_get('zend.assertions')) > 0 and ((bool) $this->getProperty("debug.assertions.warn-if-enabled", true)) !== false){
-				$this->logger->warning("Debugging assertions are enabled, this may impact on performance. To disable them, set `zend.assertions = -1` in php.ini.");
-			}
-
-			ini_set('assert.exception', '1');
-
-			if($this->logger instanceof MainLogger){
-				$this->logger->setLogDebug(\pocketmine\DEBUG > 1);
-			}
-
 			$this->logger->info("Loading server properties...");
 			$this->properties = new Config($this->dataPath . "server.properties", Config::PROPERTIES, [
 				"motd" => \pocketmine\NAME . " Server",
@@ -1503,8 +1448,56 @@ class Server{
 				"rcon.password" => substr(base64_encode(random_bytes(20)), 3, 10),
 				"auto-save" => true,
 				"view-distance" => 8,
-				"xbox-auth" => true
+				"xbox-auth" => true,
+				"language" => "eng"
 			]);
+
+			define('pocketmine\DEBUG', (int) $this->getProperty("debug.level", 1));
+
+			$this->forceLanguage = (bool) $this->getProperty("settings.force-language", false);
+			$selectedLang = $this->getConfigString("language", $this->getProperty("settings.language", Language::FALLBACK_LANGUAGE));
+			try{
+				$this->language = new Language($selectedLang);
+			}catch(LanguageNotFoundException $e){
+				$this->logger->error($e->getMessage());
+				try{
+					$this->language = new Language(Language::FALLBACK_LANGUAGE);
+				}catch(LanguageNotFoundException $e){
+					$this->logger->emergency("Fallback language \"" . Language::FALLBACK_LANGUAGE . "\" not found");
+					return;
+				}
+			}
+
+			$this->logger->info($this->getLanguage()->translateString("language.selected", [$this->getLanguage()->getName(), $this->getLanguage()->getLang()]));
+
+			if(\pocketmine\IS_DEVELOPMENT_BUILD){
+				if(!((bool) $this->getProperty("settings.enable-dev-builds", false))){
+					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error1", [\pocketmine\NAME]));
+					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error2"));
+					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error3"));
+					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error4", ["settings.enable-dev-builds"]));
+					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error5", ["https://github.com/pmmp/PocketMine-MP/releases"]));
+					$this->forceShutdown();
+
+					return;
+				}
+
+				$this->logger->warning(str_repeat("-", 40));
+				$this->logger->warning($this->language->translateString("pocketmine.server.devBuild.warning1", [\pocketmine\NAME]));
+				$this->logger->warning($this->language->translateString("pocketmine.server.devBuild.warning2"));
+				$this->logger->warning($this->language->translateString("pocketmine.server.devBuild.warning3"));
+				$this->logger->warning(str_repeat("-", 40));
+			}
+
+			if(((int) ini_get('zend.assertions')) > 0 and ((bool) $this->getProperty("debug.assertions.warn-if-enabled", true)) !== false){
+				$this->logger->warning("Debugging assertions are enabled, this may impact on performance. To disable them, set `zend.assertions = -1` in php.ini.");
+			}
+
+			ini_set('assert.exception', '1');
+
+			if($this->logger instanceof MainLogger){
+				$this->logger->setLogDebug(\pocketmine\DEBUG > 1);
+			}
 
 			$this->memoryManager = new MemoryManager($this);
 
@@ -1545,10 +1538,18 @@ class Server{
 
 			$this->doTitleTick = ((bool) $this->getProperty("console.title-tick", true)) && Terminal::hasFormattingCodes();
 
+
+			$consoleSender = new ConsoleCommandSender();
+			PermissionManager::getInstance()->subscribeToPermission(Server::BROADCAST_CHANNEL_ADMINISTRATIVE, $consoleSender);
+
 			$consoleNotifier = new SleeperNotifier();
 			$this->console = new CommandReader($consoleNotifier);
-			$this->tickSleeper->addNotifier($consoleNotifier, function() : void{
-				$this->checkConsole();
+			$this->tickSleeper->addNotifier($consoleNotifier, function() use ($consoleSender) : void{
+				Timings::$serverCommandTimer->startTiming();
+				while(($line = $this->console->getLine()) !== null){
+					$this->dispatchCommand($consoleSender, $line);
+				}
+				Timings::$serverCommandTimer->stopTiming();
 			});
 			$this->console->start(PTHREADS_INHERIT_NONE);
 
@@ -1624,7 +1625,6 @@ class Server{
 			Timings::init();
 			TimingsHandler::setEnabled((bool) $this->getProperty("settings.enable-profiling", false));
 
-			$this->consoleSender = new ConsoleCommandSender();
 			$this->commandMap = new SimpleCommandMap($this);
 
 			Entity::init();
@@ -1640,8 +1640,7 @@ class Server{
 
 			$this->resourceManager = new ResourcePackManager($this->getDataPath() . "resource_packs" . DIRECTORY_SEPARATOR, $this->logger);
 
-			$this->pluginManager = new PluginManager($this, $this->commandMap, ((bool) $this->getProperty("plugins.legacy-data-dir", true)) ? null : $this->getDataPath() . "plugin_data" . DIRECTORY_SEPARATOR);
-			PermissionManager::getInstance()->subscribeToPermission(Server::BROADCAST_CHANNEL_ADMINISTRATIVE, $this->consoleSender);
+			$this->pluginManager = new PluginManager($this, ((bool) $this->getProperty("plugins.legacy-data-dir", true)) ? null : $this->getDataPath() . "plugin_data" . DIRECTORY_SEPARATOR);
 			$this->profilingTickRate = (float) $this->getProperty("settings.profile-report-trigger", 20);
 			$this->pluginManager->registerInterface(new PharPluginLoader($this->autoloader));
 			$this->pluginManager->registerInterface(new ScriptPluginLoader());
@@ -1971,14 +1970,6 @@ class Server{
 		$this->pluginManager->disablePlugins();
 	}
 
-	public function checkConsole(){
-		Timings::$serverCommandTimer->startTiming();
-		while(($line = $this->console->getLine()) !== null){
-			$this->dispatchCommand($this->consoleSender, $line);
-		}
-		Timings::$serverCommandTimer->stopTiming();
-	}
-
 	/**
 	 * Executes a command from a CommandSender
 	 *
@@ -2292,6 +2283,12 @@ class Server{
 
 		$this->forceShutdown();
 		$this->isRunning = false;
+
+		//Force minimum uptime to be >= 120 seconds, to reduce the impact of spammy crash loops
+		$spacing = ((int) \pocketmine\START_TIME) - time() + 120;
+		if($spacing > 0){
+			sleep($spacing);
+		}
 		@Utils::kill(getmypid());
 		exit(1);
 	}
@@ -2443,7 +2440,7 @@ class Server{
 			Timings::$worldSaveTimer->startTiming();
 			foreach($this->players as $index => $player){
 				if($player->spawned){
-					$player->save(true);
+					$player->save();
 				}elseif(!$player->isConnected()){
 					$this->removePlayer($player);
 				}

@@ -39,6 +39,10 @@ class Skull extends Flowable{
 	/** @var int */
 	protected $facing = Facing::NORTH;
 
+	protected $type = TileSkull::TYPE_SKELETON;
+	/** @var int */
+	protected $rotation = 0; //TODO: split this into floor skull and wall skull handling
+
 	public function __construct(){
 
 	}
@@ -55,6 +59,24 @@ class Skull extends Flowable{
 		return 0b111;
 	}
 
+	public function readStateFromWorld() : void{
+		parent::readStateFromWorld();
+		$tile = $this->level->getTile($this);
+		if($tile instanceof TileSkull){
+			$this->type = $tile->getType();
+			$this->rotation = $tile->getRotation();
+		}
+	}
+
+	public function writeStateToWorld() : void{
+		parent::writeStateToWorld();
+		$tile = Tile::createTile(Tile::SKULL, $this->getLevel(), TileSkull::createNBT($this));
+		if($tile instanceof TileSkull){
+			$tile->setRotation($this->rotation);
+			$tile->setType($this->type);
+		}
+	}
+
 	public function getHardness() : float{
 		return 1;
 	}
@@ -65,8 +87,7 @@ class Skull extends Flowable{
 
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
 		//TODO: different bounds depending on attached face
-		static $f = 0.25;
-		return new AxisAlignedBB($f, 0, $f, 1 - $f, 0.5, 1 - $f);
+		return AxisAlignedBB::one()->contract(0.25, 0, 0.25)->trim(Facing::UP, 0.5);
 	}
 
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
@@ -75,17 +96,15 @@ class Skull extends Flowable{
 		}
 
 		$this->facing = $face;
-		if(parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player)){
-			Tile::createTile(Tile::SKULL, $this->getLevel(), TileSkull::createNBT($this, $face, $item, $player));
-			return true;
+		$this->type = $item->getDamage(); //TODO: replace this with a proper variant getter
+		if($player !== null and $face === Facing::UP){
+			$this->rotation = ((int) floor(($player->yaw * 16 / 360) + 0.5)) & 0xf;
 		}
-
-		return false;
+		return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 	}
 
 	public function getItem() : Item{
-		$tile = $this->level->getTile($this);
-		return ItemFactory::get(Item::SKULL, $tile instanceof TileSkull ? $tile->getType() : 0);
+		return ItemFactory::get(Item::SKULL, $this->type);
 	}
 
 	public function isAffectedBySilkTouch() : bool{
