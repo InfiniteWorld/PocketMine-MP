@@ -37,11 +37,11 @@ class NetworkNbtSerializer extends LittleEndianNbtSerializer{
 		$this->buffer->putVarInt($v);
 	}
 
-	public function readLong() : int{
+	public function readLong(){
 		return $this->buffer->getVarLong();
 	}
 
-	public function writeLong(int $v) : void{
+	public function writeLong($v) : void{
 		$this->buffer->putVarLong($v);
 	}
 

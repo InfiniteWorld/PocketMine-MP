@@ -338,11 +338,11 @@ class LevelManager{
 	 * Searches all levels for the entity with the specified ID.
 	 * Useful for tracking entities across multiple worlds without needing strong references.
 	 *
-	 * @param int $entityId
+	 * @param int|string $entityId
 	 *
 	 * @return Entity|null
 	 */
-	public function findEntity(int $entityId){
+	public function findEntity($entityId){
 		foreach($this->levels as $level){
 			assert(!$level->isClosed());
 			if(($entity = $level->getEntity($entityId)) instanceof Entity){

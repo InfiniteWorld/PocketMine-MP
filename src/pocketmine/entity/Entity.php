@@ -620,9 +620,9 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 
 	/**
 	 * Returns the entity ID of the owning entity, or null if the entity doesn't have an owner.
-	 * @return int|null
+	 * @return int|string|null
 	 */
-	public function getOwningEntityId() : ?int{
+	public function getOwningEntityId(){
 		return $this->propertyManager->getLong(self::DATA_OWNER_EID);
 	}
 
@@ -658,9 +658,9 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 
 	/**
 	 * Returns the entity ID of the entity's target, or null if it doesn't have a target.
-	 * @return int|null
+	 * @return int|string|null
 	 */
-	public function getTargetEntityId() : ?int{
+	public function getTargetEntityId(){
 		return $this->propertyManager->getLong(self::DATA_TARGET_EID);
 	}
 
