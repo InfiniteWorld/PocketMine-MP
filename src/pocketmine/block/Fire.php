@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\entity\Entity;
 use pocketmine\entity\projectile\Arrow;
 use pocketmine\event\block\BlockBurnEvent;
@@ -31,24 +32,20 @@ use pocketmine\event\entity\EntityDamageByBlockEvent;
 use pocketmine\event\entity\EntityDamageEvent;
 use pocketmine\item\Item;
 use pocketmine\math\Facing;
+use function min;
+use function mt_rand;
 
 class Fire extends Flowable{
 
-	protected $id = self::FIRE;
-
 	/** @var int */
 	protected $age = 0;
-
-	public function __construct(){
-
-	}
 
 	protected function writeStateToMeta() : int{
 		return $this->age;
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->age = $meta;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->age = BlockDataValidator::readBoundedInt("age", $stateMeta, 0, 15);
 	}
 
 	public function getStateBitmask() : int{
@@ -57,10 +54,6 @@ class Fire extends Flowable{
 
 	public function hasEntityCollision() : bool{
 		return true;
-	}
-
-	public function getName() : string{
-		return "Fire Block";
 	}
 
 	public function getLightLevel() : int{
@@ -75,7 +68,7 @@ class Fire extends Flowable{
 		return true;
 	}
 
-	public function onEntityCollide(Entity $entity) : void{
+	public function onEntityInside(Entity $entity) : void{
 		$ev = new EntityDamageByBlockEvent($this, $entity, EntityDamageEvent::CAUSE_FIRE, 1);
 		$entity->attack($ev);
 

@@ -23,11 +23,10 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\math\Facing;
 
 class WallSign extends SignPost{
-
-	protected $id = self::WALL_SIGN;
 
 	/** @var int */
 	protected $facing = Facing::NORTH;
@@ -36,16 +35,12 @@ class WallSign extends SignPost{
 		return $this->facing;
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->facing = $meta;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->facing = BlockDataValidator::readHorizontalFacing($stateMeta);
 	}
 
 	public function getStateBitmask() : int{
 		return 0b111;
-	}
-
-	public function getName() : string{
-		return "Wall Sign";
 	}
 
 	public function onNearbyBlockChange() : void{

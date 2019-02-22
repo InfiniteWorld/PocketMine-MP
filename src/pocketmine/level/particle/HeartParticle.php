@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace pocketmine\level\particle;
 
-use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\types\ParticleIds;
 
 class HeartParticle extends GenericParticle{
-	public function __construct(Vector3 $pos, int $scale = 0){
-		parent::__construct($pos, Particle::TYPE_HEART, $scale);
+	public function __construct(int $scale = 0){
+		parent::__construct(ParticleIds::HEART, $scale);
 	}
 }

@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace pocketmine\level\particle;
 
-use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\types\ParticleIds;
 
 class AngryVillagerParticle extends GenericParticle{
-	public function __construct(Vector3 $pos){
-		parent::__construct($pos, Particle::TYPE_VILLAGER_ANGRY);
+	public function __construct(){
+		parent::__construct(ParticleIds::VILLAGER_ANGRY);
 	}
 }

@@ -26,6 +26,8 @@ namespace pocketmine\network\mcpe\protocol;
 
 
 use pocketmine\network\mcpe\handler\SessionHandler;
+use function ord;
+use function strlen;
 
 class UnknownPacket extends DataPacket{
 	public const NETWORK_ID = -1; //Invalid, do not try to write this
@@ -44,12 +46,19 @@ class UnknownPacket extends DataPacket{
 		return "unknown packet";
 	}
 
-	public function decode() : void{
+	protected function decodeHeader() : void{
+
+	}
+
+	protected function decodePayload() : void{
 		$this->payload = $this->getRemaining();
 	}
 
-	public function encode() : void{
-		//Do not reset the buffer, this class does not have a valid NETWORK_ID constant.
+	protected function encodeHeader() : void{
+
+	}
+
+	protected function encodePayload() : void{
 		$this->put($this->payload);
 	}
 

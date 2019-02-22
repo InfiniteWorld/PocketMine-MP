@@ -23,7 +23,9 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\event\block\BlockGrowEvent;
+use pocketmine\item\Fertilizer;
 use pocketmine\item\Item;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
@@ -31,44 +33,34 @@ use pocketmine\Player;
 
 class Sugarcane extends Flowable{
 
-	protected $id = self::SUGARCANE_BLOCK;
-
-	protected $itemId = Item::SUGARCANE;
-
 	/** @var int */
 	protected $age = 0;
-
-	public function __construct(){
-
-	}
 
 	protected function writeStateToMeta() : int{
 		return $this->age;
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->age = $meta;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->age = BlockDataValidator::readBoundedInt("age", $stateMeta, 0, 15);
 	}
 
 	public function getStateBitmask() : int{
 		return 0b1111;
 	}
 
-	public function getName() : string{
-		return "Sugarcane";
-	}
-
-	public function onActivate(Item $item, Player $player = null) : bool{
-		if($item->getId() === Item::DYE and $item->getDamage() === 0x0F){ //Bonemeal
+	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if($item instanceof Fertilizer){
 			if($this->getSide(Facing::DOWN)->getId() !== self::SUGARCANE_BLOCK){
 				for($y = 1; $y < 3; ++$y){
 					$b = $this->getLevel()->getBlockAt($this->x, $this->y + $y, $this->z);
 					if($b->getId() === self::AIR){
 						$ev = new BlockGrowEvent($b, BlockFactory::get(Block::SUGARCANE_BLOCK));
 						$ev->call();
-						if(!$ev->isCancelled()){
-							$this->getLevel()->setBlock($b, $ev->getNewState());
+						if($ev->isCancelled()){
+							break;
 						}
+						$this->getLevel()->setBlock($b, $ev->getNewState());
+					}else{
 						break;
 					}
 				}
@@ -114,7 +106,7 @@ class Sugarcane extends Flowable{
 		}
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$down = $this->getSide(Facing::DOWN);
 		if($down->getId() === self::SUGARCANE_BLOCK){
 			return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);

@@ -26,13 +26,16 @@ namespace pocketmine\inventory;
 use pocketmine\event\inventory\InventoryOpenEvent;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
-use pocketmine\level\Level;
-use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\InventoryContentPacket;
 use pocketmine\network\mcpe\protocol\InventorySlotPacket;
 use pocketmine\network\mcpe\protocol\types\ContainerIds;
 use pocketmine\Player;
 use pocketmine\utils\Utils;
+use function array_slice;
+use function count;
+use function max;
+use function min;
+use function spl_object_id;
 
 abstract class BaseInventory implements Inventory{
 
@@ -92,7 +95,7 @@ abstract class BaseInventory implements Inventory{
 	}
 
 	public function getItem(int $index) : Item{
-		return $this->slots[$index] !== null ? clone $this->slots[$index] : ItemFactory::get(Item::AIR, 0, 0);
+		return $this->slots[$index] !== null ? clone $this->slots[$index] : ItemFactory::air();
 	}
 
 	/**
@@ -102,13 +105,12 @@ abstract class BaseInventory implements Inventory{
 	 */
 	public function getContents(bool $includeEmpty = false) : array{
 		$contents = [];
-		$air = null;
 
 		foreach($this->slots as $i => $slot){
 			if($slot !== null){
 				$contents[$i] = clone $slot;
 			}elseif($includeEmpty){
-				$contents[$i] = $air ?? ($air = ItemFactory::get(Item::AIR, 0, 0));
+				$contents[$i] = ItemFactory::air();
 			}
 		}
 
@@ -141,24 +143,9 @@ abstract class BaseInventory implements Inventory{
 		}
 	}
 
-	/**
-	 * Drops the contents of the inventory into the specified Level at the specified position and clears the inventory
-	 * contents.
-	 *
-	 * @param Level   $level
-	 * @param Vector3 $position
-	 */
-	public function dropContents(Level $level, Vector3 $position) : void{
-		foreach($this->getContents() as $item){
-			$level->dropItem($position, $item);
-		}
-
-		$this->clearAll();
-	}
-
 	public function setItem(int $index, Item $item, bool $send = true) : bool{
 		if($item->isNull()){
-			$item = ItemFactory::get(Item::AIR, 0, 0);
+			$item = ItemFactory::air();
 		}else{
 			$item = clone $item;
 		}
@@ -363,7 +350,7 @@ abstract class BaseInventory implements Inventory{
 	}
 
 	public function clear(int $index, bool $send = true) : bool{
-		return $this->setItem($index, ItemFactory::get(Item::AIR, 0, 0), $send);
+		return $this->setItem($index, ItemFactory::air(), $send);
 	}
 
 	public function clearAll(bool $send = true) : void{
@@ -415,11 +402,11 @@ abstract class BaseInventory implements Inventory{
 	}
 
 	public function onOpen(Player $who) : void{
-		$this->viewers[spl_object_hash($who)] = $who;
+		$this->viewers[spl_object_id($who)] = $who;
 	}
 
 	public function onClose(Player $who) : void{
-		unset($this->viewers[spl_object_hash($who)]);
+		unset($this->viewers[spl_object_id($who)]);
 	}
 
 	public function onSlotChange(int $index, Item $before, bool $send) : void{

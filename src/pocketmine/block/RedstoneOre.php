@@ -28,24 +28,25 @@ use pocketmine\item\ItemFactory;
 use pocketmine\item\TieredTool;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
+use function mt_rand;
 
 class RedstoneOre extends Solid{
-
-	protected $itemId = self::REDSTONE_ORE;
+	/** @var BlockIdentifierFlattened */
+	protected $idInfo;
 
 	/** @var bool */
 	protected $lit = false;
 
-	public function __construct(){
-
+	public function __construct(BlockIdentifierFlattened $idInfo, string $name){
+		parent::__construct($idInfo, $name);
 	}
 
 	public function getId() : int{
-		return $this->lit ? self::GLOWING_REDSTONE_ORE : self::REDSTONE_ORE;
+		return $this->lit ? $this->idInfo->getSecondId() : parent::getId();
 	}
 
-	public function getName() : string{
-		return "Redstone Ore";
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->lit = $id === $this->idInfo->getSecondId();
 	}
 
 	public function getHardness() : float{
@@ -70,11 +71,11 @@ class RedstoneOre extends Solid{
 		return $this->lit ? 9 : 0;
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		return $this->getLevel()->setBlock($this, $this, false);
 	}
 
-	public function onActivate(Item $item, Player $player = null) : bool{
+	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if(!$this->lit){
 			$this->lit = true;
 			$this->getLevel()->setBlock($this, $this); //no return here - this shouldn't prevent block placement

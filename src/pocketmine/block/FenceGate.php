@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
 use pocketmine\level\sound\DoorSound;
 use pocketmine\math\AxisAlignedBB;
@@ -36,18 +37,21 @@ class FenceGate extends Transparent{
 	protected $open = false;
 	/** @var int */
 	protected $facing = Facing::NORTH;
+	/** @var bool */
+	protected $inWall = false;
 
 	protected function writeStateToMeta() : int{
-		return Bearing::fromFacing($this->facing) | ($this->open ? 0x04 : 0);
+		return Bearing::fromFacing($this->facing) | ($this->open ? 0x04 : 0) | ($this->inWall ? 0x08 : 0);
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->facing = Bearing::toFacing($meta & 0x03);
-		$this->open = ($meta & 0x04) !== 0;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->facing = BlockDataValidator::readLegacyHorizontalFacing($stateMeta & 0x03);
+		$this->open = ($stateMeta & 0x04) !== 0;
+		$this->inWall = ($stateMeta & 0x08) !== 0;
 	}
 
 	public function getStateBitmask() : int{
-		return 0b111;
+		return 0b1111;
 	}
 
 	public function getHardness() : float{
@@ -67,15 +71,32 @@ class FenceGate extends Transparent{
 		return AxisAlignedBB::one()->extend(Facing::UP, 0.5)->squash(Facing::axis($this->facing), 6 / 16);
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	private function checkInWall() : bool{
+		return (
+			$this->getSide(Facing::rotateY($this->facing, false)) instanceof CobblestoneWall or
+			$this->getSide(Facing::rotateY($this->facing, true)) instanceof CobblestoneWall
+		);
+	}
+
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($player !== null){
 			$this->facing = $player->getHorizontalFacing();
 		}
 
+		$this->inWall = $this->checkInWall();
+
 		return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 	}
 
-	public function onActivate(Item $item, Player $player = null) : bool{
+	public function onNearbyBlockChange() : void{
+		$inWall = $this->checkInWall();
+		if($inWall !== $this->inWall){
+			$this->inWall = $inWall;
+			$this->level->setBlock($this, $this);
+		}
+	}
+
+	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$this->open = !$this->open;
 		if($this->open and $player !== null){
 			$playerFacing = $player->getHorizontalFacing();
@@ -85,7 +106,7 @@ class FenceGate extends Transparent{
 		}
 
 		$this->getLevel()->setBlock($this, $this);
-		$this->level->addSound(new DoorSound($this));
+		$this->level->addSound($this, new DoorSound());
 		return true;
 	}
 

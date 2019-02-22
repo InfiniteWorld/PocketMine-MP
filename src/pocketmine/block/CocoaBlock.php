@@ -23,6 +23,9 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
+use pocketmine\block\utils\TreeType;
+use pocketmine\item\Fertilizer;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\math\AxisAlignedBB;
@@ -30,35 +33,26 @@ use pocketmine\math\Bearing;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
+use function mt_rand;
 
 class CocoaBlock extends Transparent{
-
-	protected $id = self::COCOA_BLOCK;
 
 	/** @var int */
 	protected $facing = Facing::NORTH;
 	/** @var int */
 	protected $age = 0;
 
-	public function __construct(){
-
-	}
-
 	protected function writeStateToMeta() : int{
 		return Bearing::fromFacing(Facing::opposite($this->facing)) | ($this->age << 2);
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->facing = Facing::opposite(Bearing::toFacing($meta & 0x03));
-		$this->age = $meta >> 2;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->facing = Facing::opposite(BlockDataValidator::readLegacyHorizontalFacing($stateMeta & 0x03));
+		$this->age = BlockDataValidator::readBoundedInt("age", $stateMeta >> 2, 0, 2);
 	}
 
 	public function getStateBitmask() : int{
 		return 0b1111;
-	}
-
-	public function getName() : string{
-		return "Cocoa Block";
 	}
 
 	public function getHardness() : float{
@@ -82,8 +76,8 @@ class CocoaBlock extends Transparent{
 			->trim($this->facing, (11 - $this->age * 2) / 16); //outward face
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		if(Facing::axis($face) !== Facing::AXIS_Y and $blockClicked->getId() === Block::LOG and $blockClicked->getVariant() === Wood::JUNGLE){
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if(Facing::axis($face) !== Facing::AXIS_Y and $blockClicked instanceof Wood and $blockClicked->getTreeType() === TreeType::JUNGLE()){
 			$this->facing = $face;
 			return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 		}
@@ -91,17 +85,22 @@ class CocoaBlock extends Transparent{
 		return false;
 	}
 
-	public function onActivate(Item $item, Player $player = null) : bool{
-		if($this->age < 2 and $item->getId() === Item::DYE and $item->getDamage() === 15){ //bone meal
+	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if($this->age < 2 and $item instanceof Fertilizer){
 			$this->age++;
 			$this->level->setBlock($this, $this);
+
+			$item->pop();
+
+			return true;
 		}
+
 		return false;
 	}
 
 	public function onNearbyBlockChange() : void{
 		$side = $this->getSide(Facing::opposite($this->facing));
-		if($side->getId() !== Block::LOG or $side->getVariant() !== Wood::JUNGLE){
+		if(!($side instanceof Wood) or $side->getTreeType() !== TreeType::JUNGLE()){
 			$this->level->useBreakOn($this);
 		}
 	}

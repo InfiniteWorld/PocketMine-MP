@@ -29,16 +29,6 @@ use pocketmine\Player;
 
 class Ice extends Transparent{
 
-	protected $id = self::ICE;
-
-	public function __construct(){
-
-	}
-
-	public function getName() : string{
-		return "Ice";
-	}
-
 	public function getHardness() : float{
 		return 0.5;
 	}
@@ -55,8 +45,8 @@ class Ice extends Transparent{
 		return BlockToolType::TYPE_PICKAXE;
 	}
 
-	public function onBreak(Item $item, Player $player = null) : bool{
-		if(!$item->hasEnchantment(Enchantment::SILK_TOUCH)){
+	public function onBreak(Item $item, ?Player $player = null) : bool{
+		if(($player === null or $player->isSurvival()) and !$item->hasEnchantment(Enchantment::SILK_TOUCH())){
 			return $this->getLevel()->setBlock($this, BlockFactory::get(Block::WATER));
 		}
 		return parent::onBreak($item, $player);

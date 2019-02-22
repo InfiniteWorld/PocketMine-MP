@@ -23,7 +23,9 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
+use pocketmine\level\BlockTransaction;
 use pocketmine\level\sound\DoorSound;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Bearing;
@@ -51,17 +53,17 @@ abstract class Door extends Transparent{
 			return 0x08 | ($this->hingeRight ? 0x01 : 0) | ($this->powered ? 0x02 : 0);
 		}
 
-		return Bearing::rotate(Bearing::fromFacing($this->facing), 1) | ($this->open ? 0x04 : 0);
+		return Bearing::fromFacing(Facing::rotateY($this->facing, true)) | ($this->open ? 0x04 : 0);
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->top = $meta & 0x08;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->top = $stateMeta & 0x08;
 		if($this->top){
-			$this->hingeRight = ($meta & 0x01) !== 0;
-			$this->powered = ($meta & 0x02) !== 0;
+			$this->hingeRight = ($stateMeta & 0x01) !== 0;
+			$this->powered = ($stateMeta & 0x02) !== 0;
 		}else{
-			$this->facing = Bearing::toFacing(Bearing::rotate($meta & 0x03, -1));
-			$this->open = ($meta & 0x04) !== 0;
+			$this->facing = Facing::rotateY(BlockDataValidator::readLegacyHorizontalFacing($stateMeta & 0x03), false);
+			$this->open = ($stateMeta & 0x04) !== 0;
 		}
 	}
 
@@ -101,7 +103,7 @@ abstract class Door extends Transparent{
 		}
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($face === Facing::UP){
 			$blockUp = $this->getSide(Facing::UP);
 			$blockDown = $this->getSide(Facing::DOWN);
@@ -123,15 +125,16 @@ abstract class Door extends Transparent{
 			$topHalf = clone $this;
 			$topHalf->top = true;
 
-			parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
-			$this->level->setBlock($blockUp, $topHalf); //Top
-			return true;
+			$transaction = new BlockTransaction($this->level);
+			$transaction->addBlock($blockReplace, $this)->addBlock($blockUp, $topHalf);
+
+			return $transaction->apply();
 		}
 
 		return false;
 	}
 
-	public function onActivate(Item $item, Player $player = null) : bool{
+	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$this->open = !$this->open;
 
 		$other = $this->getSide($this->top ? Facing::DOWN : Facing::UP);
@@ -141,7 +144,7 @@ abstract class Door extends Transparent{
 		}
 
 		$this->level->setBlock($this, $this);
-		$this->level->addSound(new DoorSound($this));
+		$this->level->addSound($this, new DoorSound());
 
 		return true;
 	}

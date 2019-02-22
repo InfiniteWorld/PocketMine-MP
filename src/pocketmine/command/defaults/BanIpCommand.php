@@ -28,6 +28,10 @@ use pocketmine\command\CommandSender;
 use pocketmine\command\utils\InvalidCommandSyntaxException;
 use pocketmine\lang\TranslationContainer;
 use pocketmine\Player;
+use function array_shift;
+use function count;
+use function implode;
+use function preg_match;
 
 class BanIpCommand extends VanillaCommand{
 
@@ -58,9 +62,10 @@ class BanIpCommand extends VanillaCommand{
 			Command::broadcastCommandMessage($sender, new TranslationContainer("commands.banip.success", [$value]));
 		}else{
 			if(($player = $sender->getServer()->getPlayer($value)) instanceof Player){
-				$this->processIPBan($player->getAddress(), $sender, $reason);
+				$ip = $player->getAddress();
+				$this->processIPBan($ip, $sender, $reason);
 
-				Command::broadcastCommandMessage($sender, new TranslationContainer("commands.banip.success.players", [$player->getAddress(), $player->getName()]));
+				Command::broadcastCommandMessage($sender, new TranslationContainer("commands.banip.success.players", [$ip, $player->getName()]));
 			}else{
 				$sender->sendMessage(new TranslationContainer("commands.banip.invalid"));
 

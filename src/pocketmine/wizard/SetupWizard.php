@@ -31,6 +31,13 @@ use pocketmine\lang\Language;
 use pocketmine\lang\LanguageNotFoundException;
 use pocketmine\utils\Config;
 use pocketmine\utils\Internet;
+use pocketmine\utils\InternetException;
+use function fgets;
+use function sleep;
+use function strtolower;
+use function trim;
+use const PHP_EOL;
+use const STDIN;
 
 class SetupWizard{
 	public const DEFAULT_NAME = \pocketmine\NAME . " Server";
@@ -68,10 +75,6 @@ class SetupWizard{
 			}
 		}while($lang === null);
 
-		$config = new Config(\pocketmine\DATA . "server.properties", Config::PROPERTIES);
-		$config->set("language", $lang);
-		$config->save();
-
 		$this->lang = new Language($lang);
 
 		$this->message($this->lang->get("language_has_been_selected"));
@@ -79,6 +82,11 @@ class SetupWizard{
 		if(!$this->showLicense()){
 			return false;
 		}
+
+		//this has to happen here to prevent user avoiding agreeing to license
+		$config = new Config(\pocketmine\DATA . "server.properties", Config::PROPERTIES);
+		$config->set("language", $lang);
+		$config->save();
 
 		if(strtolower($this->getInput($this->lang->get("skip_installer"), "n", "y/N")) === "y"){
 			return true;
@@ -151,14 +159,6 @@ LICENSE;
 
 		$config->set("max-players", (int) $this->getInput($this->lang->get("max_players"), (string) self::DEFAULT_PLAYERS));
 
-		$this->message($this->lang->get("spawn_protection_info"));
-
-		if(strtolower($this->getInput($this->lang->get("spawn_protection"), "y", "Y/n")) === "n"){
-			$config->set("spawn-protection", -1);
-		}else{
-			$config->set("spawn-protection", 16);
-		}
-
 		$config->save();
 	}
 
@@ -196,16 +196,6 @@ LICENSE;
 			$config->set("enable-query", true);
 		}
 
-		$this->message($this->lang->get("rcon_info"));
-		if(strtolower($this->getInput($this->lang->get("rcon_enable"), "n", "y/N")) === "y"){
-			$config->set("enable-rcon", true);
-			$password = substr(base64_encode(random_bytes(20)), 3, 10);
-			$config->set("rcon.password", $password);
-			$this->message($this->lang->get("rcon_password") . ": " . $password);
-		}else{
-			$config->set("enable-rcon", false);
-		}
-
 		$config->save();
 
 
@@ -215,7 +205,11 @@ LICENSE;
 		if($externalIP === false){
 			$externalIP = "unknown (server offline)";
 		}
-		$internalIP = gethostbyname(trim(`hostname`));
+		try{
+			$internalIP = Internet::getInternalIP();
+		}catch(InternetException $e){
+			$internalIP = "unknown (" . $e->getMessage() . ")";
+		}
 
 		$this->error($this->lang->translateString("ip_warning", ["EXTERNAL_IP" => $externalIP, "INTERNAL_IP" => $internalIP]));
 		$this->error($this->lang->get("ip_confirm"));

@@ -36,6 +36,8 @@ use pocketmine\network\mcpe\protocol\EntityEventPacket;
 use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\network\mcpe\protocol\TakeItemEntityPacket;
 use pocketmine\Player;
+use function mt_rand;
+use function sqrt;
 
 class Arrow extends Projectile{
 	public const NETWORK_ID = self::ARROW;
@@ -114,7 +116,7 @@ class Arrow extends Projectile{
 		$this->punchKnockback = $punchKnockback;
 	}
 
-	public function entityBaseTick(int $tickDiff = 1) : bool{
+	protected function entityBaseTick(int $tickDiff = 1) : bool{
 		if($this->closed){
 			return false;
 		}

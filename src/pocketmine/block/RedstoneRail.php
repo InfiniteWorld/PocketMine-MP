@@ -33,12 +33,12 @@ abstract class RedstoneRail extends BaseRail{
 		return parent::writeStateToMeta() | ($this->powered ? self::FLAG_POWERED : 0);
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		parent::readStateFromMeta($meta);
-		$this->powered = ($meta & self::FLAG_POWERED) !== 0;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		parent::readStateFromData($id, $stateMeta);
+		$this->powered = ($stateMeta & self::FLAG_POWERED) !== 0;
 	}
 
-	protected function getConnectionsFromMeta(int $meta) : array{
-		return self::CONNECTIONS[$meta & ~self::FLAG_POWERED] ?? [];
+	protected function getConnectionsFromMeta(int $meta) : ?array{
+		return self::CONNECTIONS[$meta & ~self::FLAG_POWERED] ?? null;
 	}
 }

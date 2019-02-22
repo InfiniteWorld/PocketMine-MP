@@ -23,6 +23,8 @@ declare(strict_types=1);
 
 namespace pocketmine\entity;
 
+use pocketmine\entity\effect\Effect;
+use pocketmine\entity\effect\EffectInstance;
 use pocketmine\entity\projectile\ProjectileSource;
 use pocketmine\entity\utils\ExperienceUtils;
 use pocketmine\event\entity\EntityDamageEvent;
@@ -56,6 +58,18 @@ use pocketmine\network\mcpe\protocol\PlayerSkinPacket;
 use pocketmine\network\mcpe\protocol\types\PlayerListEntry;
 use pocketmine\Player;
 use pocketmine\utils\UUID;
+use function array_filter;
+use function array_merge;
+use function array_rand;
+use function array_values;
+use function ceil;
+use function max;
+use function min;
+use function mt_rand;
+use function random_int;
+use function strlen;
+use const INT32_MAX;
+use const INT32_MIN;
 
 class Human extends Creature implements ProjectileSource, InventoryHolder{
 
@@ -117,9 +131,9 @@ class Human extends Creature implements ProjectileSource, InventoryHolder{
 	}
 
 	/**
-	 * @return UUID|null
+	 * @return UUID
 	 */
-	public function getUniqueId() : ?UUID{
+	public function getUniqueId() : UUID{
 		return $this->uuid;
 	}
 
@@ -192,18 +206,13 @@ class Human extends Creature implements ProjectileSource, InventoryHolder{
 		$old = $attr->getValue();
 		$attr->setValue($new);
 
-		$reset = false;
 		// ranges: 18-20 (regen), 7-17 (none), 1-6 (no sprint), 0 (health depletion)
 		foreach([17, 6, 0] as $bound){
 			if(($old > $bound) !== ($new > $bound)){
-				$reset = true;
+				$this->foodTickTimer = 0;
 				break;
 			}
 		}
-		if($reset){
-			$this->foodTickTimer = 0;
-		}
-
 	}
 
 	public function getMaxFood() : float{
@@ -290,7 +299,7 @@ class Human extends Creature implements ProjectileSource, InventoryHolder{
 				$food = $this->getFood();
 				if($food > 0){
 					$food--;
-					$this->setFood($food);
+					$this->setFood(max($food, 0));
 				}
 			}
 		}
@@ -451,7 +460,7 @@ class Human extends Creature implements ProjectileSource, InventoryHolder{
 
 	private function playLevelUpSound(int $newLevel) : void{
 		$volume = 0x10000000 * (min(30, $newLevel) / 5); //No idea why such odd numbers, but this works...
-		$this->level->broadcastLevelSoundEvent($this, LevelSoundEventPacket::SOUND_LEVELUP, 1, (int) $volume);
+		$this->level->broadcastLevelSoundEvent($this, LevelSoundEventPacket::SOUND_LEVELUP, (int) $volume);
 	}
 
 	/**
@@ -528,12 +537,12 @@ class Human extends Creature implements ProjectileSource, InventoryHolder{
 		/** @var Durable[] $equipment */
 		$equipment = [];
 
-		if(($item = $this->inventory->getItemInHand()) instanceof Durable and $item->hasEnchantment(Enchantment::MENDING)){
+		if(($item = $this->inventory->getItemInHand()) instanceof Durable and $item->hasEnchantment(Enchantment::MENDING())){
 			$equipment[$mainHandIndex] = $item;
 		}
 		//TODO: check offhand
 		foreach($this->armorInventory->getContents() as $k => $item){
-			if($item instanceof Durable and $item->hasEnchantment(Enchantment::MENDING)){
+			if($item instanceof Durable and $item->hasEnchantment(Enchantment::MENDING())){
 				$equipment[$k] = $item;
 			}
 		}
@@ -567,7 +576,9 @@ class Human extends Creature implements ProjectileSource, InventoryHolder{
 	}
 
 	public function getXpDropAmount() : int{
-		return (int) min(100, $this->getCurrentTotalXp());
+		//this causes some XP to be lost on death when above level 1 (by design), dropping at most enough points for
+		//about 7.5 levels of XP.
+		return (int) min(100, 7 * $this->getXpLevel());
 	}
 
 	public function getInventory(){
@@ -678,7 +689,7 @@ class Human extends Creature implements ProjectileSource, InventoryHolder{
 		$this->attributeMap->addAttribute(Attribute::getAttribute(Attribute::EXPERIENCE));
 	}
 
-	public function entityBaseTick(int $tickDiff = 1) : bool{
+	protected function entityBaseTick(int $tickDiff = 1) : bool{
 		$hasUpdate = parent::entityBaseTick($tickDiff);
 
 		$this->doFoodTick($tickDiff);
@@ -754,9 +765,9 @@ class Human extends Creature implements ProjectileSource, InventoryHolder{
 		if($totemModifier < 0){ //Totem prevented death
 			$this->removeAllEffects();
 
-			$this->addEffect(new EffectInstance(Effect::getEffect(Effect::REGENERATION), 40 * 20, 1));
-			$this->addEffect(new EffectInstance(Effect::getEffect(Effect::FIRE_RESISTANCE), 40 * 20, 1));
-			$this->addEffect(new EffectInstance(Effect::getEffect(Effect::ABSORPTION), 5 * 20, 1));
+			$this->addEffect(new EffectInstance(Effect::REGENERATION(), 40 * 20, 1));
+			$this->addEffect(new EffectInstance(Effect::FIRE_RESISTANCE(), 40 * 20, 1));
+			$this->addEffect(new EffectInstance(Effect::ABSORPTION(), 5 * 20, 1));
 
 			$this->broadcastEntityEvent(EntityEventPacket::CONSUME_TOTEM);
 			$this->level->broadcastLevelEvent($this->add(0, $this->eyeHeight, 0), LevelEventPacket::EVENT_SOUND_TOTEM);
@@ -773,7 +784,7 @@ class Human extends Creature implements ProjectileSource, InventoryHolder{
 		return array_filter(array_merge(
 			$this->inventory !== null ? array_values($this->inventory->getContents()) : [],
 			$this->armorInventory !== null ? array_values($this->armorInventory->getContents()) : []
-		), function(Item $item) : bool{ return !$item->hasEnchantment(Enchantment::VANISHING); });
+		), function(Item $item) : bool{ return !$item->hasEnchantment(Enchantment::VANISHING()); });
 	}
 
 	public function saveNBT() : CompoundTag{

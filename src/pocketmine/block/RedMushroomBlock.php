@@ -24,10 +24,9 @@ declare(strict_types=1);
 namespace pocketmine\block;
 
 use pocketmine\item\Item;
+use function mt_rand;
 
 class RedMushroomBlock extends Solid{
-
-	protected $id = Block::RED_MUSHROOM_BLOCK;
 
 	/**
 	 * @var int
@@ -38,24 +37,16 @@ class RedMushroomBlock extends Solid{
 	 */
 	protected $rotationData = 0;
 
-	public function __construct(){
-
-	}
-
 	protected function writeStateToMeta() : int{
 		return $this->rotationData;
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->rotationData = $meta;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->rotationData = $stateMeta;
 	}
 
 	public function getStateBitmask() : int{
 		return 0b1111;
-	}
-
-	public function getName() : string{
-		return "Red Mushroom Block";
 	}
 
 	public function getHardness() : float{

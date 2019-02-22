@@ -27,18 +27,9 @@ use pocketmine\event\block\BlockSpreadEvent;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\math\Facing;
+use function mt_rand;
 
 class Mycelium extends Solid{
-
-	protected $id = self::MYCELIUM;
-
-	public function __construct(){
-
-	}
-
-	public function getName() : string{
-		return "Mycelium";
-	}
 
 	public function getToolType() : int{
 		return BlockToolType::TYPE_SHOVEL;

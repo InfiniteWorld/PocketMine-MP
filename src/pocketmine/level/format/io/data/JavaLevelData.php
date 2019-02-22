@@ -25,13 +25,17 @@ namespace pocketmine\level\format\io\data;
 
 use pocketmine\level\generator\GeneratorManager;
 use pocketmine\level\Level;
-use pocketmine\nbt\BigEndianNBTStream;
+use pocketmine\nbt\BigEndianNbtSerializer;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\FloatTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\LongTag;
 use pocketmine\nbt\tag\StringTag;
+use function ceil;
+use function file_get_contents;
+use function file_put_contents;
+use function microtime;
 
 class JavaLevelData extends BaseNbtLevelData{
 
@@ -57,7 +61,7 @@ class JavaLevelData extends BaseNbtLevelData{
 			new StringTag("LevelName", $name),
 			new CompoundTag("GameRules", [])
 		]);
-		$nbt = new BigEndianNBTStream();
+		$nbt = new BigEndianNbtSerializer();
 		$buffer = $nbt->writeCompressed(new CompoundTag("", [
 			$levelData
 		]));
@@ -65,7 +69,7 @@ class JavaLevelData extends BaseNbtLevelData{
 	}
 
 	protected function load() : ?CompoundTag{
-		$nbt = new BigEndianNBTStream();
+		$nbt = new BigEndianNbtSerializer();
 		$levelData = $nbt->readCompressed(file_get_contents($this->dataPath));
 		if($levelData->hasTag("Data", CompoundTag::class)){
 			return $levelData->getCompoundTag("Data");
@@ -86,7 +90,7 @@ class JavaLevelData extends BaseNbtLevelData{
 	}
 
 	public function save() : void{
-		$nbt = new BigEndianNBTStream();
+		$nbt = new BigEndianNbtSerializer();
 		$this->compoundTag->setName("Data");
 		$buffer = $nbt->writeCompressed(new CompoundTag("", [
 			$this->compoundTag

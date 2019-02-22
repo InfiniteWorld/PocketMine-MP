@@ -25,14 +25,9 @@ namespace pocketmine\block;
 
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
+use function mt_rand;
 
 class Potato extends Crops{
-
-	protected $id = self::POTATO_BLOCK;
-
-	public function getName() : string{
-		return "Potato Block";
-	}
 
 	public function getDropsForCompatibleTool(Item $item) : array{
 		return [

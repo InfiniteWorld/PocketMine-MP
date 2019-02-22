@@ -24,6 +24,7 @@ declare(strict_types=1);
 namespace pocketmine\block;
 
 use pocketmine\item\Item;
+use pocketmine\level\BlockTransaction;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
@@ -38,23 +39,23 @@ class DoublePlant extends Flowable{
 		return ($this->top ? self::BITFLAG_TOP : 0);
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->top = ($meta & self::BITFLAG_TOP) !== 0;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->top = ($stateMeta & self::BITFLAG_TOP) !== 0;
 	}
 
 	public function getStateBitmask() : int{
 		return 0b1000;
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$id = $blockReplace->getSide(Facing::DOWN)->getId();
 		if(($id === Block::GRASS or $id === Block::DIRT) and $blockReplace->getSide(Facing::UP)->canBeReplaced()){
-			$this->getLevel()->setBlock($blockReplace, $this, false);
 			$top = clone $this;
 			$top->top = true;
-			$this->getLevel()->setBlock($blockReplace->getSide(Facing::UP), $top, false);
 
-			return true;
+			$transaction = new BlockTransaction($this->level);
+			$transaction->addBlock($blockReplace, $this)->addBlock($blockReplace->getSide(Facing::UP), $top);
+			return $transaction->apply();
 		}
 
 		return false;

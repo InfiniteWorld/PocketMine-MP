@@ -30,6 +30,7 @@ use pocketmine\level\ChunkManager;
 use pocketmine\math\Vector3;
 use pocketmine\utils\Random;
 use pocketmine\utils\Utils;
+use function ctype_digit;
 
 abstract class Generator{
 
@@ -62,6 +63,13 @@ abstract class Generator{
 	/** @var Random */
 	protected $random;
 
+	/**
+	 * @param ChunkManager $level
+	 * @param int          $seed
+	 * @param array        $options
+	 *
+	 * @throws InvalidGeneratorOptionsException
+	 */
 	public function __construct(ChunkManager $level, int $seed, array $options = []){
 		$this->level = $level;
 		$this->seed = $seed;

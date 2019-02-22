@@ -28,8 +28,9 @@ namespace pocketmine\network\mcpe\protocol;
 
 
 use pocketmine\network\mcpe\handler\SessionHandler;
+use function strlen;
 
-class ResourcePackChunkDataPacket extends DataPacket{
+class ResourcePackChunkDataPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::RESOURCE_PACK_CHUNK_DATA_PACKET;
 
 	/** @var string */

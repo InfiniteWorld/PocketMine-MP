@@ -25,13 +25,14 @@ namespace pocketmine\entity\object;
 
 use pocketmine\block\Block;
 use pocketmine\block\BlockFactory;
-use pocketmine\block\Fallable;
+use pocketmine\block\utils\Fallable;
 use pocketmine\entity\Entity;
 use pocketmine\event\entity\EntityBlockChangeEvent;
 use pocketmine\event\entity\EntityDamageEvent;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
+use function get_class;
 
 class FallingBlock extends Entity{
 	public const NETWORK_ID = self::FALLING_BLOCK;
@@ -86,7 +87,7 @@ class FallingBlock extends Entity{
 		}
 	}
 
-	public function entityBaseTick(int $tickDiff = 1) : bool{
+	protected function entityBaseTick(int $tickDiff = 1) : bool{
 		if($this->closed){
 			return false;
 		}

@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace pocketmine\level\particle;
 
-use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\types\ParticleIds;
 
 class CriticalParticle extends GenericParticle{
-	public function __construct(Vector3 $pos, int $scale = 2){
-		parent::__construct($pos, Particle::TYPE_CRITICAL, $scale);
+	public function __construct(int $scale = 2){
+		parent::__construct(ParticleIds::CRITICAL, $scale);
 	}
 }

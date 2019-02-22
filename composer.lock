@@ -4,8 +4,52 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c907ce3a2d90fa68c332ff5fe6310199",
+    "content-hash": "c9cfdc716006c436f4fc8a34f207dd6c",
     "packages": [
+        {
+            "name": "adhocore/json-comment",
+            "version": "v0.0.7",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/adhocore/php-json-comment.git",
+                "reference": "135356c7e7336ef59924f1d921c770045f937a76"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/adhocore/php-json-comment/zipball/135356c7e7336ef59924f1d921c770045f937a76",
+                "reference": "135356c7e7336ef59924f1d921c770045f937a76",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.4"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^4.8 || ^5.7 || ^6.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Ahc\\Json\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Jitendra Adhikari",
+                    "email": "jiten.adhikary@gmail.com"
+                }
+            ],
+            "description": "Lightweight JSON comment stripper library for PHP",
+            "keywords": [
+                "comment",
+                "json",
+                "strip-comment"
+            ],
+            "time": "2018-08-01T12:27:26+00:00"
+        },
         {
             "name": "daverandom/callback-validator",
             "version": "dev-master",
@@ -121,12 +165,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/BinaryUtils_MoreSupport.git",
-                "reference": "5f53cd84d817cc49351cf9bb5ec4e6e9667f0c21"
+                "reference": "5e966a966554b3611d613b7e9dff9d0c63e75615"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/BinaryUtils_MoreSupport/zipball/5f53cd84d817cc49351cf9bb5ec4e6e9667f0c21",
-                "reference": "5f53cd84d817cc49351cf9bb5ec4e6e9667f0c21",
+                "url": "https://api.github.com/repos/InfiniteWorld/BinaryUtils_MoreSupport/zipball/5e966a966554b3611d613b7e9dff9d0c63e75615",
+                "reference": "5e966a966554b3611d613b7e9dff9d0c63e75615",
                 "shasum": ""
             },
             "require": {
@@ -145,7 +189,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/BinaryUtils_MoreSupport/tree/master_32-bit"
             },
-            "time": "2018-09-02T05:24:52+00:00"
+            "time": "2019-02-12T15:29:38+00:00"
         },
         {
             "name": "infiniteworld/math",
@@ -153,12 +197,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/Math_MoreSupport.git",
-                "reference": "68596cf2bca33749fc296b5940dc256e255942ef"
+                "reference": "00ff678cca143a7f71cce4211651142d9a0b3f78"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/Math_MoreSupport/zipball/68596cf2bca33749fc296b5940dc256e255942ef",
-                "reference": "68596cf2bca33749fc296b5940dc256e255942ef",
+                "url": "https://api.github.com/repos/InfiniteWorld/Math_MoreSupport/zipball/00ff678cca143a7f71cce4211651142d9a0b3f78",
+                "reference": "00ff678cca143a7f71cce4211651142d9a0b3f78",
                 "shasum": ""
             },
             "require": {
@@ -182,7 +226,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/Math_MoreSupport/tree/master_32-bit"
             },
-            "time": "2018-12-09T01:35:04+00:00"
+            "time": "2019-02-12T15:31:54+00:00"
         },
         {
             "name": "infiniteworld/nbt",
@@ -190,17 +234,17 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/NBT_MoreSupport.git",
-                "reference": "b7b7cbcac54649252b5cc3f6f7673e6694a56160"
+                "reference": "8af84102bf7973470934d026ba9ea6fb9d66d024"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/NBT_MoreSupport/zipball/b7b7cbcac54649252b5cc3f6f7673e6694a56160",
-                "reference": "b7b7cbcac54649252b5cc3f6f7673e6694a56160",
+                "url": "https://api.github.com/repos/InfiniteWorld/NBT_MoreSupport/zipball/8af84102bf7973470934d026ba9ea6fb9d66d024",
+                "reference": "8af84102bf7973470934d026ba9ea6fb9d66d024",
                 "shasum": ""
             },
             "require": {
                 "ext-zlib": "*",
-                "infiniteworld/binaryutils": "^0.1.0",
+                "infiniteworld/binaryutils": "^0.1.7",
                 "php": ">=7.2.0"
             },
             "type": "library",
@@ -221,7 +265,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/NBT_MoreSupport/tree/master_32-bit"
             },
-            "time": "2018-12-09T01:37:11+00:00"
+            "time": "2019-02-12T15:38:03+00:00"
         },
         {
             "name": "infiniteworld/raklib",
@@ -229,12 +273,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/RakLib_MoreSupport.git",
-                "reference": "97d5eff03326394dacc8598a888108d50df2c0bf"
+                "reference": "6475d11856e031b3fd68cd98bc1aa4ee16414da9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/RakLib_MoreSupport/zipball/97d5eff03326394dacc8598a888108d50df2c0bf",
-                "reference": "97d5eff03326394dacc8598a888108d50df2c0bf",
+                "url": "https://api.github.com/repos/InfiniteWorld/RakLib_MoreSupport/zipball/6475d11856e031b3fd68cd98bc1aa4ee16414da9",
+                "reference": "6475d11856e031b3fd68cd98bc1aa4ee16414da9",
                 "shasum": ""
             },
             "require": {
@@ -260,7 +304,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/RakLib_MoreSupport/tree/master_32-bit"
             },
-            "time": "2018-12-09T01:39:09+00:00"
+            "time": "2019-02-22T12:34:28+00:00"
         },
         {
             "name": "infiniteworld/snooze",
@@ -268,12 +312,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/Snooze_MoreSupport.git",
-                "reference": "b3f6d6a6d70a718c1ae67a277c1b0ec18c684f92"
+                "reference": "6383956e0bc8e1fdd1d43ca29d51393c63efd43a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/Snooze_MoreSupport/zipball/b3f6d6a6d70a718c1ae67a277c1b0ec18c684f92",
-                "reference": "b3f6d6a6d70a718c1ae67a277c1b0ec18c684f92",
+                "url": "https://api.github.com/repos/InfiniteWorld/Snooze_MoreSupport/zipball/6383956e0bc8e1fdd1d43ca29d51393c63efd43a",
+                "reference": "6383956e0bc8e1fdd1d43ca29d51393c63efd43a",
                 "shasum": ""
             },
             "require": {
@@ -293,7 +337,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/Snooze_MoreSupport/tree/master_32-bit"
             },
-            "time": "2018-08-03T13:06:24+00:00"
+            "time": "2019-02-12T15:22:19+00:00"
         },
         {
             "name": "mdanter/ecc",
@@ -368,17 +412,79 @@
             "time": "2018-12-03T18:17:01+00:00"
         },
         {
+            "name": "particle/validator",
+            "version": "v2.3.4",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/particle-php/Validator.git",
+                "reference": "657c7543e51938dd9d114750e49d695129527a7a"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/particle-php/Validator/zipball/657c7543e51938dd9d114750e49d695129527a7a",
+                "reference": "657c7543e51938dd9d114750e49d695129527a7a",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.4"
+            },
+            "require-dev": {
+                "byrokrat/checkdigit": "^1.0",
+                "giggsey/libphonenumber-for-php": "^7.2",
+                "phpunit/phpunit": "~4.0",
+                "squizlabs/php_codesniffer": "2.*"
+            },
+            "suggest": {
+                "byrokrat/checkdigit": "If you want to use CreditCard validation rule, this library must be installed.",
+                "giggsey/libphonenumber-for-php": "If you want to use Phone validation rule, this library must be installed."
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.0-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Particle\\Validator\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Berry Langerak",
+                    "email": "berry@berryllium.nl",
+                    "role": "Developer"
+                },
+                {
+                    "name": "Rick van der Staaij",
+                    "homepage": "http://rickvanderstaaij.nl",
+                    "role": "Developer"
+                }
+            ],
+            "description": "Flexible and highly usable validation library with no dependencies.",
+            "homepage": "http://github.com/particle-php/validator",
+            "keywords": [
+                "validation",
+                "validator"
+            ],
+            "time": "2019-01-07T13:39:13+00:00"
+        },
+        {
             "name": "pocketmine/spl",
             "version": "dev-master",
             "source": {
                 "type": "git",
                 "url": "https://github.com/pmmp/SPL.git",
-                "reference": "985e212ac528412ec00ddd3b88c5fc11549a2fe0"
+                "reference": "d7bd7b8cb10c264ca6e6b5c3ef9b52e48a6f29d8"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/pmmp/SPL/zipball/985e212ac528412ec00ddd3b88c5fc11549a2fe0",
-                "reference": "985e212ac528412ec00ddd3b88c5fc11549a2fe0",
+                "url": "https://api.github.com/repos/pmmp/SPL/zipball/d7bd7b8cb10c264ca6e6b5c3ef9b52e48a6f29d8",
+                "reference": "d7bd7b8cb10c264ca6e6b5c3ef9b52e48a6f29d8",
                 "shasum": ""
             },
             "type": "library",
@@ -397,14 +503,14 @@
             "support": {
                 "source": "https://github.com/pmmp/SPL/tree/master"
             },
-            "time": "2018-10-21T17:32:00+00:00"
+            "time": "2019-01-17T18:54:01+00:00"
         }
     ],
     "packages-dev": [],
     "aliases": [
         {
-            "alias": "0.1.0",
-            "alias_normalized": "0.1.0.0",
+            "alias": "0.1.7",
+            "alias_normalized": "0.1.7.0",
             "version": "dev-master_32-bit",
             "package": "infiniteworld/binaryutils"
         },

@@ -23,45 +23,38 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
 use pocketmine\item\TieredTool;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 use pocketmine\tile\Furnace as TileFurnace;
-use pocketmine\tile\Tile;
 
 class Furnace extends Solid{
-
-	protected $itemId = self::FURNACE;
+	/** @var BlockIdentifierFlattened */
+	protected $idInfo;
 
 	/** @var int */
 	protected $facing = Facing::NORTH;
 	/** @var bool */
 	protected $lit = false; //this is set based on the blockID
 
-	public function __construct(){
-
-	}
-
 	public function getId() : int{
-		return $this->lit ? Block::BURNING_FURNACE : Block::FURNACE;
+		return $this->lit ? $this->idInfo->getSecondId() : parent::getId();
 	}
 
 	protected function writeStateToMeta() : int{
 		return $this->facing;
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->facing = $meta;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->facing = BlockDataValidator::readHorizontalFacing($stateMeta);
+		$this->lit = $id === $this->idInfo->getSecondId();
 	}
 
 	public function getStateBitmask() : int{
 		return 0b111;
-	}
-
-	public function getName() : string{
-		return "Furnace";
 	}
 
 	public function getHardness() : float{
@@ -94,19 +87,15 @@ class Furnace extends Solid{
 		return $this;
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($player !== null){
 			$this->facing = Facing::opposite($player->getHorizontalFacing());
 		}
-		if(parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player)){
-			Tile::createTile(Tile::FURNACE, $this->getLevel(), TileFurnace::createNBT($this, $item));
-			return true;
-		}
 
-		return false;
+		return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 	}
 
-	public function onActivate(Item $item, Player $player = null) : bool{
+	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($player instanceof Player){
 			$furnace = $this->getLevel()->getTile($this);
 			if($furnace instanceof TileFurnace and $furnace->canOpenWith($item->getCustomName())){

@@ -25,12 +25,21 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
+use pocketmine\network\BadPacketException;
 use pocketmine\network\mcpe\handler\SessionHandler;
 use pocketmine\network\mcpe\protocol\types\CommandData;
 use pocketmine\network\mcpe\protocol\types\CommandEnum;
 use pocketmine\network\mcpe\protocol\types\CommandParameter;
+use pocketmine\utils\BinaryDataException;
+use function array_flip;
+use function array_keys;
+use function array_map;
+use function array_search;
+use function array_values;
+use function count;
+use function dechex;
 
-class AvailableCommandsPacket extends DataPacket{
+class AvailableCommandsPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::AVAILABLE_COMMANDS_PACKET;
 
 
@@ -132,18 +141,31 @@ class AvailableCommandsPacket extends DataPacket{
 		}
 	}
 
+	/**
+	 * @return CommandEnum
+	 * @throws BadPacketException
+	 * @throws BinaryDataException
+	 */
 	protected function getEnum() : CommandEnum{
 		$retval = new CommandEnum();
 		$retval->enumName = $this->getString();
 
 		for($i = 0, $count = $this->getUnsignedVarInt(); $i < $count; ++$i){
+			$index = $this->getEnumValueIndex();
+			if(!isset($this->enumValues[$index])){
+				throw new BadPacketException("Invalid enum value index $index");
+			}
 			//Get the enum value from the initial pile of mess
-			$retval->enumValues[] = $this->enumValues[$this->getEnumValueIndex()];
+			$retval->enumValues[] = $this->enumValues[$index];
 		}
 
 		return $retval;
 	}
 
+	/**
+	 * @return CommandEnum
+	 * @throws BinaryDataException
+	 */
 	protected function getSoftEnum() : CommandEnum{
 		$retval = new CommandEnum();
 		$retval->enumName = $this->getString();
@@ -179,6 +201,10 @@ class AvailableCommandsPacket extends DataPacket{
 		}
 	}
 
+	/**
+	 * @return int
+	 * @throws BinaryDataException
+	 */
 	protected function getEnumValueIndex() : int{
 		if($this->enumValuesCount < 256){
 			return $this->getByte();
@@ -199,6 +225,11 @@ class AvailableCommandsPacket extends DataPacket{
 		}
 	}
 
+	/**
+	 * @return CommandData
+	 * @throws BadPacketException
+	 * @throws BinaryDataException
+	 */
 	protected function getCommandData() : CommandData{
 		$retval = new CommandData();
 		$retval->commandName = $this->getString();
@@ -218,16 +249,16 @@ class AvailableCommandsPacket extends DataPacket{
 					$index = ($parameter->paramType & 0xffff);
 					$parameter->enum = $this->enums[$index] ?? null;
 					if($parameter->enum === null){
-						throw new \UnexpectedValueException("expected enum at $index, but got none");
+						throw new BadPacketException("expected enum at $index, but got none");
 					}
 				}elseif($parameter->paramType & self::ARG_FLAG_POSTFIX){
 					$index = ($parameter->paramType & 0xffff);
 					$parameter->postfix = $this->postfixes[$index] ?? null;
 					if($parameter->postfix === null){
-						throw new \UnexpectedValueException("expected postfix at $index, but got none");
+						throw new BadPacketException("expected postfix at $index, but got none");
 					}
 				}elseif(($parameter->paramType & self::ARG_FLAG_VALID) === 0){
-					throw new \UnexpectedValueException("Invalid parameter type 0x" . dechex($parameter->paramType));
+					throw new BadPacketException("Invalid parameter type 0x" . dechex($parameter->paramType));
 				}
 
 				$retval->overloads[$overloadIndex][$paramIndex] = $parameter;
@@ -346,13 +377,13 @@ class AvailableCommandsPacket extends DataPacket{
 			}
 		}
 
-		$this->enumValues = array_map('strval', array_keys($enumValuesMap)); //stupid PHP key casting D:
+		$this->enumValues = array_map('\strval', array_keys($enumValuesMap)); //stupid PHP key casting D:
 		$this->putUnsignedVarInt($this->enumValuesCount = count($this->enumValues));
 		foreach($this->enumValues as $enumValue){
 			$this->putString($enumValue);
 		}
 
-		$this->postfixes = array_map('strval', array_keys($postfixesMap));
+		$this->postfixes = array_map('\strval', array_keys($postfixesMap));
 		$this->putUnsignedVarInt(count($this->postfixes));
 		foreach($this->postfixes as $postfix){
 			$this->putString($postfix);

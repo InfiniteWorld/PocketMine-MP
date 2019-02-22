@@ -27,6 +27,10 @@ use pocketmine\Player;
 use pocketmine\plugin\Plugin;
 use pocketmine\Server;
 use pocketmine\utils\Binary;
+use function chr;
+use function count;
+use function str_replace;
+use function substr;
 
 class QueryRegenerateEvent extends ServerEvent{
 	public const GAME_ID = "MINECRAFTPE";
@@ -84,7 +88,8 @@ class QueryRegenerateEvent extends ServerEvent{
 		$this->gametype = ($server->getGamemode() & 0x01) === 0 ? "SMP" : "CMP";
 		$this->version = $server->getVersion();
 		$this->server_engine = $server->getName() . " " . $server->getPocketMineVersion();
-		$this->map = $server->getDefaultLevel() === null ? "unknown" : $server->getDefaultLevel()->getName();
+		$level = $server->getLevelManager()->getDefaultLevel();
+		$this->map = $level === null ? "unknown" : $level->getDisplayName();
 		$this->numPlayers = count($this->players);
 		$this->maxPlayers = $server->getMaxPlayers();
 		$this->whitelist = $server->hasWhitelist() ? "on" : "off";

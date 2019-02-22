@@ -27,7 +27,7 @@ namespace pocketmine\network\mcpe\protocol;
 
 use pocketmine\network\mcpe\handler\SessionHandler;
 
-class ServerSettingsRequestPacket extends DataPacket{
+class ServerSettingsRequestPacket extends DataPacket implements ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::SERVER_SETTINGS_REQUEST_PACKET;
 
 	protected function decodePayload() : void{

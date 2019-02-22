@@ -25,6 +25,10 @@ namespace pocketmine\network\mcpe;
 
 use Crypto\Cipher;
 use pocketmine\utils\Binary;
+use function bin2hex;
+use function openssl_digest;
+use function strlen;
+use function substr;
 
 class NetworkCipher{
 	private const ENCRYPTION_SCHEME = "AES-256-CFB8";
@@ -59,15 +63,21 @@ class NetworkCipher{
 		$this->encryptCipher->encryptInit($this->key, $iv);
 	}
 
-	public function decrypt($encrypted){
+	/**
+	 * @param string $encrypted
+	 *
+	 * @return string
+	 * @throws \UnexpectedValueException
+	 */
+	public function decrypt(string $encrypted) : string{
 		if(strlen($encrypted) < 9){
-			throw new \InvalidArgumentException("Payload is too short");
+			throw new \UnexpectedValueException("Payload is too short");
 		}
 		$decrypted = $this->decryptCipher->decryptUpdate($encrypted);
 		$payload = substr($decrypted, 0, -8);
 
 		if(($expected = $this->calculateChecksum($this->decryptCounter++, $payload)) !== ($actual = substr($decrypted, -8))){
-			throw new \InvalidArgumentException("Encrypted payload has invalid checksum (expected " . bin2hex($expected) . ", got " . bin2hex($actual) . ")");
+			throw new \UnexpectedValueException("Encrypted payload has invalid checksum (expected " . bin2hex($expected) . ", got " . bin2hex($actual) . ")");
 		}
 
 		return $payload;

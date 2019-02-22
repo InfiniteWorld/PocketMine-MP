@@ -25,6 +25,12 @@ namespace pocketmine\inventory;
 
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
+use function array_map;
+use function array_values;
+use function count;
+use function implode;
+use function strlen;
+use function strpos;
 
 class ShapedRecipe implements CraftingRecipe{
 	/** @var string[] */
@@ -170,7 +176,7 @@ class ShapedRecipe implements CraftingRecipe{
 	 */
 	public function getIngredient(int $x, int $y) : Item{
 		$exists = $this->ingredientList[$this->shape[$y]{$x}] ?? null;
-		return $exists !== null ? clone $exists : ItemFactory::get(Item::AIR, 0, 0);
+		return $exists !== null ? clone $exists : ItemFactory::air();
 	}
 
 	/**

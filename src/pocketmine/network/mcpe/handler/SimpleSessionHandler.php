@@ -28,6 +28,7 @@ use pocketmine\inventory\transaction\CraftingTransaction;
 use pocketmine\inventory\transaction\InventoryTransaction;
 use pocketmine\inventory\transaction\TransactionValidationException;
 use pocketmine\math\Vector3;
+use pocketmine\network\BadPacketException;
 use pocketmine\network\mcpe\protocol\AdventureSettingsPacket;
 use pocketmine\network\mcpe\protocol\AnimatePacket;
 use pocketmine\network\mcpe\protocol\BlockEntityDataPacket;
@@ -46,6 +47,7 @@ use pocketmine\network\mcpe\protocol\InventoryTransactionPacket;
 use pocketmine\network\mcpe\protocol\ItemFrameDropItemPacket;
 use pocketmine\network\mcpe\protocol\LabTablePacket;
 use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
+use pocketmine\network\mcpe\protocol\LevelSoundEventPacketV1;
 use pocketmine\network\mcpe\protocol\MapInfoRequestPacket;
 use pocketmine\network\mcpe\protocol\MobArmorEquipmentPacket;
 use pocketmine\network\mcpe\protocol\MobEquipmentPacket;
@@ -62,7 +64,20 @@ use pocketmine\network\mcpe\protocol\ShowCreditsPacket;
 use pocketmine\network\mcpe\protocol\SpawnExperienceOrbPacket;
 use pocketmine\network\mcpe\protocol\SubClientLoginPacket;
 use pocketmine\network\mcpe\protocol\TextPacket;
+use pocketmine\network\mcpe\protocol\types\MismatchTransactionData;
+use pocketmine\network\mcpe\protocol\types\NormalTransactionData;
+use pocketmine\network\mcpe\protocol\types\ReleaseItemTransactionData;
+use pocketmine\network\mcpe\protocol\types\UseItemOnEntityTransactionData;
+use pocketmine\network\mcpe\protocol\types\UseItemTransactionData;
 use pocketmine\Player;
+use function implode;
+use function json_decode;
+use function json_encode;
+use function json_last_error_msg;
+use function microtime;
+use function preg_match;
+use function preg_split;
+use function trim;
 
 /**
  * Temporary session handler implementation
@@ -75,6 +90,11 @@ class SimpleSessionHandler extends SessionHandler{
 
 	/** @var CraftingTransaction|null */
 	protected $craftingTransaction = null;
+
+	/** @var float */
+	protected $lastRightClickTime = 0.0;
+	/** @var Vector3|null */
+	protected $lastRightClickPos = null;
 
 	public function __construct(Player $player){
 		$this->player = $player;
@@ -92,8 +112,8 @@ class SimpleSessionHandler extends SessionHandler{
 		return $this->player->handleMovePlayer($packet);
 	}
 
-	public function handleLevelSoundEvent(LevelSoundEventPacket $packet) : bool{
-		return $this->player->handleLevelSoundEvent($packet);
+	public function handleLevelSoundEventPacketV1(LevelSoundEventPacketV1 $packet) : bool{
+		return true; //useless leftover from 1.8
 	}
 
 	public function handleEntityEvent(EntityEventPacket $packet) : bool{
@@ -106,22 +126,52 @@ class SimpleSessionHandler extends SessionHandler{
 			return true;
 		}
 
+		$result = true;
+
+		if($packet->trData instanceof NormalTransactionData){
+			$result = $this->handleNormalTransaction($packet->trData);
+		}elseif($packet->trData instanceof MismatchTransactionData){
+			$this->player->sendAllInventories();
+			$result = true;
+		}elseif($packet->trData instanceof UseItemTransactionData){
+			$result = $this->handleUseItemTransaction($packet->trData);
+		}elseif($packet->trData instanceof UseItemOnEntityTransactionData){
+			$result = $this->handleUseItemOnEntityTransaction($packet->trData);
+		}elseif($packet->trData instanceof ReleaseItemTransactionData){
+			$result = $this->handleReleaseItemTransaction($packet->trData);
+		}
+
+		if(!$result){
+			$this->player->sendAllInventories();
+		}
+		return $result;
+	}
+
+	private function handleNormalTransaction(NormalTransactionData $data) : bool{
 		/** @var InventoryAction[] $actions */
 		$actions = [];
-		foreach($packet->actions as $networkInventoryAction){
+
+		$isCrafting = false;
+		$isFinalCraftingPart = false;
+		foreach($data->getActions() as $networkInventoryAction){
+			$isCrafting = $isCrafting || $networkInventoryAction->isCraftingPart();
+			$isFinalCraftingPart = $isFinalCraftingPart || $networkInventoryAction->isFinalCraftingPart();
+
 			try{
 				$action = $networkInventoryAction->createInventoryAction($this->player);
 				if($action !== null){
 					$actions[] = $action;
 				}
-			}catch(\Exception $e){
+			}catch(\UnexpectedValueException $e){
 				$this->player->getServer()->getLogger()->debug("Unhandled inventory action from " . $this->player->getName() . ": " . $e->getMessage());
-				$this->player->sendAllInventories();
 				return false;
 			}
 		}
 
-		if($packet->isCraftingPart){
+		if($isCrafting){
+			//we get the actions for this in several packets, so we need to wait until we have all the pieces before
+			//trying to execute it
+
 			if($this->craftingTransaction === null){
 				$this->craftingTransaction = new CraftingTransaction($this->player, $actions);
 			}else{
@@ -130,101 +180,98 @@ class SimpleSessionHandler extends SessionHandler{
 				}
 			}
 
-			if($packet->isFinalCraftingPart){
-				//we get the actions for this in several packets, so we need to wait until we have all the pieces before
-				//trying to execute it
-
-				$ret = true;
+			if($isFinalCraftingPart){
 				try{
 					$this->craftingTransaction->execute();
 				}catch(TransactionValidationException $e){
 					$this->player->getServer()->getLogger()->debug("Failed to execute crafting transaction for " . $this->player->getName() . ": " . $e->getMessage());
-					$ret = false;
+					return false;
+				}finally{
+					$this->craftingTransaction = null;
 				}
-
+			}
+		}else{
+			//normal transaction fallthru
+			if($this->craftingTransaction !== null){
+				$this->player->getServer()->getLogger()->debug("Got unexpected normal inventory action with incomplete crafting transaction from " . $this->player->getName() . ", refusing to execute crafting");
 				$this->craftingTransaction = null;
-				return $ret;
+				return false;
 			}
 
-			return true;
+			$transaction = new InventoryTransaction($this->player, $actions);
+			try{
+				$transaction->execute();
+			}catch(TransactionValidationException $e){
+				$logger = $this->player->getServer()->getLogger();
+				$logger->debug("Failed to execute inventory transaction from " . $this->player->getName() . ": " . $e->getMessage());
+				$logger->debug("Actions: " . json_encode($data->getActions()));
+
+				return false;
+			}
+
+			//TODO: fix achievement for getting iron from furnace
 		}
-		if($this->craftingTransaction !== null){
-			$this->player->getServer()->getLogger()->debug("Got unexpected normal inventory action with incomplete crafting transaction from " . $this->player->getName() . ", refusing to execute crafting");
-			$this->craftingTransaction = null;
-		}
 
-		switch($packet->transactionType){
-			case InventoryTransactionPacket::TYPE_NORMAL:
-				$transaction = new InventoryTransaction($this->player, $actions);
+		return true;
+	}
 
-				try{
-					$transaction->execute();
-				}catch(TransactionValidationException $e){
-					$this->player->getServer()->getLogger()->debug("Failed to execute inventory transaction from " . $this->player->getName() . ": " . $e->getMessage());
-					$this->player->getServer()->getLogger()->debug("Actions: " . json_encode($packet->actions));
-
-					return false;
+	private function handleUseItemTransaction(UseItemTransactionData $data) : bool{
+		switch($data->getActionType()){
+			case UseItemTransactionData::ACTION_CLICK_BLOCK:
+				//TODO: start hack for client spam bug
+				$clickPos = $data->getClickPos();
+				$spamBug = ($this->lastRightClickPos !== null and
+					microtime(true) - $this->lastRightClickTime < 0.1 and //100ms
+					$this->lastRightClickPos->distanceSquared($clickPos) < 0.00001 //signature spam bug has 0 distance, but allow some error
+				);
+				//get rid of continued spam if the player clicks and holds right-click
+				$this->lastRightClickPos = clone $clickPos;
+				$this->lastRightClickTime = microtime(true);
+				if($spamBug){
+					return true;
 				}
-
-				//TODO: fix achievement for getting iron from furnace
-
+				//TODO: end hack for client spam bug
+				$this->player->interactBlock($data->getBlockPos(), $data->getFace(), $clickPos);
 				return true;
-			case InventoryTransactionPacket::TYPE_MISMATCH:
-				if(count($packet->actions) > 0){
-					$this->player->getServer()->getLogger()->debug("Expected 0 actions for mismatch, got " . count($packet->actions) . ", " . json_encode($packet->actions));
-				}
-				$this->player->sendAllInventories();
-
+			case UseItemTransactionData::ACTION_BREAK_BLOCK:
+				$this->player->breakBlock($data->getBlockPos());
 				return true;
-			case InventoryTransactionPacket::TYPE_USE_ITEM:
-				$blockVector = new Vector3($packet->trData->x, $packet->trData->y, $packet->trData->z);
-				$face = $packet->trData->face;
-
-				$type = $packet->trData->actionType;
-				switch($type){
-					case InventoryTransactionPacket::USE_ITEM_ACTION_CLICK_BLOCK:
-						$this->player->interactBlock($blockVector, $face, $packet->trData->clickPos);
-						return true;
-					case InventoryTransactionPacket::USE_ITEM_ACTION_BREAK_BLOCK:
-						$this->player->breakBlock($blockVector);
-						return true;
-					case InventoryTransactionPacket::USE_ITEM_ACTION_CLICK_AIR:
-						$this->player->useHeldItem();
-						return true;
-				}
-				break;
-			case InventoryTransactionPacket::TYPE_USE_ITEM_ON_ENTITY:
-				$target = $this->player->getLevel()->getEntity($packet->trData->entityRuntimeId);
-				if($target === null){
-					return false;
-				}
-
-				switch($packet->trData->actionType){
-					case InventoryTransactionPacket::USE_ITEM_ON_ENTITY_ACTION_INTERACT:
-						$this->player->interactEntity($target, $packet->trData->clickPos);
-						return true;
-					case InventoryTransactionPacket::USE_ITEM_ON_ENTITY_ACTION_ATTACK:
-						$this->player->attackEntity($target);
-						return true;
-				}
-
-				break;
-			case InventoryTransactionPacket::TYPE_RELEASE_ITEM:
-				switch($packet->trData->actionType){
-					case InventoryTransactionPacket::RELEASE_ITEM_ACTION_RELEASE:
-						$this->player->releaseHeldItem();
-						return true;
-					case InventoryTransactionPacket::RELEASE_ITEM_ACTION_CONSUME:
-						$this->player->consumeHeldItem();
-						return true;
-				}
-				break;
-			default:
-				break;
-
+			case UseItemTransactionData::ACTION_CLICK_AIR:
+				$this->player->useHeldItem();
+				return true;
 		}
 
-		$this->player->sendAllInventories();
+		return false;
+	}
+
+	private function handleUseItemOnEntityTransaction(UseItemOnEntityTransactionData $data) : bool{
+		$target = $this->player->getLevel()->getEntity($data->getEntityRuntimeId());
+		if($target === null){
+			return false;
+		}
+
+		switch($data->getActionType()){
+			case UseItemOnEntityTransactionData::ACTION_INTERACT:
+				$this->player->interactEntity($target, $data->getClickPos());
+				return true;
+			case UseItemOnEntityTransactionData::ACTION_ATTACK:
+				$this->player->attackEntity($target);
+				return true;
+		}
+
+		return false;
+	}
+
+	private function handleReleaseItemTransaction(ReleaseItemTransactionData $data) : bool{
+		switch($data->getActionType()){
+			case ReleaseItemTransactionData::ACTION_RELEASE:
+				$this->player->releaseHeldItem();
+				return true;
+			case ReleaseItemTransactionData::ACTION_CONSUME:
+				$this->player->consumeHeldItem();
+				return true;
+		}
+
 		return false;
 	}
 
@@ -237,6 +284,14 @@ class SimpleSessionHandler extends SessionHandler{
 	}
 
 	public function handleInteract(InteractPacket $packet) : bool{
+		if($packet->action === InteractPacket::ACTION_MOUSEOVER){
+			//TODO HACK: silence useless spam (MCPE 1.8)
+			//due to some messy Mojang hacks, it sends this when changing the held item now, which causes us to think
+			//the inventory was closed when it wasn't.
+			//this is also sent whenever entity metadata updates, which can get really spammy.
+			//TODO: implement handling for this where it matters
+			return true;
+		}
 		return false; //TODO
 	}
 
@@ -401,6 +456,7 @@ class SimpleSessionHandler extends SessionHandler{
 	 * @param bool   $assoc
 	 *
 	 * @return mixed
+	 * @throws BadPacketException
 	 */
 	private static function stupid_json_decode(string $json, bool $assoc = false){
 		if(preg_match('/^\[(.+)\]$/s', $json, $matches) > 0){
@@ -415,7 +471,7 @@ class SimpleSessionHandler extends SessionHandler{
 
 			$fixed = "[" . implode(",", $parts) . "]";
 			if(($ret = json_decode($fixed, $assoc)) === null){
-				throw new \InvalidArgumentException("Failed to fix JSON: " . json_last_error_msg() . "(original: $json, modified: $fixed)");
+				throw new BadPacketException("Failed to fix JSON: " . json_last_error_msg() . "(original: $json, modified: $fixed)");
 			}
 
 			return $ret;
@@ -430,5 +486,9 @@ class SimpleSessionHandler extends SessionHandler{
 
 	public function handleLabTable(LabTablePacket $packet) : bool{
 		return false; //TODO
+	}
+
+	public function handleLevelSoundEvent(LevelSoundEventPacket $packet) : bool{
+		return $this->player->handleLevelSoundEvent($packet);
 	}
 }

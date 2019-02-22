@@ -32,7 +32,7 @@ use pocketmine\nbt\tag\StringTag;
  */
 trait NameableTrait{
 	/** @var string|null */
-	private $customName;
+	private $customName = null;
 
 	/**
 	 * @return string
@@ -64,12 +64,6 @@ trait NameableTrait{
 		return $this->customName !== null;
 	}
 
-	protected static function createAdditionalNBT(CompoundTag $nbt, ?Item $item = null) : void{
-		if($item !== null and $item->hasCustomName()){
-			$nbt->setString(Nameable::TAG_CUSTOM_NAME, $item->getCustomName());
-		}
-	}
-
 	public function addAdditionalSpawnData(CompoundTag $nbt) : void{
 		if($this->customName !== null){
 			$nbt->setString(Nameable::TAG_CUSTOM_NAME, $this->customName);
@@ -85,6 +79,17 @@ trait NameableTrait{
 	protected function saveName(CompoundTag $tag) : void{
 		if($this->customName !== null){
 			$tag->setString(Nameable::TAG_CUSTOM_NAME, $this->customName);
+		}
+	}
+
+	/**
+	 * @param Item $item
+	 * @see Tile::copyDataFromItem()
+	 */
+	public function copyDataFromItem(Item $item) : void{
+		parent::copyDataFromItem($item);
+		if($item->hasCustomName()){ //this should take precedence over saved NBT
+			$this->setName($item->getCustomName());
 		}
 	}
 }

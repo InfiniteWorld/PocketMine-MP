@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
@@ -30,25 +31,15 @@ use pocketmine\Player;
 
 class Torch extends Flowable{
 
-	protected $id = self::TORCH;
-
 	/** @var int */
 	protected $facing = Facing::UP;
-
-	public function __construct(){
-
-	}
 
 	protected function writeStateToMeta() : int{
 		return 6 - $this->facing;
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		if($meta === 0){
-			$this->facing = Facing::UP;
-		}else{
-			$this->facing = 6 - $meta;
-		}
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->facing = $stateMeta === 5 ? Facing::UP : BlockDataValidator::readHorizontalFacing(6 - $stateMeta);
 	}
 
 	public function getStateBitmask() : int{
@@ -57,10 +48,6 @@ class Torch extends Flowable{
 
 	public function getLightLevel() : int{
 		return 14;
-	}
-
-	public function getName() : string{
-		return "Torch";
 	}
 
 	public function onNearbyBlockChange() : void{
@@ -72,7 +59,7 @@ class Torch extends Flowable{
 		}
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($blockClicked->canBeReplaced() and !$blockClicked->getSide(Facing::DOWN)->isTransparent()){
 			$this->facing = Facing::UP;
 			return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);

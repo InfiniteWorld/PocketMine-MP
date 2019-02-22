@@ -28,28 +28,19 @@ use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
-use pocketmine\tile\Sign as TileSign;
-use pocketmine\tile\Tile;
+use function floor;
 
 class SignPost extends Transparent{
 
-	protected $id = self::SIGN_POST;
-
-	protected $itemId = Item::SIGN;
-
 	/** @var int */
 	protected $rotation = 0;
-
-	public function __construct(){
-
-	}
 
 	protected function writeStateToMeta() : int{
 		return $this->rotation;
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->rotation = $meta;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->rotation = $stateMeta;
 	}
 
 	public function getStateBitmask() : int{
@@ -64,28 +55,19 @@ class SignPost extends Transparent{
 		return false;
 	}
 
-	public function getName() : string{
-		return "Sign Post";
-	}
-
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
 		return null;
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($face !== Facing::DOWN){
 
 			if($face === Facing::UP){
 				$this->rotation = $player !== null ? ((int) floor((($player->yaw + 180) * 16 / 360) + 0.5)) & 0x0f : 0;
-				$ret = parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
-			}else{
-				$ret = $this->getLevel()->setBlock($blockReplace, BlockFactory::get(Block::WALL_SIGN, $face));
+				return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 			}
 
-			if($ret){
-				Tile::createTile(Tile::SIGN, $this->getLevel(), TileSign::createNBT($this, $item));
-				return true;
-			}
+			return $this->getLevel()->setBlock($blockReplace, BlockFactory::get(Block::WALL_SIGN, $face));
 		}
 
 		return false;

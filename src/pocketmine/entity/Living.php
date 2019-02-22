@@ -24,6 +24,8 @@ declare(strict_types=1);
 namespace pocketmine\entity;
 
 use pocketmine\block\Block;
+use pocketmine\entity\effect\Effect;
+use pocketmine\entity\effect\EffectInstance;
 use pocketmine\event\entity\EntityArmorChangeEvent;
 use pocketmine\event\entity\EntityDamageByChildEntityEvent;
 use pocketmine\event\entity\EntityDamageByEntityEvent;
@@ -52,6 +54,20 @@ use pocketmine\Player;
 use pocketmine\timings\Timings;
 use pocketmine\utils\Binary;
 use pocketmine\utils\Color;
+use function abs;
+use function array_shift;
+use function atan2;
+use function ceil;
+use function count;
+use function floor;
+use function lcg_value;
+use function max;
+use function min;
+use function mt_getrandmax;
+use function mt_rand;
+use function spl_object_id;
+use function sqrt;
+use const M_PI;
 
 abstract class Living extends Entity implements Damageable{
 
@@ -144,7 +160,7 @@ abstract class Living extends Entity implements Damageable{
 	}
 
 	public function setMaxHealth(int $amount) : void{
-		$this->attributeMap->getAttribute(Attribute::HEALTH)->setMaxValue($amount);
+		$this->attributeMap->getAttribute(Attribute::HEALTH)->setMaxValue($amount)->setDefaultValue($amount);
 	}
 
 	public function getAbsorption() : float{
@@ -197,18 +213,19 @@ abstract class Living extends Entity implements Damageable{
 	 */
 	public function removeAllEffects() : void{
 		foreach($this->effects as $effect){
-			$this->removeEffect($effect->getId());
+			$this->removeEffect($effect->getType());
 		}
 	}
 
 	/**
 	 * Removes the effect with the specified ID from the mob.
 	 *
-	 * @param int $effectId
+	 * @param Effect $effectType
 	 */
-	public function removeEffect(int $effectId) : void{
-		if(isset($this->effects[$effectId])){
-			$effect = $this->effects[$effectId];
+	public function removeEffect(Effect $effectType) : void{
+		$index = spl_object_id($effectType);
+		if(isset($this->effects[$index])){
+			$effect = $this->effects[$index];
 			$hasExpired = $effect->hasExpired();
 			$ev = new EntityEffectRemoveEvent($this, $effect);
 			$ev->call();
@@ -219,7 +236,7 @@ abstract class Living extends Entity implements Damageable{
 				return;
 			}
 
-			unset($this->effects[$effectId]);
+			unset($this->effects[$index]);
 			$effect->getType()->remove($this, $effect);
 			$this->sendEffectRemove($effect);
 
@@ -231,23 +248,23 @@ abstract class Living extends Entity implements Damageable{
 	 * Returns the effect instance active on this entity with the specified ID, or null if the mob does not have the
 	 * effect.
 	 *
-	 * @param int $effectId
+	 * @param Effect $effect
 	 *
 	 * @return EffectInstance|null
 	 */
-	public function getEffect(int $effectId) : ?EffectInstance{
-		return $this->effects[$effectId] ?? null;
+	public function getEffect(Effect $effect) : ?EffectInstance{
+		return $this->effects[spl_object_id($effect)] ?? null;
 	}
 
 	/**
 	 * Returns whether the specified effect is active on the mob.
 	 *
-	 * @param int $effectId
+	 * @param Effect $effect
 	 *
 	 * @return bool
 	 */
-	public function hasEffect(int $effectId) : bool{
-		return isset($this->effects[$effectId]);
+	public function hasEffect(Effect $effect) : bool{
+		return isset($this->effects[spl_object_id($effect)]);
 	}
 
 	/**
@@ -271,8 +288,10 @@ abstract class Living extends Entity implements Damageable{
 		$oldEffect = null;
 		$cancelled = false;
 
-		if(isset($this->effects[$effect->getId()])){
-			$oldEffect = $this->effects[$effect->getId()];
+		$type = $effect->getType();
+		$index = spl_object_id($type);
+		if(isset($this->effects[$index])){
+			$oldEffect = $this->effects[$index];
 			if(
 				abs($effect->getAmplifier()) < $oldEffect->getAmplifier()
 				or (abs($effect->getAmplifier()) === abs($oldEffect->getAmplifier()) and $effect->getDuration() < $oldEffect->getDuration())
@@ -296,7 +315,7 @@ abstract class Living extends Entity implements Damageable{
 		$effect->getType()->add($this, $effect);
 		$this->sendEffectAdd($effect, $oldEffect !== null);
 
-		$this->effects[$effect->getId()] = $effect;
+		$this->effects[$index] = $effect;
 
 		$this->recalculateEffectColor();
 
@@ -383,7 +402,7 @@ abstract class Living extends Entity implements Damageable{
 	 * @return float
 	 */
 	public function getJumpVelocity() : float{
-		return $this->jumpVelocity + ($this->hasEffect(Effect::JUMP) ? ($this->getEffect(Effect::JUMP)->getEffectLevel() / 10) : 0);
+		return $this->jumpVelocity + ($this->hasEffect(Effect::JUMP_BOOST()) ? ($this->getEffect(Effect::JUMP_BOOST())->getEffectLevel() / 10) : 0);
 	}
 
 	/**
@@ -396,7 +415,7 @@ abstract class Living extends Entity implements Damageable{
 	}
 
 	public function fall(float $fallDistance) : void{
-		$damage = ceil($fallDistance - 3 - ($this->hasEffect(Effect::JUMP) ? $this->getEffect(Effect::JUMP)->getEffectLevel() : 0));
+		$damage = ceil($fallDistance - 3 - ($this->hasEffect(Effect::JUMP_BOOST()) ? $this->getEffect(Effect::JUMP_BOOST())->getEffectLevel() : 0));
 		if($damage > 0){
 			$ev = new EntityDamageEvent($this, EntityDamageEvent::CAUSE_FALL, $damage);
 			$this->attack($ev);
@@ -422,14 +441,14 @@ abstract class Living extends Entity implements Damageable{
 	/**
 	 * Returns the highest level of the specified enchantment on any armour piece that the entity is currently wearing.
 	 *
-	 * @param int $enchantmentId
+	 * @param Enchantment $enchantment
 	 *
 	 * @return int
 	 */
-	public function getHighestArmorEnchantmentLevel(int $enchantmentId) : int{
+	public function getHighestArmorEnchantmentLevel(Enchantment $enchantment) : int{
 		$result = 0;
 		foreach($this->armorInventory->getContents() as $item){
-			$result = max($result, $item->getEnchantmentLevel($enchantmentId));
+			$result = max($result, $item->getEnchantmentLevel($enchantment));
 		}
 
 		return $result;
@@ -443,7 +462,7 @@ abstract class Living extends Entity implements Damageable{
 	}
 
 	public function setOnFire(int $seconds) : void{
-		parent::setOnFire($seconds - (int) min($seconds, $seconds * $this->getHighestArmorEnchantmentLevel(Enchantment::FIRE_PROTECTION) * 0.15));
+		parent::setOnFire($seconds - (int) min($seconds, $seconds * $this->getHighestArmorEnchantmentLevel(Enchantment::FIRE_PROTECTION()) * 0.15));
 	}
 
 	/**
@@ -459,8 +478,8 @@ abstract class Living extends Entity implements Damageable{
 		}
 
 		$cause = $source->getCause();
-		if($this->hasEffect(Effect::DAMAGE_RESISTANCE) and $cause !== EntityDamageEvent::CAUSE_VOID and $cause !== EntityDamageEvent::CAUSE_SUICIDE){
-			$source->setModifier(-$source->getFinalDamage() * min(1, 0.2 * $this->getEffect(Effect::DAMAGE_RESISTANCE)->getEffectLevel()), EntityDamageEvent::MODIFIER_RESISTANCE);
+		if($this->hasEffect(Effect::RESISTANCE()) and $cause !== EntityDamageEvent::CAUSE_VOID and $cause !== EntityDamageEvent::CAUSE_SUICIDE){
+			$source->setModifier(-$source->getFinalDamage() * min(1, 0.2 * $this->getEffect(Effect::RESISTANCE())->getEffectLevel()), EntityDamageEvent::MODIFIER_RESISTANCE);
 		}
 
 		$totalEpf = 0;
@@ -488,7 +507,7 @@ abstract class Living extends Entity implements Damageable{
 		if($source instanceof EntityDamageByEntityEvent){
 			$damage = 0;
 			foreach($this->armorInventory->getContents() as $k => $item){
-				if($item instanceof Armor and ($thornsLevel = $item->getEnchantmentLevel(Enchantment::THORNS)) > 0){
+				if($item instanceof Armor and ($thornsLevel = $item->getEnchantmentLevel(Enchantment::THORNS())) > 0){
 					if(mt_rand(0, 99) < $thornsLevel * 15){
 						$this->damageItem($item, 3);
 						$damage += ($thornsLevel > 10 ? $thornsLevel - 10 : 1 + mt_rand(0, 3));
@@ -540,7 +559,7 @@ abstract class Living extends Entity implements Damageable{
 			}
 		}
 
-		if($this->hasEffect(Effect::FIRE_RESISTANCE) and (
+		if($this->hasEffect(Effect::FIRE_RESISTANCE()) and (
 				$source->getCause() === EntityDamageEvent::CAUSE_FIRE
 				or $source->getCause() === EntityDamageEvent::CAUSE_FIRE_TICK
 				or $source->getCause() === EntityDamageEvent::CAUSE_LAVA
@@ -558,7 +577,7 @@ abstract class Living extends Entity implements Damageable{
 			//TODO: knockback should not just apply for entity damage sources
 			//this doesn't matter for TNT right now because the PrimedTNT entity is considered the source, not the block.
 			$base = $source->getKnockBack();
-			$source->setKnockBack($base - min($base, $base * $this->getHighestArmorEnchantmentLevel(Enchantment::BLAST_PROTECTION) * 0.15));
+			$source->setKnockBack($base - min($base, $base * $this->getHighestArmorEnchantmentLevel(Enchantment::BLAST_PROTECTION()) * 0.15));
 		}
 
 		parent::attack($source);
@@ -576,7 +595,10 @@ abstract class Living extends Entity implements Damageable{
 			}
 
 			if($e !== null){
-				if($e->isOnFire()){
+				if((
+					$source->getCause() === EntityDamageEvent::CAUSE_PROJECTILE or
+					$source->getCause() === EntityDamageEvent::CAUSE_ENTITY_ATTACK
+				) and $e->isOnFire()){
 					$this->setOnFire(2 * $this->level->getDifficulty());
 				}
 
@@ -633,6 +655,10 @@ abstract class Living extends Entity implements Damageable{
 		foreach($ev->getDrops() as $item){
 			$this->getLevel()->dropItem($this, $item);
 		}
+
+		//TODO: check death conditions (must have been damaged by player < 5 seconds from death)
+		//TODO: allow this number to be manipulated during EntityDeathEvent
+		$this->level->dropExperience($this, $this->getXpDropAmount());
 	}
 
 	protected function onDeathUpdate(int $tickDiff) : bool{
@@ -640,9 +666,6 @@ abstract class Living extends Entity implements Damageable{
 			$this->deadTicks += $tickDiff;
 			if($this->deadTicks >= $this->maxDeadTicks){
 				$this->endDeathAnimation();
-
-				//TODO: check death conditions (must have been damaged by player < 5 seconds from death)
-				$this->level->dropExperience($this, $this->getXpDropAmount());
 			}
 		}
 
@@ -654,10 +677,10 @@ abstract class Living extends Entity implements Damageable{
 	}
 
 	protected function endDeathAnimation() : void{
-		//TODO
+		$this->despawnFromAll();
 	}
 
-	public function entityBaseTick(int $tickDiff = 1) : bool{
+	protected function entityBaseTick(int $tickDiff = 1) : bool{
 		Timings::$timerLivingEntityBaseTick->startTiming();
 
 		$hasUpdate = parent::entityBaseTick($tickDiff);
@@ -695,7 +718,7 @@ abstract class Living extends Entity implements Damageable{
 			}
 			$instance->decreaseDuration($tickDiff);
 			if($instance->hasExpired()){
-				$this->removeEffect($instance->getId());
+				$this->removeEffect($instance->getType());
 			}
 		}
 
@@ -715,7 +738,7 @@ abstract class Living extends Entity implements Damageable{
 		if(!$this->canBreathe()){
 			$this->setBreathing(false);
 
-			if(($respirationLevel = $this->armorInventory->getHelmet()->getEnchantmentLevel(Enchantment::RESPIRATION)) <= 0 or
+			if(($respirationLevel = $this->armorInventory->getHelmet()->getEnchantmentLevel(Enchantment::RESPIRATION())) <= 0 or
 				lcg_value() <= (1 / ($respirationLevel + 1))
 			){
 				$ticks -= $tickDiff;
@@ -746,7 +769,7 @@ abstract class Living extends Entity implements Damageable{
 	 * @return bool
 	 */
 	public function canBreathe() : bool{
-		return $this->hasEffect(Effect::WATER_BREATHING) or $this->hasEffect(Effect::CONDUIT_POWER) or !$this->isUnderwater();
+		return $this->hasEffect(Effect::WATER_BREATHING()) or $this->hasEffect(Effect::CONDUIT_POWER()) or !$this->isUnderwater();
 	}
 
 	/**

@@ -26,8 +26,20 @@ namespace pocketmine\level\format\io\region;
 use pocketmine\level\format\Chunk;
 use pocketmine\level\format\io\BaseLevelProvider;
 use pocketmine\level\format\io\data\JavaLevelData;
+use pocketmine\level\format\io\exception\CorruptedChunkException;
 use pocketmine\level\format\io\LevelData;
 use pocketmine\level\Level;
+use function assert;
+use function file_exists;
+use function is_dir;
+use function is_int;
+use function mkdir;
+use function rename;
+use function scandir;
+use function strrpos;
+use function substr;
+use function time;
+use const SCANDIR_SORT_NONE;
 
 abstract class RegionLevelProvider extends BaseLevelProvider{
 
@@ -156,8 +168,21 @@ abstract class RegionLevelProvider extends BaseLevelProvider{
 
 	abstract protected function serializeChunk(Chunk $chunk) : string;
 
+	/**
+	 * @param string $data
+	 *
+	 * @return Chunk
+	 * @throws CorruptedChunkException
+	 */
 	abstract protected function deserializeChunk(string $data) : Chunk;
 
+	/**
+	 * @param int $chunkX
+	 * @param int $chunkZ
+	 *
+	 * @return Chunk|null
+	 * @throws CorruptedChunkException
+	 */
 	protected function readChunk(int $chunkX, int $chunkZ) : ?Chunk{
 		$regionX = $regionZ = null;
 		self::getRegionIndex($chunkX, $chunkZ, $regionX, $regionZ);

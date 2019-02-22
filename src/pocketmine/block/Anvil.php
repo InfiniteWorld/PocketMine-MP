@@ -23,6 +23,9 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
+use pocketmine\block\utils\Fallable;
+use pocketmine\block\utils\FallableTrait;
 use pocketmine\inventory\AnvilInventory;
 use pocketmine\item\Item;
 use pocketmine\item\TieredTool;
@@ -32,7 +35,8 @@ use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 
-class Anvil extends Fallable{
+class Anvil extends Transparent implements Fallable{
+	use FallableTrait;
 
 	public const TYPE_NORMAL = 0;
 	public const TYPE_SLIGHTLY_DAMAGED = 4;
@@ -45,16 +49,12 @@ class Anvil extends Fallable{
 		return Bearing::fromFacing($this->facing);
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->facing = Bearing::toFacing($meta);
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->facing = BlockDataValidator::readLegacyHorizontalFacing($stateMeta);
 	}
 
 	public function getStateBitmask() : int{
 		return 0b11;
-	}
-
-	public function isTransparent() : bool{
-		return true;
 	}
 
 	public function getHardness() : float{
@@ -77,7 +77,7 @@ class Anvil extends Fallable{
 		return AxisAlignedBB::one()->squash(Facing::axis(Facing::rotateY($this->facing, false)), 1 / 8);
 	}
 
-	public function onActivate(Item $item, Player $player = null) : bool{
+	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($player instanceof Player){
 			$player->addWindow(new AnvilInventory($this));
 		}
@@ -85,10 +85,14 @@ class Anvil extends Fallable{
 		return true;
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($player !== null){
 			$this->facing = Facing::rotateY($player->getHorizontalFacing(), true);
 		}
 		return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
+	}
+
+	public function tickFalling() : ?Block{
+		return null;
 	}
 }

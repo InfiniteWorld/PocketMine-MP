@@ -23,17 +23,21 @@ declare(strict_types=1);
 
 namespace pocketmine\tile;
 
+use pocketmine\block\utils\DyeColor;
 use pocketmine\item\Banner as ItemBanner;
 use pocketmine\item\Item;
+use pocketmine\level\Level;
+use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
+use function assert;
 
 class Banner extends Spawnable implements Nameable{
 	use NameableTrait {
 		addAdditionalSpawnData as addNameSpawnData;
-		createAdditionalNBT as createNameNBT;
+		copyDataFromItem as protected copyNameFromItem;
 	}
 
 	public const TAG_BASE = "Base";
@@ -80,24 +84,7 @@ class Banner extends Spawnable implements Nameable{
 	public const PATTERN_FLOWER = "flo";
 	public const PATTERN_MOJANG = "moj";
 
-	public const COLOR_BLACK = 0;
-	public const COLOR_RED = 1;
-	public const COLOR_GREEN = 2;
-	public const COLOR_BROWN = 3;
-	public const COLOR_BLUE = 4;
-	public const COLOR_PURPLE = 5;
-	public const COLOR_CYAN = 6;
-	public const COLOR_LIGHT_GRAY = 7;
-	public const COLOR_GRAY = 8;
-	public const COLOR_PINK = 9;
-	public const COLOR_LIME = 10;
-	public const COLOR_YELLOW = 11;
-	public const COLOR_LIGHT_BLUE = 12;
-	public const COLOR_MAGENTA = 13;
-	public const COLOR_ORANGE = 14;
-	public const COLOR_WHITE = 15;
-
-	/** @var int */
+	/** @var DyeColor */
 	private $baseColor;
 	/**
 	 * @var ListTag
@@ -105,39 +92,59 @@ class Banner extends Spawnable implements Nameable{
 	 */
 	private $patterns;
 
-	protected function readSaveData(CompoundTag $nbt) : void{
-		$this->baseColor = $nbt->getInt(self::TAG_BASE, self::COLOR_BLACK, true);
-		$this->patterns = $nbt->getListTag(self::TAG_PATTERNS) ?? new ListTag(self::TAG_PATTERNS);
+	public function __construct(Level $level, Vector3 $pos){
+		$this->baseColor = DyeColor::BLACK();
+		$this->patterns = new ListTag(self::TAG_PATTERNS);
+		parent::__construct($level, $pos);
+	}
+
+	public function readSaveData(CompoundTag $nbt) : void{
+		if($nbt->hasTag(self::TAG_BASE, IntTag::class)){
+			$this->baseColor = DyeColor::fromMagicNumber($nbt->getInt(self::TAG_BASE), true);
+		}
+
+		$this->patterns = $nbt->getListTag(self::TAG_PATTERNS) ?? $this->patterns;
 		$this->loadName($nbt);
 	}
 
 	protected function writeSaveData(CompoundTag $nbt) : void{
-		$nbt->setInt(self::TAG_BASE, $this->baseColor);
+		$nbt->setInt(self::TAG_BASE, $this->baseColor->getInvertedMagicNumber());
 		$nbt->setTag($this->patterns);
 		$this->saveName($nbt);
 	}
 
 	protected function addAdditionalSpawnData(CompoundTag $nbt) : void{
-		$nbt->setInt(self::TAG_BASE, $this->baseColor);
+		$nbt->setInt(self::TAG_BASE, $this->baseColor->getInvertedMagicNumber());
 		$nbt->setTag($this->patterns);
 		$this->addNameSpawnData($nbt);
+	}
+
+	public function copyDataFromItem(Item $item) : void{
+		parent::copyDataFromItem($item);
+		$this->copyNameFromItem($item);
+		if($item instanceof ItemBanner){
+			$this->setBaseColor($item->getBaseColor());
+			if(($patterns = $item->getPatterns()) !== null){
+				$this->setPatterns($patterns);
+			}
+		}
 	}
 
 	/**
 	 * Returns the color of the banner base.
 	 *
-	 * @return int
+	 * @return DyeColor
 	 */
-	public function getBaseColor() : int{
+	public function getBaseColor() : DyeColor{
 		return $this->baseColor;
 	}
 
 	/**
 	 * Sets the color of the banner base.
 	 *
-	 * @param int $color
+	 * @param DyeColor $color
 	 */
-	public function setBaseColor(int $color) : void{
+	public function setBaseColor(DyeColor $color) : void{
 		$this->baseColor = $color;
 		$this->onChanged();
 	}
@@ -145,14 +152,14 @@ class Banner extends Spawnable implements Nameable{
 	/**
 	 * Applies a new pattern on the banner with the given color.
 	 *
-	 * @param string $pattern
-	 * @param int    $color
+	 * @param string   $pattern
+	 * @param DyeColor $color
 	 *
 	 * @return int ID of pattern.
 	 */
-	public function addPattern(string $pattern, int $color) : int{
+	public function addPattern(string $pattern, DyeColor $color) : int{
 		$this->patterns->push(new CompoundTag("", [
-			new IntTag(self::TAG_PATTERN_COLOR, $color & 0x0f),
+			new IntTag(self::TAG_PATTERN_COLOR, $color->getInvertedMagicNumber()),
 			new StringTag(self::TAG_PATTERN_NAME, $pattern)
 		]));
 
@@ -187,7 +194,7 @@ class Banner extends Spawnable implements Nameable{
 		assert($patternTag instanceof CompoundTag);
 
 		return [
-			self::TAG_PATTERN_COLOR => $patternTag->getInt(self::TAG_PATTERN_COLOR),
+			self::TAG_PATTERN_COLOR => DyeColor::fromMagicNumber($patternTag->getInt(self::TAG_PATTERN_COLOR), true),
 			self::TAG_PATTERN_NAME => $patternTag->getString(self::TAG_PATTERN_NAME)
 		];
 	}
@@ -195,19 +202,19 @@ class Banner extends Spawnable implements Nameable{
 	/**
 	 * Changes the pattern of a previously existing pattern.
 	 *
-	 * @param int    $patternId
-	 * @param string $pattern
-	 * @param int    $color
+	 * @param int      $patternId
+	 * @param string   $pattern
+	 * @param DyeColor $color
 	 *
 	 * @return bool indicating success.
 	 */
-	public function changePattern(int $patternId, string $pattern, int $color) : bool{
+	public function changePattern(int $patternId, string $pattern, DyeColor $color) : bool{
 		if(!$this->patternExists($patternId)){
 			return false;
 		}
 
 		$this->patterns->set($patternId, new CompoundTag("", [
-			new IntTag(self::TAG_PATTERN_COLOR, $color & 0x0f),
+			new IntTag(self::TAG_PATTERN_COLOR, $color->getInvertedMagicNumber()),
 			new StringTag(self::TAG_PATTERN_NAME, $pattern)
 		]));
 
@@ -267,17 +274,9 @@ class Banner extends Spawnable implements Nameable{
 		return $this->patterns;
 	}
 
-	protected static function createAdditionalNBT(CompoundTag $nbt, ?Item $item = null) : void{
-		if($item instanceof ItemBanner){
-			$nbt->setInt(self::TAG_BASE, $item->getBaseColor());
-
-			//TODO: clean this mess up
-			if($item->getNamedTag()->hasTag(self::TAG_PATTERNS, ListTag::class)){
-				$nbt->setTag($item->getNamedTag()->getListTag(self::TAG_PATTERNS));
-			}
-
-			self::createNameNBT($nbt, $item);
-		}
+	public function setPatterns(ListTag $patterns) : void{
+		$this->patterns = clone $patterns;
+		$this->onChanged();
 	}
 
 	public function getDefaultName() : string{

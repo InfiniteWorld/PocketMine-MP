@@ -32,10 +32,6 @@ use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 
 class Lava extends Liquid{
 
-	public function __construct(){
-		parent::__construct(self::FLOWING_LAVA, self::STILL_LAVA, "Lava");
-	}
-
 	public function getLightLevel() : int{
 		return 15;
 	}
@@ -86,7 +82,7 @@ class Lava extends Liquid{
 		}
 	}
 
-	public function onEntityCollide(Entity $entity) : void{
+	public function onEntityInside(Entity $entity) : void{
 		$entity->fallDistance *= 0.5;
 
 		$ev = new EntityDamageByBlockEvent($this, $entity, EntityDamageEvent::CAUSE_LAVA, 4);

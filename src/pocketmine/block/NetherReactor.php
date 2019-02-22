@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\item\TieredTool;
@@ -32,29 +33,19 @@ class NetherReactor extends Solid{
 	protected const STATE_ACTIVE = 1;
 	protected const STATE_USED = 2;
 
-	protected $id = Block::NETHER_REACTOR;
-
 	/** @var int */
 	protected $state = self::STATE_INACTIVE;
-
-	public function __construct(){
-
-	}
 
 	protected function writeStateToMeta() : int{
 		return $this->state;
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->state = $meta;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->state = BlockDataValidator::readBoundedInt("state", $stateMeta, 0, 2);
 	}
 
 	public function getStateBitmask() : int{
 		return 0b11;
-	}
-
-	public function getName() : string{
-		return "Nether Reactor Core";
 	}
 
 	public function getToolType() : int{

@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
@@ -36,25 +37,21 @@ abstract class Button extends Flowable{
 	/** @var bool */
 	protected $powered = false;
 
-	public function __construct(){
-
-	}
-
 	protected function writeStateToMeta() : int{
 		return $this->facing | ($this->powered ? 0x08 : 0);
 	}
 
-	public function readStateFromMeta(int $meta) : void{
+	public function readStateFromData(int $id, int $stateMeta) : void{
 		//TODO: in PC it's (6 - facing) for every meta except 0 (down)
-		$this->facing = $meta & 0x07;
-		$this->powered = ($meta & 0x08) !== 0;
+		$this->facing = BlockDataValidator::readFacing($stateMeta & 0x07);
+		$this->powered = ($stateMeta & 0x08) !== 0;
 	}
 
 	public function getStateBitmask() : int{
 		return 0b1111;
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		//TODO: check valid target block
 		$this->facing = $face;
 		return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
@@ -62,7 +59,7 @@ abstract class Button extends Flowable{
 
 	abstract protected function getActivationTime() : int;
 
-	public function onActivate(Item $item, Player $player = null) : bool{
+	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if(!$this->powered){
 			$this->powered = true;
 			$this->level->setBlock($this, $this);

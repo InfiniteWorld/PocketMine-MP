@@ -26,21 +26,12 @@ namespace pocketmine\block;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\item\TieredTool;
+use function mt_rand;
 
 class DiamondOre extends Solid{
 
-	protected $id = self::DIAMOND_ORE;
-
-	public function __construct(){
-
-	}
-
 	public function getHardness() : float{
 		return 3;
-	}
-
-	public function getName() : string{
-		return "Diamond Ore";
 	}
 
 	public function getToolType() : int{

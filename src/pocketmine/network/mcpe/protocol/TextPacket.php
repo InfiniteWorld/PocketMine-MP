@@ -27,8 +27,9 @@ namespace pocketmine\network\mcpe\protocol;
 
 
 use pocketmine\network\mcpe\handler\SessionHandler;
+use function count;
 
-class TextPacket extends DataPacket{
+class TextPacket extends DataPacket implements ClientboundPacket, ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::TEXT_PACKET;
 
 	public const TYPE_RAW = 0;
@@ -40,6 +41,7 @@ class TextPacket extends DataPacket{
 	public const TYPE_SYSTEM = 6;
 	public const TYPE_WHISPER = 7;
 	public const TYPE_ANNOUNCEMENT = 8;
+	public const TYPE_JSON = 9;
 
 	/** @var int */
 	public $type;
@@ -68,6 +70,7 @@ class TextPacket extends DataPacket{
 			case self::TYPE_RAW:
 			case self::TYPE_TIP:
 			case self::TYPE_SYSTEM:
+			case self::TYPE_JSON:
 				$this->message = $this->getString();
 				break;
 
@@ -98,6 +101,7 @@ class TextPacket extends DataPacket{
 			case self::TYPE_RAW:
 			case self::TYPE_TIP:
 			case self::TYPE_SYSTEM:
+			case self::TYPE_JSON:
 				$this->putString($this->message);
 				break;
 

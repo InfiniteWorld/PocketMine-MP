@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\math\AxisAlignedBB;
@@ -30,29 +31,19 @@ use pocketmine\math\Facing;
 
 class Farmland extends Transparent{
 
-	protected $id = self::FARMLAND;
-
 	/** @var int */
 	protected $wetness = 0; //"moisture" blockstate property in PC
-
-	public function __construct(){
-
-	}
 
 	protected function writeStateToMeta() : int{
 		return $this->wetness;
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->wetness = $meta;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->wetness = BlockDataValidator::readBoundedInt("wetness", $stateMeta, 0, 7);
 	}
 
 	public function getStateBitmask() : int{
 		return 0b111;
-	}
-
-	public function getName() : string{
-		return "Farmland";
 	}
 
 	public function getHardness() : float{

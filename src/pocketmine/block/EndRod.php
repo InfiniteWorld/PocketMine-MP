@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
@@ -31,14 +32,8 @@ use pocketmine\Player;
 
 class EndRod extends Flowable{
 
-	protected $id = Block::END_ROD;
-
 	/** @var int */
 	protected $facing = Facing::DOWN;
-
-	public function __construct(){
-
-	}
 
 	protected function writeStateToMeta() : int{
 		if(Facing::axis($this->facing) === Facing::AXIS_Y){
@@ -47,23 +42,19 @@ class EndRod extends Flowable{
 		return $this->facing ^ 1; //TODO: in PC this is always the same as facing, just PE is stupid
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		if($meta === 0 or $meta === 1){
-			$this->facing = $meta;
-		}else{
-			$this->facing = $meta ^ 1; //TODO: see above
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		if($stateMeta !== 0 and $stateMeta !== 1){
+			$stateMeta ^= 1;
 		}
+
+		$this->facing = BlockDataValidator::readFacing($stateMeta);
 	}
 
 	public function getStateBitmask() : int{
 		return 0b111;
 	}
 
-	public function getName() : string{
-		return "End Rod";
-	}
-
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$this->facing = $face;
 		if($blockClicked instanceof EndRod and $blockClicked->facing === $this->facing){
 			$this->facing = Facing::opposite($face);

@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\entity\Entity;
 use pocketmine\item\Item;
 use pocketmine\math\AxisAlignedBB;
@@ -32,29 +33,19 @@ use pocketmine\Player;
 
 class Ladder extends Transparent{
 
-	protected $id = self::LADDER;
-
 	/** @var int */
 	protected $facing = Facing::NORTH;
-
-	public function __construct(){
-
-	}
 
 	protected function writeStateToMeta() : int{
 		return $this->facing;
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->facing = $meta;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->facing = BlockDataValidator::readHorizontalFacing($stateMeta);
 	}
 
 	public function getStateBitmask() : int{
 		return 0b111;
-	}
-
-	public function getName() : string{
-		return "Ladder";
 	}
 
 	public function hasEntityCollision() : bool{
@@ -73,7 +64,7 @@ class Ladder extends Transparent{
 		return true;
 	}
 
-	public function onEntityCollide(Entity $entity) : void{
+	public function onEntityInside(Entity $entity) : void{
 		$entity->resetFallDistance();
 		$entity->onGround = true;
 	}
@@ -83,7 +74,7 @@ class Ladder extends Transparent{
 	}
 
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if(!$blockClicked->isTransparent() and Facing::axis($face) !== Facing::AXIS_Y){
 			$this->facing = $face;
 			return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);

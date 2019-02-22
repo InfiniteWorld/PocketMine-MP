@@ -25,6 +25,18 @@ declare(strict_types=1);
 namespace pocketmine\resourcepacks;
 
 
+use Ahc\Json\Comment as CommentedJsonDecoder;
+use function count;
+use function fclose;
+use function feof;
+use function file_exists;
+use function filesize;
+use function fopen;
+use function fread;
+use function fseek;
+use function hash_file;
+use function implode;
+
 class ZippedResourcePack implements ResourcePack{
 
 	/**
@@ -63,6 +75,7 @@ class ZippedResourcePack implements ResourcePack{
 
 	/**
 	 * @param string $zipPath Path to the resource pack zip
+	 * @throws ResourcePackException
 	 */
 	public function __construct(string $zipPath){
 		$this->path = $zipPath;
@@ -86,10 +99,13 @@ class ZippedResourcePack implements ResourcePack{
 
 		$archive->close();
 
-		$manifest = json_decode($manifestData);
-		if($manifest === null){
-			throw new ResourcePackException("Failed to parse manifest.json: " . json_last_error_msg());
+		//maybe comments in the json, use stripped decoder (thanks mojang)
+		try{
+			$manifest = (new CommentedJsonDecoder())->decode($manifestData);
+		}catch(\RuntimeException $e){
+			throw new ResourcePackException("Failed to parse manifest.json: " . $e->getMessage(), $e->getCode(), $e);
 		}
+
 		if(!self::verifyManifest($manifest)){
 			throw new ResourcePackException("manifest.json is missing required fields");
 		}
@@ -133,7 +149,7 @@ class ZippedResourcePack implements ResourcePack{
 	public function getPackChunk(int $start, int $length) : string{
 		fseek($this->fileResource, $start);
 		if(feof($this->fileResource)){
-			throw new \RuntimeException("Requested a resource pack chunk with invalid start offset");
+			throw new \InvalidArgumentException("Requested a resource pack chunk with invalid start offset");
 		}
 		return fread($this->fileResource, $length);
 	}

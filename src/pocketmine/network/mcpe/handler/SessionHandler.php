@@ -25,13 +25,14 @@ namespace pocketmine\network\mcpe\handler;
 
 use pocketmine\network\mcpe\protocol\AddBehaviorTreePacket;
 use pocketmine\network\mcpe\protocol\AddEntityPacket;
-use pocketmine\network\mcpe\protocol\AddHangingEntityPacket;
 use pocketmine\network\mcpe\protocol\AddItemEntityPacket;
 use pocketmine\network\mcpe\protocol\AddPaintingPacket;
 use pocketmine\network\mcpe\protocol\AddPlayerPacket;
 use pocketmine\network\mcpe\protocol\AdventureSettingsPacket;
 use pocketmine\network\mcpe\protocol\AnimatePacket;
 use pocketmine\network\mcpe\protocol\AvailableCommandsPacket;
+use pocketmine\network\mcpe\protocol\AvailableEntityIdentifiersPacket;
+use pocketmine\network\mcpe\protocol\BiomeDefinitionListPacket;
 use pocketmine\network\mcpe\protocol\BlockEntityDataPacket;
 use pocketmine\network\mcpe\protocol\BlockEventPacket;
 use pocketmine\network\mcpe\protocol\BlockPickRequestPacket;
@@ -68,6 +69,8 @@ use pocketmine\network\mcpe\protocol\ItemFrameDropItemPacket;
 use pocketmine\network\mcpe\protocol\LabTablePacket;
 use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
+use pocketmine\network\mcpe\protocol\LevelSoundEventPacketV1;
+use pocketmine\network\mcpe\protocol\LevelSoundEventPacketV2;
 use pocketmine\network\mcpe\protocol\LoginPacket;
 use pocketmine\network\mcpe\protocol\MapInfoRequestPacket;
 use pocketmine\network\mcpe\protocol\MobArmorEquipmentPacket;
@@ -78,6 +81,7 @@ use pocketmine\network\mcpe\protocol\ModalFormResponsePacket;
 use pocketmine\network\mcpe\protocol\MoveEntityAbsolutePacket;
 use pocketmine\network\mcpe\protocol\MoveEntityDeltaPacket;
 use pocketmine\network\mcpe\protocol\MovePlayerPacket;
+use pocketmine\network\mcpe\protocol\NetworkChunkPublisherUpdatePacket;
 use pocketmine\network\mcpe\protocol\NetworkStackLatencyPacket;
 use pocketmine\network\mcpe\protocol\NpcRequestPacket;
 use pocketmine\network\mcpe\protocol\PhotoTransferPacket;
@@ -125,6 +129,7 @@ use pocketmine\network\mcpe\protocol\ShowProfilePacket;
 use pocketmine\network\mcpe\protocol\ShowStoreOfferPacket;
 use pocketmine\network\mcpe\protocol\SimpleEventPacket;
 use pocketmine\network\mcpe\protocol\SpawnExperienceOrbPacket;
+use pocketmine\network\mcpe\protocol\SpawnParticleEffectPacket;
 use pocketmine\network\mcpe\protocol\StartGamePacket;
 use pocketmine\network\mcpe\protocol\StopSoundPacket;
 use pocketmine\network\mcpe\protocol\StructureBlockUpdatePacket;
@@ -212,10 +217,6 @@ abstract class SessionHandler{
 		return false;
 	}
 
-	public function handleAddHangingEntity(AddHangingEntityPacket $packet) : bool{
-		return false;
-	}
-
 	public function handleTakeItemEntity(TakeItemEntityPacket $packet) : bool{
 		return false;
 	}
@@ -244,7 +245,7 @@ abstract class SessionHandler{
 		return false;
 	}
 
-	public function handleLevelSoundEvent(LevelSoundEventPacket $packet) : bool{
+	public function handleLevelSoundEventPacketV1(LevelSoundEventPacketV1 $packet) : bool{
 		return false;
 	}
 
@@ -613,6 +614,30 @@ abstract class SessionHandler{
 	}
 
 	public function handleScriptCustomEvent(ScriptCustomEventPacket $packet) : bool{
+		return false;
+	}
+
+	public function handleSpawnParticleEffect(SpawnParticleEffectPacket $packet) : bool{
+		return false;
+	}
+
+	public function handleAvailableEntityIdentifiers(AvailableEntityIdentifiersPacket $packet) : bool{
+		return false;
+	}
+
+	public function handleLevelSoundEventPacketV2(LevelSoundEventPacketV2 $packet) : bool{
+		return false;
+	}
+
+	public function handleNetworkChunkPublisherUpdate(NetworkChunkPublisherUpdatePacket $packet) : bool{
+		return false;
+	}
+
+	public function handleBiomeDefinitionList(BiomeDefinitionListPacket $packet) : bool{
+		return false;
+	}
+
+	public function handleLevelSoundEvent(LevelSoundEventPacket $packet) : bool{
 		return false;
 	}
 }

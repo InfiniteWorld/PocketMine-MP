@@ -23,12 +23,28 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
+use pocketmine\item\Item;
+use pocketmine\math\Bearing;
+use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
+use pocketmine\Player;
+
 class Pumpkin extends Solid{
 
-	protected $id = self::PUMPKIN;
+	/** @var int */
+	protected $facing = Facing::NORTH;
 
-	public function __construct(){
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->facing = BlockDataValidator::readLegacyHorizontalFacing($stateMeta & 0x03);
+	}
 
+	protected function writeStateToMeta() : int{
+		return Bearing::fromFacing($this->facing);
+	}
+
+	public function getStateBitmask() : int{
+		return 0b11;
 	}
 
 	public function getHardness() : float{
@@ -39,7 +55,10 @@ class Pumpkin extends Solid{
 		return BlockToolType::TYPE_AXE;
 	}
 
-	public function getName() : string{
-		return "Pumpkin";
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		if($player !== null){
+			$this->facing = Facing::opposite($player->getHorizontalFacing());
+		}
+		return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 	}
 }

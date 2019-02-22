@@ -28,8 +28,9 @@ namespace pocketmine\network\mcpe\protocol;
 
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\handler\SessionHandler;
+use function count;
 
-class ExplodePacket extends DataPacket{
+class ExplodePacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::EXPLODE_PACKET;
 
 	/** @var Vector3 */
@@ -38,11 +39,6 @@ class ExplodePacket extends DataPacket{
 	public $radius;
 	/** @var Vector3[] */
 	public $records = [];
-
-	public function clean(){
-		$this->records = [];
-		return parent::clean();
-	}
 
 	protected function decodePayload() : void{
 		$this->position = $this->getVector3();

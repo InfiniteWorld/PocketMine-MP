@@ -26,14 +26,9 @@ namespace pocketmine\block;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\item\TieredTool;
+use function mt_rand;
 
 class LapisOre extends Solid{
-
-	protected $id = self::LAPIS_ORE;
-
-	public function __construct(){
-
-	}
 
 	public function getHardness() : float{
 		return 3;
@@ -45,10 +40,6 @@ class LapisOre extends Solid{
 
 	public function getToolHarvestLevel() : int{
 		return TieredTool::TIER_STONE;
-	}
-
-	public function getName() : string{
-		return "Lapis Lazuli Ore";
 	}
 
 	public function getDropsForCompatibleTool(Item $item) : array{

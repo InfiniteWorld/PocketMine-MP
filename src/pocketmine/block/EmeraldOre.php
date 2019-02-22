@@ -26,18 +26,9 @@ namespace pocketmine\block;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\item\TieredTool;
+use function mt_rand;
 
 class EmeraldOre extends Solid{
-
-	protected $id = self::EMERALD_ORE;
-
-	public function __construct(){
-
-	}
-
-	public function getName() : string{
-		return "Emerald Ore";
-	}
 
 	public function getToolType() : int{
 		return BlockToolType::TYPE_PICKAXE;

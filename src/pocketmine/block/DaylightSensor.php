@@ -23,14 +23,16 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
+use pocketmine\math\Vector3;
 use pocketmine\Player;
 
 class DaylightSensor extends Transparent{
-
-	protected $itemId = self::DAYLIGHT_SENSOR;
+	/** @var BlockIdentifierFlattened */
+	protected $idInfo;
 
 	/** @var int */
 	protected $power = 0;
@@ -38,20 +40,21 @@ class DaylightSensor extends Transparent{
 	/** @var bool */
 	protected $inverted = false;
 
-	public function __construct(){
-
+	public function __construct(BlockIdentifierFlattened $idInfo, string $name){
+		parent::__construct($idInfo, $name);
 	}
 
 	public function getId() : int{
-		return $this->inverted ? self::DAYLIGHT_SENSOR_INVERTED : self::DAYLIGHT_SENSOR;
+		return $this->inverted ? $this->idInfo->getSecondId() : parent::getId();
 	}
 
 	protected function writeStateToMeta() : int{
 		return $this->power;
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->power = $meta;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->power = BlockDataValidator::readBoundedInt("power", $stateMeta, 0, 15);
+		$this->inverted = $id === $this->idInfo->getSecondId();
 	}
 
 	public function getStateBitmask() : int{
@@ -72,10 +75,6 @@ class DaylightSensor extends Transparent{
 		return $this;
 	}
 
-	public function getName() : string{
-		return "Daylight Sensor";
-	}
-
 	public function getHardness() : float{
 		return 0.2;
 	}
@@ -92,7 +91,7 @@ class DaylightSensor extends Transparent{
 		return AxisAlignedBB::one()->trim(Facing::UP, 0.5);
 	}
 
-	public function onActivate(Item $item, Player $player = null) : bool{
+	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$this->inverted = !$this->inverted;
 		$this->level->setBlock($this, $this);
 		return true;

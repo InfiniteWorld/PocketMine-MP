@@ -29,6 +29,9 @@ use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
+use function array_intersect_key;
+use function max;
+use function min;
 
 class Vine extends Flowable{
 	private const FLAG_SOUTH = 0x01;
@@ -36,14 +39,8 @@ class Vine extends Flowable{
 	private const FLAG_NORTH = 0x04;
 	private const FLAG_EAST = 0x08;
 
-	protected $id = self::VINE;
-
 	/** @var bool[] */
 	protected $faces = [];
-
-	public function __construct(){
-
-	}
 
 	protected function writeStateToMeta() : int{
 		return
@@ -53,11 +50,11 @@ class Vine extends Flowable{
 			(isset($this->faces[Facing::EAST]) ? self::FLAG_EAST : 0);
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->setFaceFromMeta($meta, self::FLAG_SOUTH, Facing::SOUTH);
-		$this->setFaceFromMeta($meta, self::FLAG_WEST, Facing::WEST);
-		$this->setFaceFromMeta($meta, self::FLAG_NORTH, Facing::NORTH);
-		$this->setFaceFromMeta($meta, self::FLAG_EAST, Facing::EAST);
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->setFaceFromMeta($stateMeta, self::FLAG_SOUTH, Facing::SOUTH);
+		$this->setFaceFromMeta($stateMeta, self::FLAG_WEST, Facing::WEST);
+		$this->setFaceFromMeta($stateMeta, self::FLAG_NORTH, Facing::NORTH);
+		$this->setFaceFromMeta($stateMeta, self::FLAG_EAST, Facing::EAST);
 	}
 
 	public function getStateBitmask() : int{
@@ -68,10 +65,6 @@ class Vine extends Flowable{
 		if(($meta & $flag) !== 0){
 			$this->faces[$face] = true;
 		}
-	}
-
-	public function getName() : string{
-		return "Vines";
 	}
 
 	public function getHardness() : float{
@@ -90,7 +83,7 @@ class Vine extends Flowable{
 		return true;
 	}
 
-	public function onEntityCollide(Entity $entity) : void{
+	public function onEntityInside(Entity $entity) : void{
 		$entity->resetFallDistance();
 	}
 
@@ -150,7 +143,7 @@ class Vine extends Flowable{
 		return [];
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if(!$blockClicked->isSolid() or Facing::axis($face) === Facing::AXIS_Y){
 			return false;
 		}

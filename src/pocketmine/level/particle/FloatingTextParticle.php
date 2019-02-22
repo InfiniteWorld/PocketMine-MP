@@ -24,8 +24,8 @@ declare(strict_types=1);
 namespace pocketmine\level\particle;
 
 use pocketmine\entity\Entity;
+use pocketmine\entity\EntityFactory;
 use pocketmine\entity\Skin;
-use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\AddPlayerPacket;
@@ -33,8 +33,9 @@ use pocketmine\network\mcpe\protocol\PlayerListPacket;
 use pocketmine\network\mcpe\protocol\RemoveEntityPacket;
 use pocketmine\network\mcpe\protocol\types\PlayerListEntry;
 use pocketmine\utils\UUID;
+use function str_repeat;
 
-class FloatingTextParticle extends Particle{
+class FloatingTextParticle implements Particle{
 	//TODO: HACK!
 
 	protected $text;
@@ -43,12 +44,10 @@ class FloatingTextParticle extends Particle{
 	protected $invisible = false;
 
 	/**
-	 * @param Vector3 $pos
-	 * @param string  $text
-	 * @param string  $title
+	 * @param string $text
+	 * @param string $title
 	 */
-	public function __construct(Vector3 $pos, string $text, string $title = ""){
-		parent::__construct($pos->x, $pos->y, $pos->z);
+	public function __construct(string $text, string $title = ""){
 		$this->text = $text;
 		$this->title = $title;
 	}
@@ -77,11 +76,11 @@ class FloatingTextParticle extends Particle{
 		$this->invisible = $value;
 	}
 
-	public function encode(){
+	public function encode(Vector3 $pos){
 		$p = [];
 
 		if($this->entityId === null){
-			$this->entityId = Entity::$entityCount++;
+			$this->entityId = EntityFactory::nextRuntimeId();
 		}else{
 			$pk0 = new RemoveEntityPacket();
 			$pk0->entityUniqueId = $this->entityId;
@@ -102,8 +101,8 @@ class FloatingTextParticle extends Particle{
 			$pk->uuid = $uuid;
 			$pk->username = $name;
 			$pk->entityRuntimeId = $this->entityId;
-			$pk->position = $this->asVector3(); //TODO: check offset
-			$pk->item = ItemFactory::get(Item::AIR, 0, 0);
+			$pk->position = $pos; //TODO: check offset
+			$pk->item = ItemFactory::air();
 
 			$flags = (
 				1 << Entity::DATA_FLAG_IMMOBILE

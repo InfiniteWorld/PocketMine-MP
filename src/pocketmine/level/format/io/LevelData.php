@@ -62,7 +62,7 @@ interface LevelData{
 	public function getTime();
 
 	/**
-	 * @param int|string
+	 * @param int|string $value
 	 */
 	public function setTime($value) : void;
 

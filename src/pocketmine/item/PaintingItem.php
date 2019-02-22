@@ -24,22 +24,23 @@ declare(strict_types=1);
 namespace pocketmine\item;
 
 use pocketmine\block\Block;
-use pocketmine\entity\Entity;
+use pocketmine\entity\EntityFactory;
 use pocketmine\entity\object\Painting;
 use pocketmine\entity\object\PaintingMotive;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\Player;
+use function array_rand;
 
 class PaintingItem extends Item{
 	public function __construct(){
 		parent::__construct(self::PAINTING, 0, "Painting");
 	}
 
-	public function onActivate(Player $player, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector) : bool{
+	public function onActivate(Player $player, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector) : ItemUseResult{
 		if(Facing::axis($face) === Facing::AXIS_Y){
-			return false;
+			return ItemUseResult::NONE();
 		}
 
 		$motives = [];
@@ -67,7 +68,7 @@ class PaintingItem extends Item{
 		}
 
 		if(empty($motives)){ //No space available
-			return false;
+			return ItemUseResult::NONE();
 		}
 
 		/** @var PaintingMotive $motive */
@@ -82,26 +83,22 @@ class PaintingItem extends Item{
 
 		$direction = $directions[$face] ?? -1;
 		if($direction === -1){
-			return false;
+			return ItemUseResult::NONE();
 		}
 
-		$nbt = Entity::createBaseNBT($blockReplace, null, $direction * 90, 0);
+		$nbt = EntityFactory::createBaseNBT($blockReplace, null, $direction * 90, 0);
 		$nbt->setByte("Direction", $direction);
 		$nbt->setString("Motive", $motive->getName());
 		$nbt->setInt("TileX", $blockClicked->getFloorX());
 		$nbt->setInt("TileY", $blockClicked->getFloorY());
 		$nbt->setInt("TileZ", $blockClicked->getFloorZ());
 
-		$entity = Entity::createEntity("Painting", $blockReplace->getLevel(), $nbt);
+		/** @var Painting $entity */
+		$entity = EntityFactory::create(Painting::class, $blockReplace->getLevel(), $nbt);
+		$this->pop();
+		$entity->spawnToAll();
 
-		if($entity instanceof Entity){
-			$this->pop();
-			$entity->spawnToAll();
-
-			$player->getLevel()->broadcastLevelEvent($blockReplace->add(0.5, 0.5, 0.5), LevelEventPacket::EVENT_SOUND_ITEMFRAME_PLACE); //item frame and painting have the same sound
-			return true;
-		}
-
-		return false;
+		$player->getLevel()->broadcastLevelEvent($blockReplace->add(0.5, 0.5, 0.5), LevelEventPacket::EVENT_SOUND_ITEMFRAME_PLACE); //item frame and painting have the same sound
+		return ItemUseResult::SUCCESS();
 	}
 }

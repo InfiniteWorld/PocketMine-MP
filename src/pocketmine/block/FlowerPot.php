@@ -29,51 +29,34 @@ use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 use pocketmine\tile\FlowerPot as TileFlowerPot;
-use pocketmine\tile\Tile;
 
 class FlowerPot extends Flowable{
 
-	protected $id = self::FLOWER_POT_BLOCK;
-	protected $itemId = Item::FLOWER_POT;
-
 	/** @var bool */
 	protected $occupied = false;
-
-	public function __construct(){
-
-	}
 
 	protected function writeStateToMeta() : int{
 		return $this->occupied ? 1 : 0;
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->occupied = $meta !== 0;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->occupied = $stateMeta !== 0;
 	}
 
 	public function getStateBitmask() : int{
 		return 0b1111; //vanilla uses various values, we only care about 1 and 0 for PE
 	}
 
-	public function getName() : string{
-		return "Flower Pot";
-	}
-
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
 		return AxisAlignedBB::one()->contract(3 / 16, 0, 3 / 16)->trim(Facing::UP, 5 / 8);
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($this->getSide(Facing::DOWN)->isTransparent()){
 			return false;
 		}
 
-		if(parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player)){
-			Tile::createTile(Tile::FLOWER_POT, $this->getLevel(), TileFlowerPot::createNBT($this, $item));
-			return true;
-		}
-
-		return false;
+		return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 	}
 
 	public function onNearbyBlockChange() : void{
@@ -82,7 +65,7 @@ class FlowerPot extends Flowable{
 		}
 	}
 
-	public function onActivate(Item $item, Player $player = null) : bool{
+	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$pot = $this->getLevel()->getTile($this);
 		if(!($pot instanceof TileFlowerPot)){
 			return false;

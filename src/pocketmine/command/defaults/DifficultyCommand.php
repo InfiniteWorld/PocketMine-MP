@@ -28,6 +28,7 @@ use pocketmine\command\CommandSender;
 use pocketmine\command\utils\InvalidCommandSyntaxException;
 use pocketmine\lang\TranslationContainer;
 use pocketmine\level\Level;
+use function count;
 
 class DifficultyCommand extends VanillaCommand{
 
@@ -59,7 +60,7 @@ class DifficultyCommand extends VanillaCommand{
 			$sender->getServer()->setConfigInt("difficulty", $difficulty);
 
 			//TODO: add per-world support
-			foreach($sender->getServer()->getLevels() as $level){
+			foreach($sender->getServer()->getLevelManager()->getLevels() as $level){
 				$level->setDifficulty($difficulty);
 			}
 

@@ -29,6 +29,7 @@ use pocketmine\command\utils\InvalidCommandSyntaxException;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\lang\TranslationContainer;
+use pocketmine\level\Level;
 use pocketmine\level\particle\AngryVillagerParticle;
 use pocketmine\level\particle\BlockForceFieldParticle;
 use pocketmine\level\particle\BubbleParticle;
@@ -61,6 +62,13 @@ use pocketmine\math\Vector3;
 use pocketmine\Player;
 use pocketmine\utils\Random;
 use pocketmine\utils\TextFormat;
+use function count;
+use function explode;
+use function max;
+use function microtime;
+use function mt_rand;
+use function strpos;
+use function strtolower;
 
 class ParticleCommand extends VanillaCommand{
 
@@ -84,13 +92,17 @@ class ParticleCommand extends VanillaCommand{
 
 		if($sender instanceof Player){
 			$level = $sender->getLevel();
+			$pos = new Vector3(
+				$this->getRelativeDouble($sender->getX(), $sender, $args[1]),
+				$this->getRelativeDouble($sender->getY(), $sender, $args[2], 0, Level::Y_MAX),
+				$this->getRelativeDouble($sender->getZ(), $sender, $args[3])
+			);
 		}else{
-			$level = $sender->getServer()->getDefaultLevel();
+			$level = $sender->getServer()->getLevelManager()->getDefaultLevel();
+			$pos = new Vector3((float) $args[1], (float) $args[2], (float) $args[3]);
 		}
 
 		$name = strtolower($args[0]);
-
-		$pos = new Vector3((float) $args[1], (float) $args[2], (float) $args[3]);
 
 		$xd = (float) $args[4];
 		$yd = (float) $args[5];
@@ -100,7 +112,7 @@ class ParticleCommand extends VanillaCommand{
 
 		$data = isset($args[8]) ? (int) $args[8] : null;
 
-		$particle = $this->getParticle($name, $pos, $xd, $yd, $zd, $data);
+		$particle = $this->getParticle($name, $data);
 
 		if($particle === null){
 			$sender->sendMessage(new TranslationContainer(TextFormat::RED . "%commands.particle.notFound", [$name]));
@@ -113,12 +125,11 @@ class ParticleCommand extends VanillaCommand{
 		$random = new Random((int) (microtime(true) * 1000) + mt_rand());
 
 		for($i = 0; $i < $count; ++$i){
-			$particle->setComponents(
-				$pos->x + $random->nextSignedFloat() * $xd,
-				$pos->y + $random->nextSignedFloat() * $yd,
-				$pos->z + $random->nextSignedFloat() * $zd
-			);
-			$level->addParticle($particle);
+			$level->addParticle($pos->add(
+				$random->nextSignedFloat() * $xd,
+				$random->nextSignedFloat() * $yd,
+				$random->nextSignedFloat() * $zd
+			), $particle);
 		}
 
 		return true;
@@ -126,97 +137,93 @@ class ParticleCommand extends VanillaCommand{
 
 	/**
 	 * @param string   $name
-	 * @param Vector3  $pos
-	 * @param float    $xd
-	 * @param float    $yd
-	 * @param float    $zd
 	 * @param int|null $data
 	 *
 	 * @return Particle|null
 	 */
-	private function getParticle(string $name, Vector3 $pos, float $xd, float $yd, float $zd, int $data = null){
+	private function getParticle(string $name, int $data = null){
 		switch($name){
 			case "explode":
-				return new ExplodeParticle($pos);
+				return new ExplodeParticle();
 			case "hugeexplosion":
-				return new HugeExplodeParticle($pos);
+				return new HugeExplodeParticle();
 			case "hugeexplosionseed":
-				return new HugeExplodeSeedParticle($pos);
+				return new HugeExplodeSeedParticle();
 			case "bubble":
-				return new BubbleParticle($pos);
+				return new BubbleParticle();
 			case "splash":
-				return new SplashParticle($pos);
+				return new SplashParticle();
 			case "wake":
 			case "water":
-				return new WaterParticle($pos);
+				return new WaterParticle();
 			case "crit":
-				return new CriticalParticle($pos);
+				return new CriticalParticle();
 			case "smoke":
-				return new SmokeParticle($pos, $data ?? 0);
+				return new SmokeParticle($data ?? 0);
 			case "spell":
-				return new EnchantParticle($pos);
+				return new EnchantParticle();
 			case "instantspell":
-				return new InstantEnchantParticle($pos);
+				return new InstantEnchantParticle();
 			case "dripwater":
-				return new WaterDripParticle($pos);
+				return new WaterDripParticle();
 			case "driplava":
-				return new LavaDripParticle($pos);
+				return new LavaDripParticle();
 			case "townaura":
 			case "spore":
-				return new SporeParticle($pos);
+				return new SporeParticle();
 			case "portal":
-				return new PortalParticle($pos);
+				return new PortalParticle();
 			case "flame":
-				return new FlameParticle($pos);
+				return new FlameParticle();
 			case "lava":
-				return new LavaParticle($pos);
+				return new LavaParticle();
 			case "reddust":
-				return new RedstoneParticle($pos, $data ?? 1);
+				return new RedstoneParticle($data ?? 1);
 			case "snowballpoof":
-				return new ItemBreakParticle($pos, ItemFactory::get(Item::SNOWBALL));
+				return new ItemBreakParticle(ItemFactory::get(Item::SNOWBALL));
 			case "slime":
-				return new ItemBreakParticle($pos, ItemFactory::get(Item::SLIMEBALL));
+				return new ItemBreakParticle(ItemFactory::get(Item::SLIMEBALL));
 			case "itembreak":
 				if($data !== null and $data !== 0){
-					return new ItemBreakParticle($pos, ItemFactory::get($data));
+					return new ItemBreakParticle(ItemFactory::get($data));
 				}
 				break;
 			case "terrain":
 				if($data !== null and $data !== 0){
-					return new TerrainParticle($pos, BlockFactory::get($data));
+					return new TerrainParticle(BlockFactory::get($data));
 				}
 				break;
 			case "heart":
-				return new HeartParticle($pos, $data ?? 0);
+				return new HeartParticle($data ?? 0);
 			case "ink":
-				return new InkParticle($pos, $data ?? 0);
+				return new InkParticle($data ?? 0);
 			case "droplet":
-				return new RainSplashParticle($pos);
+				return new RainSplashParticle();
 			case "enchantmenttable":
-				return new EnchantmentTableParticle($pos);
+				return new EnchantmentTableParticle();
 			case "happyvillager":
-				return new HappyVillagerParticle($pos);
+				return new HappyVillagerParticle();
 			case "angryvillager":
-				return new AngryVillagerParticle($pos);
+				return new AngryVillagerParticle();
 			case "forcefield":
-				return new BlockForceFieldParticle($pos, $data ?? 0);
+				return new BlockForceFieldParticle($data ?? 0);
 
 		}
 
 		if(strpos($name, "iconcrack_") === 0){
 			$d = explode("_", $name);
 			if(count($d) === 3){
-				return new ItemBreakParticle($pos, ItemFactory::get((int) $d[1], (int) $d[2]));
+				return new ItemBreakParticle(ItemFactory::get((int) $d[1], (int) $d[2]));
 			}
 		}elseif(strpos($name, "blockcrack_") === 0){
 			$d = explode("_", $name);
 			if(count($d) === 2){
-				return new TerrainParticle($pos, BlockFactory::get($d[1] & 0xff, $d[1] >> 12));
+				return new TerrainParticle(BlockFactory::get(((int) $d[1]) & 0xff, ((int) $d[1]) >> 12));
 			}
 		}elseif(strpos($name, "blockdust_") === 0){
 			$d = explode("_", $name);
 			if(count($d) >= 4){
-				return new DustParticle($pos, $d[1] & 0xff, $d[2] & 0xff, $d[3] & 0xff, isset($d[4]) ? $d[4] & 0xff : 255);
+				return new DustParticle(((int) $d[1]) & 0xff, ((int) $d[2]) & 0xff, ((int) $d[3]) & 0xff, isset($d[4]) ? ((int) $d[4]) & 0xff : 255);
 			}
 		}
 

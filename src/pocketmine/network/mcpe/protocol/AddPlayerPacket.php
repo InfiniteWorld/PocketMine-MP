@@ -30,8 +30,9 @@ use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\handler\SessionHandler;
 use pocketmine\network\mcpe\protocol\types\EntityLink;
 use pocketmine\utils\UUID;
+use function count;
 
-class AddPlayerPacket extends DataPacket{
+class AddPlayerPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::ADD_PLAYER_PACKET;
 
 	/** @var UUID */

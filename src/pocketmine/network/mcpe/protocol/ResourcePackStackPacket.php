@@ -29,8 +29,9 @@ namespace pocketmine\network\mcpe\protocol;
 
 use pocketmine\network\mcpe\handler\SessionHandler;
 use pocketmine\resourcepacks\ResourcePack;
+use function count;
 
-class ResourcePackStackPacket extends DataPacket{
+class ResourcePackStackPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::RESOURCE_PACK_STACK_PACKET;
 
 	/** @var bool */
@@ -40,6 +41,9 @@ class ResourcePackStackPacket extends DataPacket{
 	public $behaviorPackStack = [];
 	/** @var ResourcePack[] */
 	public $resourcePackStack = [];
+
+	/** @var bool */
+	public $isExperimental = false;
 
 	protected function decodePayload() : void{
 		$this->mustAccept = $this->getBool();
@@ -56,6 +60,8 @@ class ResourcePackStackPacket extends DataPacket{
 			$this->getString();
 			$this->getString();
 		}
+
+		$this->isExperimental = $this->getBool();
 	}
 
 	protected function encodePayload() : void{
@@ -74,6 +80,8 @@ class ResourcePackStackPacket extends DataPacket{
 			$this->putString($entry->getPackVersion());
 			$this->putString(""); //TODO: subpack name
 		}
+
+		$this->putBool($this->isExperimental);
 	}
 
 	public function handle(SessionHandler $handler) : bool{

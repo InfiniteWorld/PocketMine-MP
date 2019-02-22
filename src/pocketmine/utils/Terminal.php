@@ -23,6 +23,14 @@ declare(strict_types=1);
 
 namespace pocketmine\utils;
 
+use function fclose;
+use function fopen;
+use function function_exists;
+use function getenv;
+use function is_array;
+use function stream_isatty;
+use const PHP_EOL;
+
 abstract class Terminal{
 	public static $FORMAT_BOLD = "";
 	public static $FORMAT_OBFUSCATED = "";
@@ -49,29 +57,27 @@ abstract class Terminal{
 	public static $COLOR_YELLOW = "";
 	public static $COLOR_WHITE = "";
 
+	/** @var bool|null */
 	private static $formattingCodes = null;
 
-	public static function hasFormattingCodes(){
+	public static function hasFormattingCodes() : bool{
 		if(self::$formattingCodes === null){
-			$opts = getopt("", ["enable-ansi", "disable-ansi"]);
-			if(isset($opts["disable-ansi"])){
-				self::$formattingCodes = false;
-			}else{
-				$stdout = fopen("php://stdout", "w");
-				self::$formattingCodes = (isset($opts["enable-ansi"]) or ( //user explicitly told us to enable ANSI
-					stream_isatty($stdout) and //STDOUT isn't being piped
-					(
-						getenv('TERM') !== false or //Console says it supports colours
-						(function_exists('sapi_windows_vt100_support') and sapi_windows_vt100_support($stdout)) //we're on windows and have vt100 support
-					)
-				));
-				fclose($stdout);
-			}
-
-			self::init();
+			throw new \InvalidStateException("Formatting codes have not been initialized");
 		}
-
 		return self::$formattingCodes;
+	}
+
+	private static function detectFormattingCodesSupport() : bool{
+		$stdout = fopen("php://stdout", "w");
+		$result = (
+			stream_isatty($stdout) and //STDOUT isn't being piped
+			(
+				getenv('TERM') !== false or //Console says it supports colours
+				(function_exists('sapi_windows_vt100_support') and sapi_windows_vt100_support($stdout)) //we're on windows and have vt100 support
+			)
+		);
+		fclose($stdout);
+		return $result;
 	}
 
 	protected static function getFallbackEscapeCodes(){
@@ -140,8 +146,9 @@ abstract class Terminal{
 		}
 	}
 
-	public static function init(){
-		if(!self::hasFormattingCodes()){
+	public static function init(?bool $enableFormatting = null) : void{
+		self::$formattingCodes = $enableFormatting ?? self::detectFormattingCodesSupport();
+		if(!self::$formattingCodes){
 			return;
 		}
 
@@ -159,6 +166,10 @@ abstract class Terminal{
 		}
 
 		//TODO: iOS
+	}
+
+	public static function isInit() : bool{
+		return self::$formattingCodes !== null;
 	}
 
 	/**
@@ -252,5 +263,24 @@ abstract class Terminal{
 		}
 
 		return $newString;
+	}
+
+	/**
+	 * Emits a string containing Minecraft colour codes to the console formatted with native colours.
+	 *
+	 * @param string $line
+	 */
+	public static function write(string $line) : void{
+		echo self::toANSI($line);
+	}
+
+	/**
+	 * Emits a string containing Minecraft colour codes to the console formatted with native colours, followed by a
+	 * newline character.
+	 *
+	 * @param string $line
+	 */
+	public static function writeLine(string $line) : void{
+		echo self::toANSI($line) . self::$FORMAT_RESET . PHP_EOL;
 	}
 }

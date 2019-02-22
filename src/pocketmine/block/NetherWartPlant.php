@@ -24,42 +24,32 @@ declare(strict_types=1);
 namespace pocketmine\block;
 
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\event\block\BlockGrowEvent;
 use pocketmine\item\Item;
-use pocketmine\item\ItemFactory;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
+use function mt_rand;
 
 class NetherWartPlant extends Flowable{
-	protected $id = Block::NETHER_WART_PLANT;
-
-	protected $itemId = Item::NETHER_WART;
 
 	/** @var int */
 	protected $age = 0;
-
-	public function __construct(){
-
-	}
 
 	protected function writeStateToMeta() : int{
 		return $this->age;
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->age = $meta;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->age = BlockDataValidator::readBoundedInt("age", $stateMeta, 0, 3);
 	}
 
 	public function getStateBitmask() : int{
 		return 0b11;
 	}
 
-	public function getName() : string{
-		return "Nether Wart";
-	}
-
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$down = $this->getSide(Facing::DOWN);
 		if($down->getId() === Block::SOUL_SAND){
 			return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
@@ -92,7 +82,7 @@ class NetherWartPlant extends Flowable{
 
 	public function getDropsForCompatibleTool(Item $item) : array{
 		return [
-			ItemFactory::get($this->getItemId(), 0, ($this->age === 3 ? mt_rand(2, 4) : 1))
+			$this->getItem()->setCount($this->age === 3 ? mt_rand(2, 4) : 1)
 		];
 	}
 

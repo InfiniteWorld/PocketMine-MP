@@ -32,8 +32,12 @@ use pocketmine\inventory\Inventory;
 use pocketmine\inventory\InventoryHolder;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
+use pocketmine\level\Level;
+use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\ContainerSetDataPacket;
+use function ceil;
+use function max;
 
 class Furnace extends Spawnable implements InventoryHolder, Container, Nameable{
 	use NameableTrait {
@@ -48,34 +52,37 @@ class Furnace extends Spawnable implements InventoryHolder, Container, Nameable{
 	/** @var FurnaceInventory */
 	protected $inventory;
 	/** @var int */
-	private $burnTime;
+	private $burnTime = 0;
 	/** @var int */
-	private $cookTime;
+	private $cookTime = 0;
 	/** @var int */
-	private $maxTime;
+	private $maxTime = 0;
 
-	protected function readSaveData(CompoundTag $nbt) : void{
-		$this->burnTime = max(0, $nbt->getShort(self::TAG_BURN_TIME, 0, true));
+	public function __construct(Level $level, Vector3 $pos){
+		$this->inventory = new FurnaceInventory($this);
+		$this->inventory->setSlotChangeListener(function(Inventory $inventory, int $slot, Item $oldItem, Item $newItem) : ?Item{
+			$this->scheduleUpdate();
+			return $newItem;
+		});
 
-		$this->cookTime = $nbt->getShort(self::TAG_COOK_TIME, 0, true);
+		parent::__construct($level, $pos);
+	}
+
+	public function readSaveData(CompoundTag $nbt) : void{
+		$this->burnTime = max(0, $nbt->getShort(self::TAG_BURN_TIME, $this->burnTime, true));
+
+		$this->cookTime = $nbt->getShort(self::TAG_COOK_TIME, $this->cookTime, true);
 		if($this->burnTime === 0){
 			$this->cookTime = 0;
 		}
 
-		$this->maxTime = $nbt->getShort(self::TAG_MAX_TIME, 0, true);
+		$this->maxTime = $nbt->getShort(self::TAG_MAX_TIME, $this->maxTime, true);
 		if($this->maxTime === 0){
 			$this->maxTime = $this->burnTime;
 		}
 
 		$this->loadName($nbt);
-
-		$this->inventory = new FurnaceInventory($this);
 		$this->loadItems($nbt);
-
-		$this->inventory->setSlotChangeListener(function(Inventory $inventory, int $slot, Item $oldItem, Item $newItem) : ?Item{
-			$this->scheduleUpdate();
-			return $newItem;
-		});
 	}
 
 	protected function writeSaveData(CompoundTag $nbt) : void{

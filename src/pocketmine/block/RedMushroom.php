@@ -30,16 +30,6 @@ use pocketmine\Player;
 
 class RedMushroom extends Flowable{
 
-	protected $id = self::RED_MUSHROOM;
-
-	public function __construct(){
-
-	}
-
-	public function getName() : string{
-		return "Red Mushroom";
-	}
-
 	public function ticksRandomly() : bool{
 		return true;
 	}
@@ -50,7 +40,7 @@ class RedMushroom extends Flowable{
 		}
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$down = $this->getSide(Facing::DOWN);
 		if(!$down->isTransparent()){
 			return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);

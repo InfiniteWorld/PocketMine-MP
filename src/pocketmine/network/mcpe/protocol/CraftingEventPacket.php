@@ -28,8 +28,9 @@ namespace pocketmine\network\mcpe\protocol;
 use pocketmine\item\Item;
 use pocketmine\network\mcpe\handler\SessionHandler;
 use pocketmine\utils\UUID;
+use function count;
 
-class CraftingEventPacket extends DataPacket{
+class CraftingEventPacket extends DataPacket implements ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::CRAFTING_EVENT_PACKET;
 
 	/** @var int */
@@ -42,12 +43,6 @@ class CraftingEventPacket extends DataPacket{
 	public $input = [];
 	/** @var Item[] */
 	public $output = [];
-
-	public function clean(){
-		$this->input = [];
-		$this->output = [];
-		return parent::clean();
-	}
 
 	protected function decodePayload() : void{
 		$this->windowId = $this->getByte();

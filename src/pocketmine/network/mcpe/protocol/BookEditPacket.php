@@ -25,9 +25,10 @@ namespace pocketmine\network\mcpe\protocol;
 
 #include <rules/DataPacket.h>
 
+use pocketmine\network\BadPacketException;
 use pocketmine\network\mcpe\handler\SessionHandler;
 
-class BookEditPacket extends DataPacket{
+class BookEditPacket extends DataPacket implements ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::BOOK_EDIT_PACKET;
 
 	public const TYPE_REPLACE_PAGE = 0;
@@ -81,7 +82,7 @@ class BookEditPacket extends DataPacket{
 				$this->xuid = $this->getString();
 				break;
 			default:
-				throw new \UnexpectedValueException("Unknown book edit type $this->type!");
+				throw new BadPacketException("Unknown book edit type $this->type!");
 		}
 	}
 
@@ -109,7 +110,7 @@ class BookEditPacket extends DataPacket{
 				$this->putString($this->xuid);
 				break;
 			default:
-				throw new \UnexpectedValueException("Unknown book edit type $this->type!");
+				throw new \InvalidArgumentException("Unknown book edit type $this->type!");
 		}
 	}
 

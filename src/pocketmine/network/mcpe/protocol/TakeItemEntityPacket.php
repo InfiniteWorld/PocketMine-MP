@@ -28,7 +28,7 @@ namespace pocketmine\network\mcpe\protocol;
 
 use pocketmine\network\mcpe\handler\SessionHandler;
 
-class TakeItemEntityPacket extends DataPacket{
+class TakeItemEntityPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::TAKE_ITEM_ENTITY_PACKET;
 
 	/** @var int|string */
@@ -37,7 +37,8 @@ class TakeItemEntityPacket extends DataPacket{
 	public $eid;
 
 	protected function decodePayload() : void{
-
+		$this->target = $this->getEntityRuntimeId();
+		$this->eid = $this->getEntityRuntimeId();
 	}
 
 	protected function encodePayload() : void{

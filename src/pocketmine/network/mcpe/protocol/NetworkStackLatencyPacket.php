@@ -27,21 +27,25 @@ namespace pocketmine\network\mcpe\protocol;
 
 use pocketmine\network\mcpe\handler\SessionHandler;
 
-class NetworkStackLatencyPacket extends DataPacket{
+class NetworkStackLatencyPacket extends DataPacket implements ClientboundPacket, ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::NETWORK_STACK_LATENCY_PACKET;
 
 	/** @var int */
 	public $timestamp;
+	/** @var bool */
+	public $needResponse;
 
 	protected function decodePayload() : void{
 		$this->timestamp = $this->getLLong();
+		$this->needResponse = $this->getBool();
 	}
 
 	protected function encodePayload() : void{
 		$this->putLLong($this->timestamp);
+		$this->putBool($this->needResponse);
 	}
 
-	public function handle(SessionHandler $session) : bool{
-		return $session->handleNetworkStackLatency($this);
+	public function handle(SessionHandler $handler) : bool{
+		return $handler->handleNetworkStackLatency($this);
 	}
 }

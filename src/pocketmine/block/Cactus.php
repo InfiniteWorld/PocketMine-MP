@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\entity\Entity;
 use pocketmine\event\block\BlockGrowEvent;
 use pocketmine\event\entity\EntityDamageByBlockEvent;
@@ -35,21 +36,15 @@ use pocketmine\Player;
 
 class Cactus extends Transparent{
 
-	protected $id = self::CACTUS;
-
 	/** @var int */
 	protected $age = 0;
-
-	public function __construct(){
-
-	}
 
 	protected function writeStateToMeta() : int{
 		return $this->age;
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->age = $meta;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->age = BlockDataValidator::readBoundedInt("age", $stateMeta, 0, 15);
 	}
 
 	public function getStateBitmask() : int{
@@ -64,16 +59,12 @@ class Cactus extends Transparent{
 		return true;
 	}
 
-	public function getName() : string{
-		return "Cactus";
-	}
-
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
 		static $shrinkSize = 1 / 16;
 		return AxisAlignedBB::one()->contract($shrinkSize, 0, $shrinkSize)->trim(Facing::UP, $shrinkSize);
 	}
 
-	public function onEntityCollide(Entity $entity) : void{
+	public function onEntityInside(Entity $entity) : void{
 		$ev = new EntityDamageByBlockEvent($this, $entity, EntityDamageEvent::CAUSE_CONTACT, 1);
 		$entity->attack($ev);
 	}
@@ -105,9 +96,12 @@ class Cactus extends Transparent{
 					if($b->getId() === self::AIR){
 						$ev = new BlockGrowEvent($b, BlockFactory::get(Block::CACTUS));
 						$ev->call();
-						if(!$ev->isCancelled()){
-							$this->getLevel()->setBlock($b, $ev->getNewState());
+						if($ev->isCancelled()){
+							break;
 						}
+						$this->getLevel()->setBlock($b, $ev->getNewState());
+					}else{
+						break;
 					}
 				}
 				$this->age = 0;
@@ -119,7 +113,7 @@ class Cactus extends Transparent{
 		}
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$down = $this->getSide(Facing::DOWN);
 		if($down->getId() === self::SAND or $down->getId() === self::CACTUS){
 			foreach(Facing::HORIZONTAL as $side){

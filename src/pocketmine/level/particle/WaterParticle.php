@@ -23,10 +23,10 @@ declare(strict_types=1);
 
 namespace pocketmine\level\particle;
 
-use pocketmine\math\Vector3;
+use pocketmine\network\mcpe\protocol\types\ParticleIds;
 
 class WaterParticle extends GenericParticle{
-	public function __construct(Vector3 $pos){
-		parent::__construct($pos, Particle::TYPE_WATER_WAKE);
+	public function __construct(){
+		parent::__construct(ParticleIds::WATER_WAKE);
 	}
 }

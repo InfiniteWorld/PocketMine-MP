@@ -30,25 +30,8 @@ use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
-use pocketmine\tile\EnchantTable as TileEnchantTable;
-use pocketmine\tile\Tile;
 
 class EnchantingTable extends Transparent{
-
-	protected $id = self::ENCHANTING_TABLE;
-
-	public function __construct(){
-
-	}
-
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		if(parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player)){
-			Tile::createTile(Tile::ENCHANT_TABLE, $this->getLevel(), TileEnchantTable::createNBT($this, $item));
-			return true;
-		}
-
-		return false;
-	}
 
 	public function getHardness() : float{
 		return 5;
@@ -56,10 +39,6 @@ class EnchantingTable extends Transparent{
 
 	public function getBlastResistance() : float{
 		return 6000;
-	}
-
-	public function getName() : string{
-		return "Enchanting Table";
 	}
 
 	public function getToolType() : int{
@@ -74,7 +53,7 @@ class EnchantingTable extends Transparent{
 		return AxisAlignedBB::one()->trim(Facing::UP, 0.25);
 	}
 
-	public function onActivate(Item $item, Player $player = null) : bool{
+	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($player instanceof Player){
 			//TODO lock
 

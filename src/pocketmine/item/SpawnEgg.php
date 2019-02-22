@@ -25,26 +25,42 @@ namespace pocketmine\item;
 
 use pocketmine\block\Block;
 use pocketmine\entity\Entity;
+use pocketmine\entity\EntityFactory;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
+use pocketmine\utils\Utils;
+use function lcg_value;
 
 class SpawnEgg extends Item{
 
-	public function onActivate(Player $player, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector) : bool{
-		$nbt = Entity::createBaseNBT($blockReplace->add(0.5, 0, 0.5), null, lcg_value() * 360, 0);
+	/** @var string */
+	private $entityClass;
+
+	/**
+	 * @param int    $id
+	 * @param int    $variant
+	 * @param string $entityClass instanceof Entity
+	 * @param string $name
+	 *
+	 * @throws \InvalidArgumentException
+	 */
+	public function __construct(int $id, int $variant, string $entityClass, string $name = "Unknown"){
+		parent::__construct($id, $variant, $name);
+		Utils::testValidInstance($entityClass, Entity::class);
+		$this->entityClass = $entityClass;
+	}
+
+	public function onActivate(Player $player, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector) : ItemUseResult{
+		$nbt = EntityFactory::createBaseNBT($blockReplace->add(0.5, 0, 0.5), null, lcg_value() * 360, 0);
 
 		if($this->hasCustomName()){
 			$nbt->setString("CustomName", $this->getCustomName());
 		}
 
-		$entity = Entity::createEntity($this->meta, $player->getLevel(), $nbt);
-
-		if($entity instanceof Entity){
-			$this->pop();
-			$entity->spawnToAll();
-			return true;
-		}
-
-		return false;
+		$entity = EntityFactory::create($this->entityClass, $player->getLevel(), $nbt);
+		$this->pop();
+		$entity->spawnToAll();
+		//TODO: what if the entity was marked for deletion?
+		return ItemUseResult::SUCCESS();
 	}
 }

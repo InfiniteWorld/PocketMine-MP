@@ -23,17 +23,24 @@ declare(strict_types=1);
 
 namespace pocketmine\item;
 
-use pocketmine\entity\Entity;
-use pocketmine\entity\projectile\Projectile;
+use pocketmine\entity\EntityFactory;
+use pocketmine\entity\EntityIds;
+use pocketmine\entity\projectile\Throwable;
 use pocketmine\event\entity\ProjectileLaunchEvent;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\Player;
+use pocketmine\utils\Utils;
 
 abstract class ProjectileItem extends Item{
 
-	abstract public function getProjectileEntityType() : string;
+	/**
+	 * Returns the entity type that this projectile creates. This should return a ::class extending Throwable.
+	 *
+	 * @return string class extends Throwable
+	 */
+	abstract public function getProjectileEntityClass() : string;
 
 	abstract public function getThrowForce() : float;
 
@@ -46,35 +53,30 @@ abstract class ProjectileItem extends Item{
 
 	}
 
-	public function onClickAir(Player $player, Vector3 $directionVector) : bool{
-		$nbt = Entity::createBaseNBT($player->add(0, $player->getEyeHeight(), 0), $directionVector, $player->yaw, $player->pitch);
+	public function onClickAir(Player $player, Vector3 $directionVector) : ItemUseResult{
+		$nbt = EntityFactory::createBaseNBT($player->add(0, $player->getEyeHeight(), 0), $directionVector, $player->yaw, $player->pitch);
 		$this->addExtraTags($nbt);
 
-		$projectile = Entity::createEntity($this->getProjectileEntityType(), $player->getLevel(), $nbt, $player);
-		if($projectile !== null){
-			$projectile->setMotion($projectile->getMotion()->multiply($this->getThrowForce()));
+		$class = $this->getProjectileEntityClass();
+		Utils::testValidInstance($class, Throwable::class);
+
+		/** @var Throwable $projectile */
+		$projectile = EntityFactory::create($class, $player->getLevel(), $nbt, $player);
+		$projectile->setMotion($projectile->getMotion()->multiply($this->getThrowForce()));
+
+		$projectileEv = new ProjectileLaunchEvent($projectile);
+		$projectileEv->call();
+		if($projectileEv->isCancelled()){
+			$projectile->flagForDespawn();
+			return ItemUseResult::FAIL();
 		}
+
+		$projectile->spawnToAll();
+
+		$player->getLevel()->broadcastLevelSoundEvent($player, LevelSoundEventPacket::SOUND_THROW, 0, EntityIds::PLAYER);
 
 		$this->pop();
 
-		if($projectile instanceof Projectile){
-			$projectileEv = new ProjectileLaunchEvent($projectile);
-			$projectileEv->call();
-			if($projectileEv->isCancelled()){
-				$projectile->flagForDespawn();
-			}else{
-				$projectile->spawnToAll();
-
-				//319 is the Player's entity type ID in MCPE, with all its flags (which we don't know)
-				//without this, it doesn't work at all.
-				$player->getLevel()->broadcastLevelSoundEvent($player, LevelSoundEventPacket::SOUND_THROW, 319);
-			}
-		}elseif($projectile !== null){
-			$projectile->spawnToAll();
-		}else{
-			return false;
-		}
-
-		return true;
+		return ItemUseResult::SUCCESS();
 	}
 }

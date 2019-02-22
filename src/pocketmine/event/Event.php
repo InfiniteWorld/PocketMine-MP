@@ -26,6 +26,9 @@ declare(strict_types=1);
  */
 namespace pocketmine\event;
 
+use function assert;
+use function get_class;
+
 abstract class Event{
 	private const MAX_EVENT_CALL_DEPTH = 50;
 	/** @var int */
@@ -33,8 +36,6 @@ abstract class Event{
 
 	/** @var string|null */
 	protected $eventName = null;
-	/** @var bool */
-	private $isCancelled = false;
 
 	/**
 	 * @return string
@@ -44,39 +45,9 @@ abstract class Event{
 	}
 
 	/**
-	 * @return bool
-	 *
-	 * @throws \BadMethodCallException
-	 */
-	public function isCancelled() : bool{
-		if(!($this instanceof Cancellable)){
-			throw new \BadMethodCallException("Event is not Cancellable");
-		}
-
-		/** @var Event $this */
-		return $this->isCancelled;
-	}
-
-	/**
-	 * @param bool $value
-	 *
-	 * @throws \BadMethodCallException
-	 */
-	public function setCancelled(bool $value = true) : void{
-		if(!($this instanceof Cancellable)){
-			throw new \BadMethodCallException("Event is not Cancellable");
-		}
-
-		/** @var Event $this */
-		$this->isCancelled = $value;
-	}
-
-	/**
 	 * Calls event handlers registered for this event.
 	 *
 	 * @throws \RuntimeException if event call recursion reaches the max depth limit
-	 *
-	 * @throws \ReflectionException
 	 */
 	public function call() : void{
 		if(self::$eventCallDepth >= self::MAX_EVENT_CALL_DEPTH){

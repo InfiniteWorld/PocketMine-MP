@@ -27,15 +27,30 @@ use pocketmine\level\format\Chunk;
 use pocketmine\level\format\io\BaseLevelProvider;
 use pocketmine\level\format\io\ChunkUtils;
 use pocketmine\level\format\io\data\BedrockLevelData;
+use pocketmine\level\format\io\exception\CorruptedChunkException;
 use pocketmine\level\format\io\exception\UnsupportedChunkFormatException;
 use pocketmine\level\format\io\exception\UnsupportedLevelFormatException;
 use pocketmine\level\format\io\LevelData;
 use pocketmine\level\format\SubChunk;
-use pocketmine\nbt\LittleEndianNBTStream;
+use pocketmine\nbt\LittleEndianNbtSerializer;
+use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\nbt\tag\IntTag;
 use pocketmine\utils\Binary;
+use pocketmine\utils\BinaryDataException;
 use pocketmine\utils\BinaryStream;
+use function array_values;
+use function chr;
+use function defined;
+use function extension_loaded;
+use function file_exists;
+use function is_dir;
+use function mkdir;
+use function ord;
+use function pack;
+use function strlen;
+use function substr;
+use function unpack;
+use const LEVELDB_ZLIB_RAW_COMPRESSION;
 
 class LevelDB extends BaseLevelProvider{
 
@@ -118,6 +133,7 @@ class LevelDB extends BaseLevelProvider{
 	 * @param int $chunkZ
 	 *
 	 * @return Chunk|null
+	 * @throws CorruptedChunkException
 	 * @throws UnsupportedChunkFormatException
 	 */
 	protected function readChunk(int $chunkX, int $chunkZ) : ?Chunk{
@@ -129,6 +145,11 @@ class LevelDB extends BaseLevelProvider{
 
 		/** @var SubChunk[] $subChunks */
 		$subChunks = [];
+
+		/** @var int[] $heightMap */
+		$heightMap = [];
+		/** @var string $biomeIds */
+		$biomeIds = "";
 
 		/** @var bool $lightPopulated */
 		$lightPopulated = true;
@@ -147,21 +168,28 @@ class LevelDB extends BaseLevelProvider{
 						continue;
 					}
 
-					$binaryStream->setBuffer($data, 0);
+					$binaryStream->setBuffer($data);
+					if($binaryStream->feof()){
+						throw new CorruptedChunkException("Unexpected empty data for subchunk $y");
+					}
 					$subChunkVersion = $binaryStream->getByte();
 
 					switch($subChunkVersion){
 						case 0:
-							$blocks = $binaryStream->get(4096);
-							$blockData = $binaryStream->get(2048);
-							if($chunkVersion < 4){
-								$blockSkyLight = $binaryStream->get(2048);
-								$blockLight = $binaryStream->get(2048);
-							}else{
-								//Mojang didn't bother changing the subchunk version when they stopped saving sky light -_-
-								$blockSkyLight = "";
-								$blockLight = "";
-								$lightPopulated = false;
+							try{
+								$blocks = $binaryStream->get(4096);
+								$blockData = $binaryStream->get(2048);
+								if($chunkVersion < 4){
+									$blockSkyLight = $binaryStream->get(2048);
+									$blockLight = $binaryStream->get(2048);
+								}else{
+									//Mojang didn't bother changing the subchunk version when they stopped saving sky light -_-
+									$blockSkyLight = "";
+									$blockLight = "";
+									$lightPopulated = false;
+								}
+							}catch(BinaryDataException $e){
+								throw new CorruptedChunkException($e->getMessage(), 0, $e);
 							}
 
 							$subChunks[$y] = new SubChunk($blocks, $blockData, $blockSkyLight, $blockLight);
@@ -172,17 +200,31 @@ class LevelDB extends BaseLevelProvider{
 					}
 				}
 
-				$binaryStream->setBuffer($this->db->get($index . self::TAG_DATA_2D), 0);
+				if(($maps2d = $this->db->get($index . self::TAG_DATA_2D)) !== false){
+					$binaryStream->setBuffer($maps2d);
 
-				$heightMap = array_values(unpack("v*", $binaryStream->get(512)));
-				$biomeIds = $binaryStream->get(256);
+					try{
+						$heightMap = array_values(unpack("v*", $binaryStream->get(512)));
+						$biomeIds = $binaryStream->get(256);
+					}catch(BinaryDataException $e){
+						throw new CorruptedChunkException($e->getMessage(), 0, $e);
+					}
+				}
 				break;
 			case 2: // < MCPE 1.0
-				$binaryStream->setBuffer($this->db->get($index . self::TAG_LEGACY_TERRAIN));
-				$fullIds = $binaryStream->get(32768);
-				$fullData = $binaryStream->get(16384);
-				$fullSkyLight = $binaryStream->get(16384);
-				$fullBlockLight = $binaryStream->get(16384);
+				$legacyTerrain = $this->db->get($index . self::TAG_LEGACY_TERRAIN);
+				if($legacyTerrain === false){
+					throw new CorruptedChunkException("Missing expected LEGACY_TERRAIN tag for format version $chunkVersion");
+				}
+				$binaryStream->setBuffer($legacyTerrain);
+				try{
+					$fullIds = $binaryStream->get(32768);
+					$fullData = $binaryStream->get(16384);
+					$fullSkyLight = $binaryStream->get(16384);
+					$fullBlockLight = $binaryStream->get(16384);
+				}catch(BinaryDataException $e){
+					throw new CorruptedChunkException($e->getMessage(), 0, $e);
+				}
 
 				for($yy = 0; $yy < 8; ++$yy){
 					$subOffset = ($yy << 4);
@@ -212,33 +254,38 @@ class LevelDB extends BaseLevelProvider{
 					$subChunks[$yy] = new SubChunk($ids, $data, $skyLight, $blockLight);
 				}
 
-				$heightMap = array_values(unpack("C*", $binaryStream->get(256)));
-				$biomeIds = ChunkUtils::convertBiomeColors(array_values(unpack("N*", $binaryStream->get(1024))));
+				try{
+					$heightMap = array_values(unpack("C*", $binaryStream->get(256)));
+					$biomeIds = ChunkUtils::convertBiomeColors(array_values(unpack("N*", $binaryStream->get(1024))));
+				}catch(BinaryDataException $e){
+					throw new CorruptedChunkException($e->getMessage(), 0, $e);
+				}
 				break;
 			default:
 				//TODO: set chunks read-only so the version on disk doesn't get overwritten
 				throw new UnsupportedChunkFormatException("don't know how to decode chunk format version $chunkVersion");
 		}
 
-		$nbt = new LittleEndianNBTStream();
+		$nbt = new LittleEndianNbtSerializer();
 
 		/** @var CompoundTag[] $entities */
 		$entities = [];
 		if(($entityData = $this->db->get($index . self::TAG_ENTITY)) !== false and $entityData !== ""){
-			$entities = $nbt->readMultiple($entityData);
-		}
-
-		/** @var CompoundTag $entityNBT */
-		foreach($entities as $entityNBT){
-			if($entityNBT->hasTag("id", IntTag::class)){
-				$entityNBT->setInt("id", $entityNBT->getInt("id") & 0xff); //remove type flags - TODO: use these instead of removing them)
+			try{
+				$entities = $nbt->readMultiple($entityData);
+			}catch(NbtDataException $e){
+				throw new CorruptedChunkException($e->getMessage(), 0, $e);
 			}
 		}
 
 		/** @var CompoundTag[] $tiles */
 		$tiles = [];
 		if(($tileData = $this->db->get($index . self::TAG_BLOCK_ENTITY)) !== false and $tileData !== ""){
-			$tiles = $nbt->readMultiple($tileData);
+			try{
+				$tiles = $nbt->readMultiple($tileData);
+			}catch(NbtDataException $e){
+				throw new CorruptedChunkException($e->getMessage(), 0, $e);
+			}
 		}
 
 		//TODO: extra data should be converted into blockstorage layers (first they need to be implemented!)
@@ -320,7 +367,7 @@ class LevelDB extends BaseLevelProvider{
 	 */
 	private function writeTags(array $targets, string $index) : void{
 		if(!empty($targets)){
-			$nbt = new LittleEndianNBTStream();
+			$nbt = new LittleEndianNbtSerializer();
 			$this->db->put($index, $nbt->writeMultiple($targets));
 		}else{
 			$this->db->delete($index);

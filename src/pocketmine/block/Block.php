@@ -26,6 +26,7 @@ declare(strict_types=1);
  */
 namespace pocketmine\block;
 
+use pocketmine\block\utils\InvalidBlockStateException;
 use pocketmine\entity\Entity;
 use pocketmine\item\enchantment\Enchantment;
 use pocketmine\item\Item;
@@ -40,6 +41,12 @@ use pocketmine\metadata\Metadatable;
 use pocketmine\metadata\MetadataValue;
 use pocketmine\Player;
 use pocketmine\plugin\Plugin;
+use pocketmine\tile\TileFactory;
+use function array_merge;
+use function assert;
+use function dechex;
+use function get_class;
+use const PHP_INT_MAX;
 
 class Block extends Position implements BlockIds, Metadatable{
 
@@ -54,75 +61,54 @@ class Block extends Position implements BlockIds, Metadatable{
 	 *
 	 * @return Block
 	 */
-	public static function get(int $id, int $meta = 0, Position $pos = null) : Block{
+	public static function get(int $id, int $meta = 0, ?Position $pos = null) : Block{
 		return BlockFactory::get($id, $meta, $pos);
 	}
 
-	/** @var int */
-	protected $id;
-	/** @var int */
-	protected $variant = 0;
-	/** @var string|null */
+	/** @var BlockIdentifier */
+	protected $idInfo;
+
+	/** @var string */
 	protected $fallbackName;
-	/** @var int|null */
-	protected $itemId;
+
 
 	/** @var AxisAlignedBB */
 	protected $boundingBox = null;
-
-
 	/** @var AxisAlignedBB[]|null */
 	protected $collisionBoxes = null;
 
 	/**
-	 * @param int         $id      The block type's ID, 0-255
-	 * @param int         $variant Meta value of the block type
-	 * @param string|null $name    English name of the block type (TODO: implement translations)
-	 * @param int         $itemId  The item ID of the block type, used for block picking and dropping items.
+	 * @param BlockIdentifier $idInfo
+	 * @param string          $name English name of the block type (TODO: implement translations)
 	 */
-	public function __construct(int $id, int $variant = 0, string $name = null, int $itemId = null){
-		$this->id = $id;
-
-		if(($variant & $this->getStateBitmask()) !== 0){
-			throw new \InvalidArgumentException("Variant 0x" . dechex($variant) . " collides with state bitmask 0x" . dechex($this->getStateBitmask()));
+	public function __construct(BlockIdentifier $idInfo, string $name){
+		if(($idInfo->getVariant() & $this->getStateBitmask()) !== 0){
+			throw new \InvalidArgumentException("Variant 0x" . dechex($idInfo->getVariant()) . " collides with state bitmask 0x" . dechex($this->getStateBitmask()));
 		}
-		$this->variant = $variant;
+		$this->idInfo = $idInfo;
 		$this->fallbackName = $name;
-		$this->itemId = $itemId;
+	}
+
+	public function getIdInfo() : BlockIdentifier{
+		return $this->idInfo;
 	}
 
 	/**
 	 * @return string
 	 */
 	public function getName() : string{
-		return $this->fallbackName ?? "Unknown";
+		return $this->fallbackName;
 	}
 
 	/**
 	 * @return int
 	 */
 	public function getId() : int{
-		return $this->id;
-	}
-
-	/**
-	 * Returns the ID of the item form of the block.
-	 * Used for drops for blocks (some blocks such as doors have a different item ID).
-	 *
-	 * @return int
-	 */
-	public function getItemId() : int{
-		if($this->itemId !== null){
-			return $this->itemId;
-		}
-		if($this->id > 255){
-			return 255 - $this->id;
-		}
-		return $this->id;
+		return $this->idInfo->getBlockId();
 	}
 
 	public function getItem() : Item{
-		return ItemFactory::get($this->getItemId(), $this->getVariant());
+		return ItemFactory::get($this->idInfo->getItemId(), $this->idInfo->getVariant());
 	}
 
 	/**
@@ -139,14 +125,20 @@ class Block extends Position implements BlockIds, Metadatable{
 	public function getDamage() : int{
 		$stateMeta = $this->writeStateToMeta();
 		assert(($stateMeta & ~$this->getStateBitmask()) === 0);
-		return $this->variant | $stateMeta;
+		return $this->idInfo->getVariant() | $stateMeta;
 	}
 
 	protected function writeStateToMeta() : int{
 		return 0;
 	}
 
-	public function readStateFromMeta(int $meta) : void{
+	/**
+	 * @param int $id
+	 * @param int $stateMeta
+	 *
+	 * @throws InvalidBlockStateException
+	 */
+	public function readStateFromData(int $id, int $stateMeta) : void{
 		//NOOP
 	}
 
@@ -164,6 +156,16 @@ class Block extends Position implements BlockIds, Metadatable{
 
 	public function writeStateToWorld() : void{
 		$this->level->getChunkAtPosition($this)->setBlock($this->x & 0xf, $this->y, $this->z & 0xf, $this->getId(), $this->getDamage());
+
+		$tileType = $this->idInfo->getTileClass();
+		$oldTile = $this->level->getTile($this);
+		if($oldTile !== null and ($tileType === null or !($oldTile instanceof $tileType))){
+			$oldTile->close();
+			$oldTile = null;
+		}
+		if($oldTile === null and $tileType !== null){
+			$this->level->addTile(TileFactory::create($tileType, $this->level, $this->asVector3()));
+		}
 	}
 
 	/**
@@ -176,22 +178,17 @@ class Block extends Position implements BlockIds, Metadatable{
 	}
 
 	/**
-	 * Returns the block meta, stripped of non-variant flags.
-	 * @return int
-	 */
-	public function getVariant() : int{
-		return $this->variant;
-	}
-
-	/**
-	 * Returns whether the given block has an equivalent type to this one.
+	 * Returns whether the given block has an equivalent type to this one. This compares base legacy ID and variant.
+	 *
+	 * Note: This ignores additional IDs used to represent additional states. This means that, for example, a lit
+	 * furnace and unlit furnace are considered the same type.
 	 *
 	 * @param Block $other
 	 *
 	 * @return bool
 	 */
 	public function isSameType(Block $other) : bool{
-		return $this->getId() === $other->getId() and $this->getVariant() === $other->getVariant();
+		return $this->idInfo->getBlockId() === $other->idInfo->getBlockId() and $this->idInfo->getVariant() === $other->idInfo->getVariant();
 	}
 
 	/**
@@ -236,7 +233,7 @@ class Block extends Position implements BlockIds, Metadatable{
 	 *
 	 * @return bool
 	 */
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		return $this->getLevel()->setBlock($blockReplace, $this);
 	}
 
@@ -304,7 +301,10 @@ class Block extends Position implements BlockIds, Metadatable{
 	 *
 	 * @return bool
 	 */
-	public function onBreak(Item $item, Player $player = null) : bool{
+	public function onBreak(Item $item, ?Player $player = null) : bool{
+		if(($t = $this->level->getTile($this)) !== null){
+			$t->onBlockDestroyed();
+		}
 		return $this->getLevel()->setBlock($this, BlockFactory::get(Block::AIR));
 	}
 
@@ -315,6 +315,7 @@ class Block extends Position implements BlockIds, Metadatable{
 	 * @param Item $item
 	 *
 	 * @return float
+	 * @throws \InvalidArgumentException if the item efficiency is not a positive number
 	 */
 	public function getBreakTime(Item $item) : float{
 		$base = $this->getHardness();
@@ -326,7 +327,7 @@ class Block extends Position implements BlockIds, Metadatable{
 
 		$efficiency = $item->getMiningEfficiency($this);
 		if($efficiency <= 0){
-			throw new \RuntimeException("Item efficiency is invalid");
+			throw new \InvalidArgumentException(get_class($item) . " has invalid mining efficiency: expected >= 0, got $efficiency");
 		}
 
 		$base /= $efficiency;
@@ -369,11 +370,13 @@ class Block extends Position implements BlockIds, Metadatable{
 	 * Do actions when activated by Item. Returns if it has done anything
 	 *
 	 * @param Item        $item
+	 * @param int         $face
+	 * @param Vector3     $clickVector
 	 * @param Player|null $player
 	 *
 	 * @return bool
 	 */
-	public function onActivate(Item $item, Player $player = null) : bool{
+	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		return false;
 	}
 
@@ -414,7 +417,7 @@ class Block extends Position implements BlockIds, Metadatable{
 	 * @return int 0-15
 	 */
 	public function getLightFilter() : int{
-		return 15;
+		return $this->isTransparent() ? 0 : 15;
 	}
 
 	/**
@@ -490,7 +493,7 @@ class Block extends Position implements BlockIds, Metadatable{
 	 */
 	public function getDrops(Item $item) : array{
 		if($this->isCompatibleWithTool($item)){
-			if($this->isAffectedBySilkTouch() and $item->hasEnchantment(Enchantment::SILK_TOUCH)){
+			if($this->isAffectedBySilkTouch() and $item->hasEnchantment(Enchantment::SILK_TOUCH())){
 				return $this->getSilkTouchDrops($item);
 			}
 
@@ -530,7 +533,7 @@ class Block extends Position implements BlockIds, Metadatable{
 	 * @return int
 	 */
 	public function getXpDropForTool(Item $item) : int{
-		if($item->hasEnchantment(Enchantment::SILK_TOUCH) or !$this->isCompatibleWithTool($item)){
+		if($item->hasEnchantment(Enchantment::SILK_TOUCH()) or !$this->isCompatibleWithTool($item)){
 			return 0;
 		}
 
@@ -696,9 +699,12 @@ class Block extends Position implements BlockIds, Metadatable{
 	}
 
 	/**
+	 * Called when an entity's bounding box clips inside this block's cell. Note that the entity may not be intersecting
+	 * with the collision box or bounding box.
+	 *
 	 * @param Entity $entity
 	 */
-	public function onEntityCollide(Entity $entity) : void{
+	public function onEntityInside(Entity $entity) : void{
 
 	}
 

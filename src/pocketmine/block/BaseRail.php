@@ -23,10 +23,18 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\InvalidBlockStateException;
 use pocketmine\item\Item;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
+use function array_map;
+use function array_reverse;
+use function array_search;
+use function array_shift;
+use function count;
+use function implode;
+use function in_array;
 
 abstract class BaseRail extends Flowable{
 
@@ -72,10 +80,6 @@ abstract class BaseRail extends Flowable{
 	/** @var int[] */
 	protected $connections = [];
 
-	public function __construct(){
-
-	}
-
 	protected function writeStateToMeta() : int{
 		if(empty($this->connections)){
 			return self::STRAIGHT_NORTH_SOUTH;
@@ -83,10 +87,12 @@ abstract class BaseRail extends Flowable{
 		return $this->getMetaForState($this->connections);
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		//on invalid states, this will return an empty array, allowing this rail to transform into any other state
-		//TODO: should this throw instead?
-		$this->connections = $this->getConnectionsFromMeta($meta);
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$connections = $this->getConnectionsFromMeta($stateMeta);
+		if($connections === null){
+			throw new InvalidBlockStateException("Invalid rail type meta $stateMeta");
+		}
+		$this->connections = $connections;
 	}
 
 	public function getStateBitmask() : int{
@@ -97,7 +103,7 @@ abstract class BaseRail extends Flowable{
 		return 0.7;
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if(!$blockReplace->getSide(Facing::DOWN)->isTransparent()){
 			$this->tryReconnect();
 			return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
@@ -112,7 +118,7 @@ abstract class BaseRail extends Flowable{
 			$meta = array_search(array_reverse($connections), $lookup, true);
 		}
 		if($meta === false){
-			throw new \InvalidArgumentException("No meta value matches connections " . implode(", ", array_map('dechex', $connections)));
+			throw new \InvalidArgumentException("No meta value matches connections " . implode(", ", array_map('\dechex', $connections)));
 		}
 
 		return $meta;
@@ -138,7 +144,7 @@ abstract class BaseRail extends Flowable{
 	 *
 	 * @return int[]
 	 */
-	abstract protected function getConnectionsFromMeta(int $meta) : array;
+	abstract protected function getConnectionsFromMeta(int $meta) : ?array;
 
 	/**
 	 * Returns all the directions this rail is already connected in.

@@ -24,6 +24,14 @@ declare(strict_types=1);
 namespace pocketmine\scheduler;
 
 use pocketmine\utils\Utils;
+use function array_keys;
+use function assert;
+use function count;
+use function spl_object_id;
+use function time;
+use const PHP_INT_MAX;
+use const PTHREADS_INHERIT_CONSTANTS;
+use const PTHREADS_INHERIT_INI;
 
 /**
  * Manages general-purpose worker threads used for processing asynchronous tasks, and the tasks submitted to those
@@ -46,6 +54,8 @@ class AsyncPool{
 
 	/** @var AsyncWorker[] */
 	private $workers = [];
+	/** @var int[] */
+	private $workerLastUsed = [];
 
 	/** @var \Closure[] */
 	private $workerStartHooks = [];
@@ -87,7 +97,7 @@ class AsyncPool{
 	 */
 	public function addWorkerStartHook(\Closure $hook) : void{
 		Utils::validateCallableSignature(function(int $worker) : void{}, $hook);
-		$this->workerStartHooks[spl_object_hash($hook)] = $hook;
+		$this->workerStartHooks[spl_object_id($hook)] = $hook;
 		foreach($this->workers as $i => $worker){
 			$hook($i);
 		}
@@ -99,7 +109,7 @@ class AsyncPool{
 	 * @param \Closure $hook
 	 */
 	public function removeWorkerStartHook(\Closure $hook) : void{
-		unset($this->workerStartHooks[spl_object_hash($hook)]);
+		unset($this->workerStartHooks[spl_object_id($hook)]);
 	}
 
 	/**
@@ -155,6 +165,7 @@ class AsyncPool{
 
 		$this->getWorker($worker)->stack($task);
 		$this->taskQueues[$worker]->enqueue($task);
+		$this->workerLastUsed[$worker] = time();
 	}
 
 	/**
@@ -253,10 +264,11 @@ class AsyncPool{
 
 	public function shutdownUnusedWorkers() : int{
 		$ret = 0;
+		$time = time();
 		foreach($this->taskQueues as $i => $queue){
-			if($queue->isEmpty()){
+			if((!isset($this->workerLastUsed[$i]) or $this->workerLastUsed[$i] + 300 < $time) and $queue->isEmpty()){
 				$this->workers[$i]->quit();
-				unset($this->workers[$i], $this->taskQueues[$i]);
+				unset($this->workers[$i], $this->taskQueues[$i], $this->workerLastUsed[$i]);
 				$ret++;
 			}
 		}
@@ -289,5 +301,6 @@ class AsyncPool{
 		}
 		$this->workers = [];
 		$this->taskQueues = [];
+		$this->workerLastUsed = [];
 	}
 }

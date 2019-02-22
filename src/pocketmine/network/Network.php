@@ -26,17 +26,14 @@ declare(strict_types=1);
  */
 namespace pocketmine\network;
 
-use pocketmine\event\server\NetworkInterfaceCrashEvent;
 use pocketmine\event\server\NetworkInterfaceRegisterEvent;
 use pocketmine\event\server\NetworkInterfaceUnregisterEvent;
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\PacketPool;
-use pocketmine\Server;
+use function get_class;
+use function spl_object_id;
 
 class Network{
-	/** @var Server */
-	private $server;
-
 	/** @var NetworkInterface[] */
 	private $interfaces = [];
 
@@ -52,11 +49,8 @@ class Network{
 	/** @var NetworkSession[] */
 	private $updateSessions = [];
 
-	public function __construct(Server $server){
+	public function __construct(){
 		PacketPool::init();
-
-		$this->server = $server;
-
 	}
 
 	public function addStatistics(float $upload, float $download) : void{
@@ -84,22 +78,17 @@ class Network{
 		return $this->interfaces;
 	}
 
+	public function getConnectionCount() : int{
+		$count = 0;
+		foreach($this->interfaces as $interface){
+			$count += $interface->getConnectionCount();
+		}
+		return $count;
+	}
+
 	public function tick() : void{
 		foreach($this->interfaces as $interface){
-			try{
-				$interface->tick();
-			}catch(\Exception $e){
-				$logger = $this->server->getLogger();
-				if(\pocketmine\DEBUG > 1){
-					$logger->logException($e);
-				}
-
-				(new NetworkInterfaceCrashEvent($interface, $e))->call();
-
-				$interface->emergencyShutdown();
-				$this->unregisterInterface($interface);
-				$logger->critical($this->server->getLanguage()->translateString("pocketmine.server.networkError", [get_class($interface), $e->getMessage()]));
-			}
+			$interface->tick();
 		}
 
 		foreach($this->updateSessions as $k => $session){
@@ -117,7 +106,7 @@ class Network{
 		$ev->call();
 		if(!$ev->isCancelled()){
 			$interface->start();
-			$this->interfaces[$hash = spl_object_hash($interface)] = $interface;
+			$this->interfaces[$hash = spl_object_id($interface)] = $interface;
 			if($interface instanceof AdvancedNetworkInterface){
 				$this->advancedInterfaces[$hash] = $interface;
 				$interface->setNetwork($this);
@@ -128,10 +117,15 @@ class Network{
 
 	/**
 	 * @param NetworkInterface $interface
+	 * @throws \InvalidArgumentException
 	 */
 	public function unregisterInterface(NetworkInterface $interface) : void{
+		if(!isset($this->interfaces[$hash = spl_object_id($interface)])){
+			throw new \InvalidArgumentException("Interface " . get_class($interface) . " is not registered on this network");
+		}
 		(new NetworkInterfaceUnregisterEvent($interface))->call();
-		unset($this->interfaces[$hash = spl_object_hash($interface)], $this->advancedInterfaces[$hash]);
+		unset($this->interfaces[$hash], $this->advancedInterfaces[$hash]);
+		$interface->shutdown();
 	}
 
 	/**
@@ -157,13 +151,6 @@ class Network{
 		foreach($this->interfaces as $interface){
 			$interface->setName($this->name);
 		}
-	}
-
-	/**
-	 * @return Server
-	 */
-	public function getServer() : Server{
-		return $this->server;
 	}
 
 	/**
@@ -195,7 +182,13 @@ class Network{
 		}
 	}
 
+	public function addRawPacketFilter(string $regex) : void{
+		foreach($this->advancedInterfaces as $interface){
+			$interface->addRawPacketFilter($regex);
+		}
+	}
+
 	public function scheduleSessionTick(NetworkSession $session) : void{
-		$this->updateSessions[spl_object_hash($session)] = $session;
+		$this->updateSessions[spl_object_id($session)] = $session;
 	}
 }

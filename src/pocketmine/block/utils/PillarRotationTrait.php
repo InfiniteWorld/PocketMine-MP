@@ -43,11 +43,13 @@ trait PillarRotationTrait{
 	}
 
 	/**
-	 * @see Block::readStateFromMeta()
-	 * @param int $meta
+	 * @see Block::readStateFromData()
+	 *
+	 * @param int $id
+	 * @param int $stateMeta
 	 */
-	public function readStateFromMeta(int $meta) : void{
-		$this->readAxisFromMeta($meta);
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->readAxisFromMeta($stateMeta);
 	}
 
 	/**
@@ -62,10 +64,13 @@ trait PillarRotationTrait{
 		static $map = [
 			0 => Facing::AXIS_Y,
 			1 => Facing::AXIS_X,
-			2 => Facing::AXIS_Z,
-			3 => Facing::AXIS_Y //TODO: how to deal with all-bark logs?
+			2 => Facing::AXIS_Z
 		];
-		$this->axis = $map[$meta >> 2];
+		$axis = $meta >> 2;
+		if(!isset($map[$axis])){
+			throw new InvalidBlockStateException("Invalid axis meta $axis");
+		}
+		$this->axis = $map[$axis];
 	}
 
 	protected function writeAxisToMeta() : int{
@@ -89,7 +94,7 @@ trait PillarRotationTrait{
 	 *
 	 * @return bool
 	 */
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$this->axis = Facing::axis($face);
 		/** @see Block::place() */
 		return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);

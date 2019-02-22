@@ -23,18 +23,22 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\entity\Entity;
 use pocketmine\event\block\BlockFormEvent;
 use pocketmine\event\block\BlockSpreadEvent;
 use pocketmine\item\Item;
 use pocketmine\level\Level;
+use pocketmine\level\sound\FizzSound;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
+use function array_fill;
+use function lcg_value;
+use function min;
 
 abstract class Liquid extends Transparent{
-	/** @var int */
-	private $stillId;
+	/** @var BlockIdentifierFlattened */
+	protected $idInfo;
 
 	public $adjacentSources = 0;
 
@@ -55,22 +59,22 @@ abstract class Liquid extends Transparent{
 	/** @var bool */
 	protected $still = false;
 
-	public function __construct(int $id, int $stillId, string $name){
-		parent::__construct($id, 0, $name);
-		$this->stillId = $stillId;
+	public function __construct(BlockIdentifierFlattened $idInfo, string $name){
+		parent::__construct($idInfo, $name);
 	}
 
 	public function getId() : int{
-		return $this->still ? $this->stillId : parent::getId();
+		return $this->still ? $this->idInfo->getSecondId() : parent::getId();
 	}
 
 	protected function writeStateToMeta() : int{
 		return $this->decay | ($this->falling ? 0x08 : 0);
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->decay = $meta & 0x07;
-		$this->falling = ($meta & 0x08) !== 0;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->decay = BlockDataValidator::readBoundedInt("decay", $stateMeta & 0x07, 0, 7);
+		$this->falling = ($stateMeta & 0x08) !== 0;
+		$this->still = $id === $this->idInfo->getSecondId();
 	}
 
 	public function getStateBitmask() : int{
@@ -476,7 +480,7 @@ abstract class Liquid extends Transparent{
 		$ev->call();
 		if(!$ev->isCancelled()){
 			$this->level->setBlock($this, $ev->getNewState());
-			$this->level->broadcastLevelSoundEvent($this->add(0.5, 0.5, 0.5), LevelSoundEventPacket::SOUND_FIZZ, (int) ((2.6 + (lcg_value() - lcg_value()) * 0.8) * 1000));
+			$this->level->addSound($this->add(0.5, 0.5, 0.5), new FizzSound(2.6 + (lcg_value() - lcg_value()) * 0.8));
 		}
 		return true;
 	}

@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Bearing;
@@ -31,8 +32,8 @@ use pocketmine\math\Vector3;
 use pocketmine\Player;
 
 class RedstoneRepeater extends Flowable{
-	/** @var int */
-	protected $itemId = Item::REPEATER;
+	/** @var BlockIdentifierFlattened */
+	protected $idInfo;
 
 	/** @var bool */
 	protected $powered = false;
@@ -41,17 +42,18 @@ class RedstoneRepeater extends Flowable{
 	/** @var int */
 	protected $delay = 1;
 
-	public function __construct(){
-
+	public function __construct(BlockIdentifierFlattened $idInfo, string $name){
+		parent::__construct($idInfo, $name);
 	}
 
 	public function getId() : int{
-		return $this->powered ? Block::POWERED_REPEATER : Block::UNPOWERED_REPEATER;
+		return $this->powered ? $this->idInfo->getSecondId() : parent::getId();
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->facing = Bearing::toFacing($meta & 0x03);
-		$this->delay = ($meta >> 2) + 1;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->facing = BlockDataValidator::readLegacyHorizontalFacing($stateMeta & 0x03);
+		$this->delay = BlockDataValidator::readBoundedInt("delay", ($stateMeta >> 2) + 1, 1, 4);
+		$this->powered = $id === $this->idInfo->getSecondId();
 	}
 
 	public function writeStateToMeta() : int{
@@ -60,10 +62,6 @@ class RedstoneRepeater extends Flowable{
 
 	public function getStateBitmask() : int{
 		return 0b1111;
-	}
-
-	public function getName() : string{
-		return "Redstone Repeater";
 	}
 
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
@@ -84,7 +82,7 @@ class RedstoneRepeater extends Flowable{
 		return $this;
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if(!$blockReplace->getSide(Facing::DOWN)->isTransparent()){
 			if($player !== null){
 				$this->facing = Facing::opposite($player->getHorizontalFacing());
@@ -96,7 +94,7 @@ class RedstoneRepeater extends Flowable{
 		return false;
 	}
 
-	public function onActivate(Item $item, Player $player = null) : bool{
+	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if(++$this->delay > 4){
 			$this->delay = 1;
 		}

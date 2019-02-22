@@ -25,6 +25,12 @@ namespace pocketmine\timings;
 
 use pocketmine\entity\Living;
 use pocketmine\Server;
+use function count;
+use function fwrite;
+use function microtime;
+use function round;
+use function spl_object_id;
+use const PHP_EOL;
 
 class TimingsHandler{
 
@@ -58,7 +64,7 @@ class TimingsHandler{
 
 		$entities = 0;
 		$livingEntities = 0;
-		foreach(Server::getInstance()->getLevels() as $level){
+		foreach(Server::getInstance()->getLevelManager()->getLevels() as $level){
 			$entities += count($level->getEntities());
 			foreach($level->getEntities() as $e){
 				if($e instanceof Living){
@@ -148,7 +154,7 @@ class TimingsHandler{
 		$this->name = $name;
 		$this->parent = $parent;
 
-		self::$HANDLERS[spl_object_hash($this)] = $this;
+		self::$HANDLERS[spl_object_id($this)] = $this;
 	}
 
 	public function startTiming(){
@@ -189,6 +195,6 @@ class TimingsHandler{
 	}
 
 	public function remove(){
-		unset(self::$HANDLERS[spl_object_hash($this)]);
+		unset(self::$HANDLERS[spl_object_id($this)]);
 	}
 }

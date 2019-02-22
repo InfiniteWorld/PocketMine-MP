@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
@@ -34,18 +35,12 @@ class Lever extends Flowable{
 	protected const SIDE = 1;
 	protected const TOP = 2;
 
-	protected $id = self::LEVER;
-
 	/** @var int */
 	protected $position = self::BOTTOM;
 	/** @var int */
 	protected $facing = Facing::NORTH;
 	/** @var bool */
 	protected $powered = false;
-
-	public function __construct(){
-
-	}
 
 	protected function writeStateToMeta() : int{
 		if($this->position === self::BOTTOM){
@@ -58,8 +53,8 @@ class Lever extends Flowable{
 		return $rotationMeta | ($this->powered ? 0x08 : 0);
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$rotationMeta = $meta & 0x07;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$rotationMeta = $stateMeta & 0x07;
 		if($rotationMeta === 5 or $rotationMeta === 6){
 			$this->position = self::TOP;
 			$this->facing = $rotationMeta === 5 ? Facing::SOUTH : Facing::EAST;
@@ -68,25 +63,21 @@ class Lever extends Flowable{
 			$this->facing = $rotationMeta === 7 ? Facing::SOUTH : Facing::EAST;
 		}else{
 			$this->position = self::SIDE;
-			$this->facing = 6 - $rotationMeta;
+			$this->facing = BlockDataValidator::readHorizontalFacing(6 - $rotationMeta);
 		}
 
-		$this->powered = ($meta & 0x08) !== 0;
+		$this->powered = ($stateMeta & 0x08) !== 0;
 	}
 
 	public function getStateBitmask() : int{
 		return 0b1111;
 	}
 
-	public function getName() : string{
-		return "Lever";
-	}
-
 	public function getHardness() : float{
 		return 0.5;
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if(!$blockClicked->isSolid()){
 			return false;
 		}
@@ -118,7 +109,7 @@ class Lever extends Flowable{
 		}
 	}
 
-	public function onActivate(Item $item, Player $player = null) : bool{
+	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$this->powered = !$this->powered;
 		$this->level->setBlock($this, $this);
 		$this->level->broadcastLevelSoundEvent(

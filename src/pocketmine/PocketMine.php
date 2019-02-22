@@ -159,7 +159,7 @@ namespace pocketmine {
 		exit(1);
 	}
 
-	set_error_handler([Utils::class, 'errorExceptionHandler']);
+	\ErrorUtils::setErrorExceptionHandler();
 
 	/*
 	 * We now use the Composer autoloader, but this autoloader is still for loading plugins.
@@ -175,11 +175,10 @@ namespace pocketmine {
 	ini_set("default_charset", "utf-8");
 
 	ini_set("memory_limit", '-1');
-	define('pocketmine\START_TIME', microtime(true));
 
 	define('pocketmine\RESOURCE_PATH', \pocketmine\PATH . 'resources' . DIRECTORY_SEPARATOR);
 
-	$opts = getopt("", ["data:", "plugins:", "no-wizard"]);
+	$opts = getopt("", ["data:", "plugins:", "no-wizard", "enable-ansi", "disable-ansi"]);
 
 	define('pocketmine\DATA', isset($opts["data"]) ? $opts["data"] . DIRECTORY_SEPARATOR : realpath(getcwd()) . DIRECTORY_SEPARATOR);
 	define('pocketmine\PLUGIN_PATH', isset($opts["plugins"]) ? $opts["plugins"] . DIRECTORY_SEPARATOR : realpath(getcwd()) . DIRECTORY_SEPARATOR . "plugins" . DIRECTORY_SEPARATOR);
@@ -190,6 +189,14 @@ namespace pocketmine {
 
 	//Logger has a dependency on timezone
 	Timezone::init();
+
+	if(isset($opts["enable-ansi"])){
+		Terminal::init(true);
+	}elseif(isset($opts["disable-ansi"])){
+		Terminal::init(false);
+	}else{
+		Terminal::init();
+	}
 
 	$logger = new MainLogger(\pocketmine\DATA . "server.log");
 	$logger->registerStatic();
@@ -239,6 +246,8 @@ namespace pocketmine {
 			}
 		}
 
+		//TODO: move this to a Server field
+		define('pocketmine\START_TIME', microtime(true));
 		ThreadManager::init();
 		new Server($autoloader, $logger, \pocketmine\DATA, \pocketmine\PLUGIN_PATH);
 

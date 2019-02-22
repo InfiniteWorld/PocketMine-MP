@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\math\AxisAlignedBB;
@@ -30,11 +31,9 @@ use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 use pocketmine\tile\Skull as TileSkull;
-use pocketmine\tile\Tile;
+use function floor;
 
 class Skull extends Flowable{
-
-	protected $id = self::SKULL_BLOCK;
 
 	/** @var int */
 	protected $facing = Facing::NORTH;
@@ -43,16 +42,12 @@ class Skull extends Flowable{
 	/** @var int */
 	protected $rotation = 0; //TODO: split this into floor skull and wall skull handling
 
-	public function __construct(){
-
-	}
-
 	protected function writeStateToMeta() : int{
 		return $this->facing;
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->facing = $meta;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->facing = $stateMeta === 1 ? Facing::UP : BlockDataValidator::readHorizontalFacing($stateMeta);
 	}
 
 	public function getStateBitmask() : int{
@@ -70,7 +65,8 @@ class Skull extends Flowable{
 
 	public function writeStateToWorld() : void{
 		parent::writeStateToWorld();
-		$tile = Tile::createTile(Tile::SKULL, $this->getLevel(), TileSkull::createNBT($this));
+		//extra block properties storage hack
+		$tile = $this->level->getTile($this);
 		if($tile instanceof TileSkull){
 			$tile->setRotation($this->rotation);
 			$tile->setType($this->type);
@@ -81,16 +77,12 @@ class Skull extends Flowable{
 		return 1;
 	}
 
-	public function getName() : string{
-		return "Mob Head";
-	}
-
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
 		//TODO: different bounds depending on attached face
 		return AxisAlignedBB::one()->contract(0.25, 0, 0.25)->trim(Facing::UP, 0.5);
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($face === Facing::DOWN){
 			return false;
 		}

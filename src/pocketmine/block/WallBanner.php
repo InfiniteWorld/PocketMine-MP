@@ -23,11 +23,10 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\math\Facing;
 
 class WallBanner extends StandingBanner{
-
-	protected $id = self::WALL_BANNER;
 
 	/** @var int */
 	protected $facing = Facing::NORTH;
@@ -36,16 +35,12 @@ class WallBanner extends StandingBanner{
 		return $this->facing;
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->facing = $meta;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->facing = BlockDataValidator::readHorizontalFacing($stateMeta);
 	}
 
 	public function getStateBitmask() : int{
 		return 0b111;
-	}
-
-	public function getName() : string{
-		return "Wall Banner";
 	}
 
 	public function onNearbyBlockChange() : void{

@@ -28,6 +28,9 @@ use pocketmine\inventory\CraftingRecipe;
 use pocketmine\item\Item;
 use pocketmine\network\mcpe\protocol\ContainerClosePacket;
 use pocketmine\network\mcpe\protocol\types\ContainerIds;
+use function array_pop;
+use function count;
+use function intdiv;
 
 class CraftingTransaction extends InventoryTransaction{
 	/** @var CraftingRecipe|null */
@@ -47,6 +50,7 @@ class CraftingTransaction extends InventoryTransaction{
 	 * @param int    $iterations
 	 *
 	 * @return int
+	 * @throws TransactionValidationException
 	 */
 	protected function matchRecipeItems(array $txItems, array $recipeItems, bool $wildcards, int $iterations = 0) : int{
 		if(empty($recipeItems)){

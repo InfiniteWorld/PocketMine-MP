@@ -38,16 +38,7 @@ class EnderPearl extends Throwable{
 	protected function calculateInterceptWithBlock(Block $block, Vector3 $start, Vector3 $end) : ?RayTraceResult{
 		if($block->getId() !== Block::AIR and empty($block->getCollisionBoxes())){
 			//TODO: remove this once block collision boxes are fixed properly
-			$bb = new AxisAlignedBB(
-				$block->x,
-				$block->y,
-				$block->z,
-				$block->x + 1,
-				$block->y + 1,
-				$block->z + 1
-			);
-
-			return $bb->calculateIntercept($start, $end);
+			return AxisAlignedBB::one()->offset($block->x, $block->y, $block->z)->calculateIntercept($start, $end);
 		}
 
 		return parent::calculateInterceptWithBlock($block, $start, $end);
@@ -60,9 +51,9 @@ class EnderPearl extends Throwable{
 			//TODO: spawn endermites at origin
 
 			$this->level->broadcastLevelEvent($owner, LevelEventPacket::EVENT_PARTICLE_ENDERMAN_TELEPORT);
-			$this->level->addSound(new EndermanTeleportSound($owner));
-			$owner->teleport($event->getRayTraceResult()->getHitVector());
-			$this->level->addSound(new EndermanTeleportSound($owner));
+			$this->level->addSound($owner, new EndermanTeleportSound());
+			$owner->teleport($target = $event->getRayTraceResult()->getHitVector());
+			$this->level->addSound($target, new EndermanTeleportSound());
 
 			$owner->attack(new EntityDamageEvent($owner, EntityDamageEvent::CAUSE_FALL, 5));
 		}

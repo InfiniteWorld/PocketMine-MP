@@ -26,6 +26,7 @@ namespace pocketmine\network\mcpe;
 use pocketmine\event\player\PlayerCreationEvent;
 use pocketmine\event\server\DataPacketReceiveEvent;
 use pocketmine\event\server\DataPacketSendEvent;
+use pocketmine\network\BadPacketException;
 use pocketmine\network\mcpe\handler\DeathSessionHandler;
 use pocketmine\network\mcpe\handler\HandshakeSessionHandler;
 use pocketmine\network\mcpe\handler\LoginSessionHandler;
@@ -33,20 +34,27 @@ use pocketmine\network\mcpe\handler\PreSpawnSessionHandler;
 use pocketmine\network\mcpe\handler\ResourcePacksSessionHandler;
 use pocketmine\network\mcpe\handler\SessionHandler;
 use pocketmine\network\mcpe\handler\SimpleSessionHandler;
-use pocketmine\network\mcpe\protocol\DataPacket;
+use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\DisconnectPacket;
+use pocketmine\network\mcpe\protocol\Packet;
 use pocketmine\network\mcpe\protocol\PacketPool;
 use pocketmine\network\mcpe\protocol\PlayStatusPacket;
+use pocketmine\network\mcpe\protocol\ServerboundPacket;
 use pocketmine\network\mcpe\protocol\ServerToClientHandshakePacket;
 use pocketmine\network\NetworkInterface;
 use pocketmine\Player;
 use pocketmine\Server;
 use pocketmine\timings\Timings;
+use pocketmine\utils\BinaryDataException;
+use function bin2hex;
+use function strlen;
+use function substr;
+use function time;
 
 class NetworkSession{
 	/** @var Server */
 	private $server;
-	/** @var Player */
+	/** @var Player|null */
 	private $player;
 	/** @var NetworkInterface */
 	private $interface;
@@ -131,6 +139,10 @@ class NetworkSession{
 		return $this->port;
 	}
 
+	public function getDisplayName() : string{
+		return ($this->player !== null and $this->player->getName() !== "") ? $this->player->getName() : $this->ip . " " . $this->port;
+	}
+
 	/**
 	 * Returns the last recorded ping measurement for this session, in milliseconds.
 	 *
@@ -154,10 +166,17 @@ class NetworkSession{
 	}
 
 	public function setHandler(SessionHandler $handler) : void{
-		$this->handler = $handler;
-		$this->handler->setUp();
+		if($this->connected){ //TODO: this is fine since we can't handle anything from a disconnected session, but it might produce surprises in some cases
+			$this->handler = $handler;
+			$this->handler->setUp();
+		}
 	}
 
+	/**
+	 * @param string $payload
+	 *
+	 * @throws BadPacketException
+	 */
 	public function handleEncoded(string $payload) : void{
 		if(!$this->connected){
 			return;
@@ -167,10 +186,9 @@ class NetworkSession{
 			Timings::$playerNetworkReceiveDecryptTimer->startTiming();
 			try{
 				$payload = $this->cipher->decrypt($payload);
-			}catch(\InvalidArgumentException $e){
-				$this->server->getLogger()->debug("Encrypted packet from " . $this->ip . " " . $this->port . ": " . bin2hex($payload));
-				$this->disconnect("Packet decryption error: " . $e->getMessage());
-				return;
+			}catch(\UnexpectedValueException $e){
+				$this->server->getLogger()->debug("Encrypted packet from " . $this->getDisplayName() . ": " . bin2hex($payload));
+				throw new BadPacketException("Packet decryption error: " . $e->getMessage(), 0, $e);
 			}finally{
 				Timings::$playerNetworkReceiveDecryptTimer->stopTiming();
 			}
@@ -180,38 +198,58 @@ class NetworkSession{
 		try{
 			$stream = new PacketStream(NetworkCompression::decompress($payload));
 		}catch(\ErrorException $e){
-			$this->server->getLogger()->debug("Failed to decompress packet from " . $this->ip . " " . $this->port . ": " . bin2hex($payload));
-			$this->disconnect("Compressed packet batch decode error (incompatible game version?)", false);
-			return;
+			$this->server->getLogger()->debug("Failed to decompress packet from " . $this->getDisplayName() . ": " . bin2hex($payload));
+			//TODO: this isn't incompatible game version if we already established protocol version
+			throw new BadPacketException("Compressed packet batch decode error (incompatible game version?)", 0, $e);
 		}finally{
 			Timings::$playerNetworkReceiveDecompressTimer->stopTiming();
 		}
 
 		while(!$stream->feof() and $this->connected){
-			$this->handleDataPacket(PacketPool::getPacket($stream->getString()));
+			try{
+				$buf = $stream->getString();
+			}catch(BinaryDataException $e){
+				$this->server->getLogger()->debug("Packet batch from " . $this->getDisplayName() . ": " . bin2hex($stream->getBuffer()));
+				throw new BadPacketException("Packet batch decode error: " . $e->getMessage(), 0, $e);
+			}
+			$this->handleDataPacket(PacketPool::getPacket($buf));
 		}
 	}
 
-	public function handleDataPacket(DataPacket $packet) : void{
+	/**
+	 * @param Packet $packet
+	 *
+	 * @throws BadPacketException
+	 */
+	public function handleDataPacket(Packet $packet) : void{
+		if(!($packet instanceof ServerboundPacket)){
+			throw new BadPacketException("Unexpected non-serverbound packet " . $packet->getName());
+		}
+
 		$timings = Timings::getReceiveDataPacketTimings($packet);
 		$timings->startTiming();
 
-		$packet->decode();
+		try{
+			$packet->decode();
+		}catch(BadPacketException $e){
+			$this->server->getLogger()->debug($packet->getName() . " from " . $this->getDisplayName() . ": " . bin2hex($packet->getBuffer()));
+			throw $e;
+		}
 		if(!$packet->feof() and !$packet->mayHaveUnreadBytes()){
-			$remains = substr($packet->buffer, $packet->offset);
-			$this->server->getLogger()->debug("Still " . strlen($remains) . " bytes unread in " . $packet->getName() . ": 0x" . bin2hex($remains));
+			$remains = substr($packet->getBuffer(), $packet->getOffset());
+			$this->server->getLogger()->debug("Still " . strlen($remains) . " bytes unread in " . $packet->getName() . ": " . bin2hex($remains));
 		}
 
 		$ev = new DataPacketReceiveEvent($this->player, $packet);
 		$ev->call();
 		if(!$ev->isCancelled() and !$packet->handle($this->handler)){
-			$this->server->getLogger()->debug("Unhandled " . $packet->getName() . " received from " . $this->player->getName() . ": 0x" . bin2hex($packet->buffer));
+			$this->server->getLogger()->debug("Unhandled " . $packet->getName() . " received from " . $this->getDisplayName() . ": " . bin2hex($packet->getBuffer()));
 		}
 
 		$timings->stopTiming();
 	}
 
-	public function sendDataPacket(DataPacket $packet, bool $immediate = false) : bool{
+	public function sendDataPacket(ClientboundPacket $packet, bool $immediate = false) : bool{
 		$timings = Timings::getSendDataPacketTimings($packet);
 		$timings->startTiming();
 		try{
@@ -234,9 +272,9 @@ class NetworkSession{
 
 	/**
 	 * @internal
-	 * @param DataPacket $packet
+	 * @param ClientboundPacket $packet
 	 */
-	public function addToSendBuffer(DataPacket $packet) : void{
+	public function addToSendBuffer(ClientboundPacket $packet) : void{
 		$timings = Timings::getSendDataPacketTimings($packet);
 		$timings->startTiming();
 		try{
@@ -338,7 +376,6 @@ class NetworkSession{
 		}
 
 		$this->interface->close($this, $notify ? $reason : "");
-		$this->disconnectCleanup();
 	}
 
 	/**
@@ -351,16 +388,7 @@ class NetworkSession{
 		if($this->connected){
 			$this->connected = false;
 			$this->player->close($this->player->getLeaveMessage(), $reason);
-			$this->disconnectCleanup();
 		}
-	}
-
-	private function disconnectCleanup() : void{
-		$this->handler = null;
-		$this->interface = null;
-		$this->player = null;
-		$this->sendBuffer = null;
-		$this->compressedQueue = null;
 	}
 
 	public function enableEncryption(string $encryptionKey, string $handshakeJwt) : void{
@@ -371,7 +399,7 @@ class NetworkSession{
 		$this->cipher = new NetworkCipher($encryptionKey);
 
 		$this->setHandler(new HandshakeSessionHandler($this));
-		$this->server->getLogger()->debug("Enabled encryption for $this->ip $this->port");
+		$this->server->getLogger()->debug("Enabled encryption for " . $this->getDisplayName());
 	}
 
 	public function onLoginSuccess() : void{

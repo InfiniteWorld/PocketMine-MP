@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
 use pocketmine\math\Bearing;
 use pocketmine\math\Facing;
@@ -31,8 +32,6 @@ use pocketmine\Player;
 
 class TripwireHook extends Flowable{
 
-	protected $id = self::TRIPWIRE_HOOK;
-
 	/** @var int */
 	protected $facing = Facing::NORTH;
 	/** @var bool */
@@ -40,29 +39,21 @@ class TripwireHook extends Flowable{
 	/** @var bool */
 	protected $powered = false;
 
-	public function __construct(){
-
-	}
-
 	protected function writeStateToMeta() : int{
 		return Bearing::fromFacing($this->facing) | ($this->connected ? 0x04 : 0) | ($this->powered ? 0x08 : 0);
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->facing = Bearing::toFacing($meta & 0x03);
-		$this->connected = ($meta & 0x04) !== 0;
-		$this->powered = ($meta & 0x08) !== 0;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->facing = BlockDataValidator::readLegacyHorizontalFacing($stateMeta & 0x03);
+		$this->connected = ($stateMeta & 0x04) !== 0;
+		$this->powered = ($stateMeta & 0x08) !== 0;
 	}
 
 	public function getStateBitmask() : int{
 		return 0b1111;
 	}
 
-	public function getName() : string{
-		return "Tripwire Hook";
-	}
-
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if(Facing::axis($face) !== Facing::AXIS_Y){
 			//TODO: check face is valid
 			$this->facing = $face;

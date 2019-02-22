@@ -23,7 +23,8 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-use pocketmine\entity\EffectInstance;
+use pocketmine\block\utils\BlockDataValidator;
+use pocketmine\entity\effect\EffectInstance;
 use pocketmine\entity\Living;
 use pocketmine\item\FoodSource;
 use pocketmine\item\Item;
@@ -34,23 +35,15 @@ use pocketmine\Player;
 
 class Cake extends Transparent implements FoodSource{
 
-	protected $id = self::CAKE_BLOCK;
-
-	protected $itemId = Item::CAKE;
-
 	/** @var int */
 	protected $bites = 0;
-
-	public function __construct(){
-
-	}
 
 	protected function writeStateToMeta() : int{
 		return $this->bites;
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->bites = $meta;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->bites = BlockDataValidator::readBoundedInt("bites", $stateMeta, 0, 6);
 	}
 
 	public function getStateBitmask() : int{
@@ -61,10 +54,6 @@ class Cake extends Transparent implements FoodSource{
 		return 0.5;
 	}
 
-	public function getName() : string{
-		return "Cake";
-	}
-
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
 		return AxisAlignedBB::one()
 			->contract(1 / 16, 0, 1 / 16)
@@ -72,7 +61,7 @@ class Cake extends Transparent implements FoodSource{
 			->trim(Facing::WEST, $this->bites / 8);
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$down = $this->getSide(Facing::DOWN);
 		if($down->getId() !== self::AIR){
 			return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
@@ -95,7 +84,7 @@ class Cake extends Transparent implements FoodSource{
 		return false;
 	}
 
-	public function onActivate(Item $item, Player $player = null) : bool{
+	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($player !== null){
 			$player->consumeObject($this);
 			return true;

@@ -23,7 +23,8 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-use pocketmine\block\utils\Color;
+use pocketmine\block\utils\BlockDataValidator;
+use pocketmine\block\utils\DyeColor;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\lang\TranslationContainer;
@@ -34,16 +35,11 @@ use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 use pocketmine\tile\Bed as TileBed;
-use pocketmine\tile\Tile;
 use pocketmine\utils\TextFormat;
 
 class Bed extends Transparent{
 	private const BITFLAG_OCCUPIED = 0x04;
 	private const BITFLAG_HEAD = 0x08;
-
-	protected $id = self::BED_BLOCK;
-
-	protected $itemId = Item::BED;
 
 	/** @var int */
 	protected $facing = Facing::NORTH;
@@ -51,11 +47,12 @@ class Bed extends Transparent{
 	protected $occupied = false;
 	/** @var bool */
 	protected $head = false;
-	/** @var int */
-	protected $color = Color::RED;
+	/** @var DyeColor */
+	protected $color;
 
-	public function __construct(){
-
+	public function __construct(BlockIdentifier $idInfo, string $name){
+		parent::__construct($idInfo, $name);
+		$this->color = DyeColor::RED();
 	}
 
 	protected function writeStateToMeta() : int{
@@ -64,10 +61,10 @@ class Bed extends Transparent{
 			($this->head ? self::BITFLAG_HEAD : 0);
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->facing = Bearing::toFacing($meta & 0x03);
-		$this->occupied = ($meta & self::BITFLAG_OCCUPIED) !== 0;
-		$this->head = ($meta & self::BITFLAG_HEAD) !== 0;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->facing = BlockDataValidator::readLegacyHorizontalFacing($stateMeta & 0x03);
+		$this->occupied = ($stateMeta & self::BITFLAG_OCCUPIED) !== 0;
+		$this->head = ($stateMeta & self::BITFLAG_HEAD) !== 0;
 	}
 
 	public function getStateBitmask() : int{
@@ -86,7 +83,7 @@ class Bed extends Transparent{
 	public function writeStateToWorld() : void{
 		parent::writeStateToWorld();
 		//extra block properties storage hack
-		$tile = Tile::createTile(Tile::BED, $this->getLevel(), TileBed::createNBT($this));
+		$tile = $this->level->getTile($this);
 		if($tile instanceof TileBed){
 			$tile->setColor($this->color);
 		}
@@ -94,10 +91,6 @@ class Bed extends Transparent{
 
 	public function getHardness() : float{
 		return 0.2;
-	}
-
-	public function getName() : string{
-		return "Bed Block";
 	}
 
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
@@ -144,7 +137,7 @@ class Bed extends Transparent{
 		return null;
 	}
 
-	public function onActivate(Item $item, Player $player = null) : bool{
+	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($player !== null){
 			$other = $this->getOtherHalf();
 			if($other === null){
@@ -181,8 +174,8 @@ class Bed extends Transparent{
 
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
-		$this->color = $item->getDamage(); //TODO: replace this with a proper colour getter
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		$this->color = DyeColor::fromMagicNumber($item->getDamage()); //TODO: replace this with a proper colour getter
 		$down = $this->getSide(Facing::DOWN);
 		if(!$down->isTransparent()){
 			$this->facing = $player !== null ? $player->getHorizontalFacing() : Facing::NORTH;
@@ -210,7 +203,7 @@ class Bed extends Transparent{
 	}
 
 	public function getItem() : Item{
-		return ItemFactory::get($this->getItemId(), $this->color);
+		return ItemFactory::get($this->idInfo->getItemId(), $this->color->getMagicNumber());
 	}
 
 	public function isAffectedBySilkTouch() : bool{

@@ -28,10 +28,6 @@ use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 
 class Water extends Liquid{
 
-	public function __construct(){
-		parent::__construct(self::FLOWING_WATER, self::STILL_WATER, "Water");
-	}
-
 	public function getLightFilter() : int{
 		return 2;
 	}
@@ -48,9 +44,9 @@ class Water extends Liquid{
 		return 5;
 	}
 
-	public function onEntityCollide(Entity $entity) : void{
+	public function onEntityInside(Entity $entity) : void{
 		$entity->resetFallDistance();
-		if($entity->fireTicks > 0){
+		if($entity->isOnFire()){
 			$entity->extinguish();
 		}
 

@@ -23,6 +23,9 @@ declare(strict_types=1);
 
 namespace pocketmine\entity;
 
+use function max;
+use function min;
+
 class Attribute{
 	public const MC_PREFIX = "minecraft:";
 
@@ -110,8 +113,8 @@ class Attribute{
 	}
 
 	public function setMinValue(float $minValue){
-		if($minValue > $this->getMaxValue()){
-			throw new \InvalidArgumentException("Value $minValue is bigger than the maxValue!");
+		if($minValue > ($max = $this->getMaxValue())){
+			throw new \InvalidArgumentException("Minimum $minValue is greater than the maximum $max");
 		}
 
 		if($this->minValue != $minValue){
@@ -126,8 +129,8 @@ class Attribute{
 	}
 
 	public function setMaxValue(float $maxValue){
-		if($maxValue < $this->getMinValue()){
-			throw new \InvalidArgumentException("Value $maxValue is bigger than the minValue!");
+		if($maxValue < ($min = $this->getMinValue())){
+			throw new \InvalidArgumentException("Maximum $maxValue is less than the minimum $min");
 		}
 
 		if($this->maxValue != $maxValue){
@@ -143,7 +146,7 @@ class Attribute{
 
 	public function setDefaultValue(float $defaultValue){
 		if($defaultValue > $this->getMaxValue() or $defaultValue < $this->getMinValue()){
-			throw new \InvalidArgumentException("Value $defaultValue exceeds the range!");
+			throw new \InvalidArgumentException("Default $defaultValue is outside the range " . $this->getMinValue() . " - " . $this->getMaxValue());
 		}
 
 		if($this->defaultValue !== $defaultValue){
@@ -154,7 +157,7 @@ class Attribute{
 	}
 
 	public function resetToDefault() : void{
-		$this->setValue($this->getDefaultValue());
+		$this->setValue($this->getDefaultValue(), true);
 	}
 
 	public function getValue() : float{
@@ -171,7 +174,7 @@ class Attribute{
 	public function setValue(float $value, bool $fit = false, bool $forceSend = false){
 		if($value > $this->getMaxValue() or $value < $this->getMinValue()){
 			if(!$fit){
-				throw new \InvalidArgumentException("Value $value exceeds the range!");
+				throw new \InvalidArgumentException("Value $value is outside the range " . $this->getMinValue() . " - " . $this->getMaxValue());
 			}
 			$value = min(max($value, $this->getMinValue()), $this->getMaxValue());
 		}

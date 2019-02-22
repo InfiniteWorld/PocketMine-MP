@@ -28,11 +28,13 @@
       "mdanter/ecc": "^0.5.0",
       "infiniteworld/raklib": "dev-master_32-bit",
       "pocketmine/spl": "dev-master",
-      "infiniteworld/binaryutils": "dev-master_32-bit as 0.1.0",
+      "infiniteworld/binaryutils": "dev-master_32-bit as 0.1.7",
       "infiniteworld/nbt": "dev-master_32-bit",
       "infiniteworld/math": "dev-master_32-bit",
       "infiniteworld/snooze": "dev-master_32-bit as 0.1.0",
-      "daverandom/callback-validator": "dev-master"
+      "daverandom/callback-validator": "dev-master",
+      "adhocore/json-comment": "^0.0.7",
+      "particle/validator": "^2.3"
    },
    "autoload": {
       "psr-4": {

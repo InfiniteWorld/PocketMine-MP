@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\item\Banner as ItemBanner;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\math\AxisAlignedBB;
@@ -30,27 +31,19 @@ use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 use pocketmine\tile\Banner as TileBanner;
-use pocketmine\tile\Tile;
+use function floor;
 
 class StandingBanner extends Transparent{
 
-	protected $id = self::STANDING_BANNER;
-
-	protected $itemId = Item::BANNER;
-
 	/** @var int */
 	protected $rotation = 0;
-
-	public function __construct(){
-
-	}
 
 	protected function writeStateToMeta() : int{
 		return $this->rotation;
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->rotation = $meta;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->rotation = $stateMeta;
 	}
 
 	public function getStateBitmask() : int{
@@ -65,27 +58,18 @@ class StandingBanner extends Transparent{
 		return false;
 	}
 
-	public function getName() : string{
-		return "Standing Banner";
-	}
-
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
 		return null;
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($face !== Facing::DOWN){
 			if($face === Facing::UP and $player !== null){
 				$this->rotation = ((int) floor((($player->yaw + 180) * 16 / 360) + 0.5)) & 0x0f;
-				$ret = parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
-			}else{
-				$ret = $this->getLevel()->setBlock($blockReplace, BlockFactory::get(Block::WALL_BANNER, $face));
+				return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 			}
 
-			if($ret){
-				Tile::createTile(Tile::BANNER, $this->getLevel(), TileBanner::createNBT($this, $item));
-				return true;
-			}
+			return $this->getLevel()->setBlock($blockReplace, BlockFactory::get(Block::WALL_BANNER, $face));
 		}
 
 		return false;
@@ -104,9 +88,9 @@ class StandingBanner extends Transparent{
 	public function getDropsForCompatibleTool(Item $item) : array{
 		$tile = $this->level->getTile($this);
 
-		$drop = ItemFactory::get(Item::BANNER, ($tile instanceof TileBanner ? $tile->getBaseColor() : 0));
-		if($tile instanceof TileBanner and !($patterns = $tile->getPatterns())->empty()){
-			$drop->setNamedTagEntry(clone $patterns);
+		$drop = ItemFactory::get(Item::BANNER, ($tile instanceof TileBanner ? $tile->getBaseColor()->getInvertedMagicNumber() : 0));
+		if($tile instanceof TileBanner and $drop instanceof ItemBanner and !($patterns = $tile->getPatterns())->empty()){
+			$drop->setPatterns($patterns);
 		}
 
 		return [$drop];

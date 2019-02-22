@@ -26,37 +26,52 @@ namespace pocketmine\network\mcpe\protocol;
 #include <rules/DataPacket.h>
 
 
+use Particle\Validator\Validator;
 use pocketmine\entity\Skin;
+use pocketmine\network\BadPacketException;
 use pocketmine\network\mcpe\handler\SessionHandler;
+use pocketmine\PlayerInfo;
+use pocketmine\utils\BinaryDataException;
 use pocketmine\utils\BinaryStream;
 use pocketmine\utils\Utils;
+use pocketmine\utils\UUID;
+use function array_filter;
+use function base64_decode;
+use function count;
+use function implode;
+use function is_array;
+use function json_decode;
+use function json_last_error_msg;
 
-class LoginPacket extends DataPacket{
+class LoginPacket extends DataPacket implements ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::LOGIN_PACKET;
 
 	public const EDITION_POCKET = 0;
 
-	/** @var string */
-	public $username;
+	public const I_USERNAME = 'displayName';
+	public const I_UUID = 'identity';
+	public const I_XUID = 'XUID';
+
+	public const I_CLIENT_RANDOM_ID = 'ClientRandomId';
+	public const I_SERVER_ADDRESS = 'ServerAddress';
+	public const I_LANGUAGE_CODE = 'LanguageCode';
+
+	public const I_SKIN_ID = 'SkinId';
+	public const I_SKIN_DATA = 'SkinData';
+	public const I_CAPE_DATA = 'CapeData';
+	public const I_GEOMETRY_NAME = 'SkinGeometryName';
+	public const I_GEOMETRY_DATA = 'SkinGeometry';
+
 	/** @var int */
 	public $protocol;
-	/** @var string */
-	public $clientUUID;
-	/** @var int */
-	public $clientId;
-	/** @var string */
-	public $xuid;
-	/** @var string */
-	public $identityPublicKey;
-	/** @var string */
-	public $serverAddress;
-	/** @var string */
-	public $locale;
-	/** @var Skin|null */
-	public $skin;
 
-	/** @var array (the "chain" index contains one or more JWTs) */
-	public $chainData = [];
+	/** @var PlayerInfo */
+	public $playerInfo;
+
+	/** @var string[] array of encoded JWT */
+	public $chainDataJwt = [];
+	/** @var array|null extraData index of whichever JWT has it */
+	public $extraData = null;
 	/** @var string */
 	public $clientDataJwt;
 	/** @var array decoded payload of the clientData JWT */
@@ -80,65 +95,108 @@ class LoginPacket extends DataPacket{
 
 	protected function decodePayload() : void{
 		$this->protocol = $this->getInt();
+		$this->decodeConnectionRequest();
+	}
 
-		try{
-			$this->decodeConnectionRequest();
-		}catch(\Throwable $e){
-			if($this->protocol === ProtocolInfo::CURRENT_PROTOCOL){
-				throw $e;
+	/**
+	 * @param Validator $v
+	 * @param string    $name
+	 * @param           $data
+	 *
+	 * @throws BadPacketException
+	 */
+	private static function validate(Validator $v, string $name, $data) : void{
+		$result = $v->validate($data);
+		if($result->isNotValid()){
+			$messages = [];
+			foreach($result->getFailures() as $f){
+				$messages[] = $f->format();
 			}
-
-			$logger = \GlobalLogger::get();
-			$logger->debug(get_class($e) . " was thrown while decoding connection request in login (protocol version " . ($this->protocol ?? "unknown") . "): " . $e->getMessage());
-			foreach(Utils::getTrace(0, $e->getTrace()) as $line){
-				$logger->debug($line);
-			}
+			throw new BadPacketException("Failed to validate '$name': " . implode(", ", $messages));
 		}
 	}
 
+	/**
+	 * @throws BadPacketException
+	 * @throws BinaryDataException
+	 */
 	protected function decodeConnectionRequest() : void{
 		$buffer = new BinaryStream($this->getString());
 
-		$this->chainData = json_decode($buffer->get($buffer->getLInt()), true);
+		$chainData = json_decode($buffer->get($buffer->getLInt()), true);
+		if(!is_array($chainData)){
+			throw new BadPacketException("Failed to decode chainData JSON: " . json_last_error_msg());
+		}
 
-		$hasExtraData = false;
-		foreach($this->chainData["chain"] as $chain){
-			$webtoken = Utils::decodeJWT($chain);
-			if(isset($webtoken["extraData"])){
-				if($hasExtraData){
-					throw new \RuntimeException("Found 'extraData' multiple times in key chain");
-				}
-				$hasExtraData = true;
-				if(isset($webtoken["extraData"]["displayName"])){
-					$this->username = $webtoken["extraData"]["displayName"];
-				}
-				if(isset($webtoken["extraData"]["identity"])){
-					$this->clientUUID = $webtoken["extraData"]["identity"];
-				}
-				if(isset($webtoken["extraData"]["XUID"])){
-					$this->xuid = $webtoken["extraData"]["XUID"];
-				}
-			}
+		$vd = new Validator();
+		$vd->required('chain')->isArray()->callback(function(array $data) : bool{
+			return count($data) <= 3 and count(array_filter($data, '\is_string')) === count($data);
+		});
+		self::validate($vd, "chainData", $chainData);
 
-			if(isset($webtoken["identityPublicKey"])){
-				$this->identityPublicKey = $webtoken["identityPublicKey"];
+		$this->chainDataJwt = $chainData['chain'];
+		foreach($this->chainDataJwt as $k => $chain){
+			//validate every chain element
+			try{
+				$claims = Utils::getJwtClaims($chain);
+			}catch(\UnexpectedValueException $e){
+				throw new BadPacketException($e->getMessage(), 0, $e);
 			}
+			if(isset($claims["extraData"])){
+				if(!is_array($claims["extraData"])){
+					throw new BadPacketException("'extraData' key should be an array");
+				}
+				if($this->extraData !== null){
+					throw new BadPacketException("Found 'extraData' more than once in chainData");
+				}
+
+				$extraV = new Validator();
+				$extraV->required(self::I_USERNAME)->string();
+				$extraV->required(self::I_UUID)->uuid();
+				$extraV->required(self::I_XUID)->string()->digits()->allowEmpty(true);
+				self::validate($extraV, "chain.$k.extraData", $claims['extraData']);
+
+				$this->extraData = $claims['extraData'];
+			}
+		}
+		if($this->extraData === null){
+			throw new BadPacketException("'extraData' not found in chain data");
 		}
 
 		$this->clientDataJwt = $buffer->get($buffer->getLInt());
-		$this->clientData = Utils::decodeJWT($this->clientDataJwt);
+		try{
+			$clientData = Utils::getJwtClaims($this->clientDataJwt);
+		}catch(\UnexpectedValueException $e){
+			throw new BadPacketException($e->getMessage(), 0, $e);
+		}
 
-		$this->clientId = $this->clientData["ClientRandomId"] ?? null;
-		$this->serverAddress = $this->clientData["ServerAddress"] ?? null;
+		$v = new Validator();
+		$v->required(self::I_CLIENT_RANDOM_ID)->integer();
+		$v->required(self::I_SERVER_ADDRESS)->string();
+		$v->required(self::I_LANGUAGE_CODE)->string();
 
-		$this->locale = $this->clientData["LanguageCode"] ?? "en_US";
+		$v->required(self::I_SKIN_ID)->string();
+		$v->required(self::I_SKIN_DATA)->string();
+		$v->required(self::I_CAPE_DATA, null, true)->string();
+		$v->required(self::I_GEOMETRY_NAME)->string();
+		$v->required(self::I_GEOMETRY_DATA, null, true)->string();
+		self::validate($v, 'clientData', $clientData);
 
-		$this->skin = new Skin(
-			$this->clientData["SkinId"] ?? "",
-			base64_decode($this->clientData["SkinData"] ?? ""),
-			base64_decode($this->clientData["CapeData"] ?? ""),
-			$this->clientData["SkinGeometryName"] ?? "",
-			base64_decode($this->clientData["SkinGeometry"] ?? "")
+		$this->clientData = $clientData;
+
+		$this->playerInfo = new PlayerInfo(
+			$this->extraData[self::I_USERNAME],
+			UUID::fromString($this->extraData[self::I_UUID]),
+			new Skin(
+				$this->clientData[self::I_SKIN_ID],
+				base64_decode($this->clientData[self::I_SKIN_DATA]),
+				base64_decode($this->clientData[self::I_CAPE_DATA]),
+				$this->clientData[self::I_GEOMETRY_NAME],
+				base64_decode($this->clientData[self::I_GEOMETRY_DATA])
+			),
+			$this->clientData[self::I_LANGUAGE_CODE],
+			$this->extraData[self::I_XUID],
+			$this->clientData[self::I_CLIENT_RANDOM_ID]
 		);
 	}
 

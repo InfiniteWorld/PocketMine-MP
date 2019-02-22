@@ -26,10 +26,11 @@ namespace pocketmine\command\defaults;
 use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
 use pocketmine\command\utils\InvalidCommandSyntaxException;
+use pocketmine\GameMode;
 use pocketmine\lang\TranslationContainer;
 use pocketmine\Player;
-use pocketmine\Server;
 use pocketmine\utils\TextFormat;
+use function count;
 
 class GamemodeCommand extends VanillaCommand{
 
@@ -51,11 +52,10 @@ class GamemodeCommand extends VanillaCommand{
 			throw new InvalidCommandSyntaxException();
 		}
 
-		$gameMode = Server::getGamemodeFromString($args[0]);
-
-		if($gameMode === -1){
+		try{
+			$gameMode = GameMode::fromString($args[0]);
+		}catch(\InvalidArgumentException $e){
 			$sender->sendMessage("Unknown game mode");
-
 			return true;
 		}
 
@@ -76,10 +76,10 @@ class GamemodeCommand extends VanillaCommand{
 			$sender->sendMessage("Game mode change for " . $target->getName() . " failed!");
 		}else{
 			if($target === $sender){
-				Command::broadcastCommandMessage($sender, new TranslationContainer("commands.gamemode.success.self", [Server::getGamemodeString($gameMode)]));
+				Command::broadcastCommandMessage($sender, new TranslationContainer("commands.gamemode.success.self", [GameMode::toTranslation($gameMode)]));
 			}else{
-				$target->sendMessage(new TranslationContainer("gameMode.changed", [Server::getGamemodeString($gameMode)]));
-				Command::broadcastCommandMessage($sender, new TranslationContainer("commands.gamemode.success.other", [Server::getGamemodeString($gameMode), $target->getName()]));
+				$target->sendMessage(new TranslationContainer("gameMode.changed", [GameMode::toTranslation($gameMode)]));
+				Command::broadcastCommandMessage($sender, new TranslationContainer("commands.gamemode.success.other", [GameMode::toTranslation($gameMode), $target->getName()]));
 			}
 		}
 

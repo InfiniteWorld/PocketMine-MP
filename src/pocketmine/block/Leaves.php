@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
-use pocketmine\block\utils\WoodType;
+use pocketmine\block\utils\TreeType;
 use pocketmine\event\block\LeavesDecayEvent;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
@@ -31,28 +31,29 @@ use pocketmine\level\Level;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
+use function mt_rand;
 
 class Leaves extends Transparent{
-	/** @var int */
-	protected $woodType;
+	/** @var TreeType */
+	protected $treeType;
 
 	/** @var bool */
 	protected $noDecay = false;
 	/** @var bool */
 	protected $checkDecay = false;
 
-	public function __construct(int $id, int $variant, int $woodType, ?string $name = null){
-		parent::__construct($id, $variant, $name);
-		$this->woodType = $woodType;
+	public function __construct(BlockIdentifier $idInfo, string $name, TreeType $treeType){
+		parent::__construct($idInfo, $name);
+		$this->treeType = $treeType;
 	}
 
 	protected function writeStateToMeta() : int{
 		return ($this->noDecay ? 0x04 : 0) | ($this->checkDecay ? 0x08 : 0);
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->noDecay = ($meta & 0x04) !== 0;
-		$this->checkDecay = ($meta & 0x08) !== 0;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->noDecay = ($stateMeta & 0x04) !== 0;
+		$this->checkDecay = ($stateMeta & 0x08) !== 0;
 	}
 
 	public function getStateBitmask() : int{
@@ -119,7 +120,7 @@ class Leaves extends Transparent{
 		}
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$this->noDecay = true; //artificial leaves don't decay
 		return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 	}
@@ -131,9 +132,9 @@ class Leaves extends Transparent{
 
 		$drops = [];
 		if(mt_rand(1, 20) === 1){ //Saplings
-			$drops[] = ItemFactory::get(Item::SAPLING, $this->woodType);
+			$drops[] = ItemFactory::get(Item::SAPLING, $this->treeType->getMagicNumber());
 		}
-		if(($this->woodType === WoodType::OAK or $this->woodType === WoodType::DARK_OAK) and mt_rand(1, 200) === 1){ //Apples
+		if(($this->treeType === TreeType::OAK() or $this->treeType === TreeType::DARK_OAK()) and mt_rand(1, 200) === 1){ //Apples
 			$drops[] = ItemFactory::get(Item::APPLE);
 		}
 

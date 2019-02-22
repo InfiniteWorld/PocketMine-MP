@@ -25,10 +25,19 @@ namespace pocketmine\item;
 
 use pocketmine\block\Block;
 use pocketmine\block\BlockFactory;
-use pocketmine\entity\Entity;
+use pocketmine\block\utils\DyeColor;
+use pocketmine\entity\EntityFactory;
 use pocketmine\entity\Living;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\tile\Skull;
+use function constant;
+use function defined;
+use function explode;
+use function is_a;
+use function is_numeric;
+use function str_replace;
+use function strtoupper;
+use function trim;
 
 /**
  * Manages Item instance creation and registration
@@ -38,263 +47,274 @@ class ItemFactory{
 	/** @var \SplFixedArray */
 	private static $list = [];
 
+	/** @var Item|null */
+	private static $air = null;
+
 	public static function init(){
 		self::$list = []; //in case of re-initializing
 
-		self::registerItem(new Shovel(Item::IRON_SHOVEL, "Iron Shovel", TieredTool::TIER_IRON));
-		self::registerItem(new Pickaxe(Item::IRON_PICKAXE, "Iron Pickaxe", TieredTool::TIER_IRON));
-		self::registerItem(new Axe(Item::IRON_AXE, "Iron Axe", TieredTool::TIER_IRON));
-		self::registerItem(new FlintSteel());
-		self::registerItem(new Apple());
-		self::registerItem(new Bow());
-		self::registerItem(new Arrow());
-		self::registerItem(new Coal(Item::COAL, 0, "Coal"));
-		self::registerItem(new Coal(Item::COAL, 1, "Charcoal"));
-		self::registerItem(new Item(Item::DIAMOND, 0, "Diamond"));
-		self::registerItem(new Item(Item::IRON_INGOT, 0, "Iron Ingot"));
-		self::registerItem(new Item(Item::GOLD_INGOT, 0, "Gold Ingot"));
-		self::registerItem(new Sword(Item::IRON_SWORD, "Iron Sword", TieredTool::TIER_IRON));
-		self::registerItem(new Sword(Item::WOODEN_SWORD, "Wooden Sword", TieredTool::TIER_WOODEN));
-		self::registerItem(new Shovel(Item::WOODEN_SHOVEL, "Wooden Shovel", TieredTool::TIER_WOODEN));
-		self::registerItem(new Pickaxe(Item::WOODEN_PICKAXE, "Wooden Pickaxe", TieredTool::TIER_WOODEN));
-		self::registerItem(new Axe(Item::WOODEN_AXE, "Wooden Axe", TieredTool::TIER_WOODEN));
-		self::registerItem(new Sword(Item::STONE_SWORD, "Stone Sword", TieredTool::TIER_STONE));
-		self::registerItem(new Shovel(Item::STONE_SHOVEL, "Stone Shovel", TieredTool::TIER_STONE));
-		self::registerItem(new Pickaxe(Item::STONE_PICKAXE, "Stone Pickaxe", TieredTool::TIER_STONE));
-		self::registerItem(new Axe(Item::STONE_AXE, "Stone Axe", TieredTool::TIER_STONE));
-		self::registerItem(new Sword(Item::DIAMOND_SWORD, "Diamond Sword", TieredTool::TIER_DIAMOND));
-		self::registerItem(new Shovel(Item::DIAMOND_SHOVEL, "Diamond Shovel", TieredTool::TIER_DIAMOND));
-		self::registerItem(new Pickaxe(Item::DIAMOND_PICKAXE, "Diamond Pickaxe", TieredTool::TIER_DIAMOND));
-		self::registerItem(new Axe(Item::DIAMOND_AXE, "Diamond Axe", TieredTool::TIER_DIAMOND));
-		self::registerItem(new Stick());
-		self::registerItem(new Bowl());
-		self::registerItem(new MushroomStew());
-		self::registerItem(new Sword(Item::GOLDEN_SWORD, "Gold Sword", TieredTool::TIER_GOLD));
-		self::registerItem(new Shovel(Item::GOLDEN_SHOVEL, "Gold Shovel", TieredTool::TIER_GOLD));
-		self::registerItem(new Pickaxe(Item::GOLDEN_PICKAXE, "Gold Pickaxe", TieredTool::TIER_GOLD));
-		self::registerItem(new Axe(Item::GOLDEN_AXE, "Gold Axe", TieredTool::TIER_GOLD));
-		self::registerItem(new StringItem());
-		self::registerItem(new Item(Item::FEATHER, 0, "Feather"));
-		self::registerItem(new Item(Item::GUNPOWDER, 0, "Gunpowder"));
-		self::registerItem(new Hoe(Item::WOODEN_HOE, "Wooden Hoe", TieredTool::TIER_WOODEN));
-		self::registerItem(new Hoe(Item::STONE_HOE, "Stone Hoe", TieredTool::TIER_STONE));
-		self::registerItem(new Hoe(Item::IRON_HOE, "Iron Hoe", TieredTool::TIER_IRON));
-		self::registerItem(new Hoe(Item::DIAMOND_HOE, "Diamond Hoe", TieredTool::TIER_DIAMOND));
-		self::registerItem(new Hoe(Item::GOLDEN_HOE, "Golden Hoe", TieredTool::TIER_GOLD));
-		self::registerItem(new WheatSeeds());
-		self::registerItem(new Item(Item::WHEAT, 0, "Wheat"));
-		self::registerItem(new Bread());
-		self::registerItem(new LeatherCap());
-		self::registerItem(new LeatherTunic());
-		self::registerItem(new LeatherPants());
-		self::registerItem(new LeatherBoots());
-		self::registerItem(new ChainHelmet());
-		self::registerItem(new ChainChestplate());
-		self::registerItem(new ChainLeggings());
-		self::registerItem(new ChainBoots());
-		self::registerItem(new IronHelmet());
-		self::registerItem(new IronChestplate());
-		self::registerItem(new IronLeggings());
-		self::registerItem(new IronBoots());
-		self::registerItem(new DiamondHelmet());
-		self::registerItem(new DiamondChestplate());
-		self::registerItem(new DiamondLeggings());
-		self::registerItem(new DiamondBoots());
-		self::registerItem(new GoldHelmet());
-		self::registerItem(new GoldChestplate());
-		self::registerItem(new GoldLeggings());
-		self::registerItem(new GoldBoots());
-		self::registerItem(new Item(Item::FLINT, 0, "Flint"));
-		self::registerItem(new RawPorkchop());
-		self::registerItem(new CookedPorkchop());
-		self::registerItem(new PaintingItem());
-		self::registerItem(new GoldenApple());
-		self::registerItem(new Sign());
-		self::registerItem(new ItemBlock(Block::OAK_DOOR_BLOCK, 0, Item::OAK_DOOR));
-
+		self::register(new Apple());
+		self::register(new Arrow());
+		self::register(new Axe(Item::DIAMOND_AXE, "Diamond Axe", TieredTool::TIER_DIAMOND));
+		self::register(new Axe(Item::GOLDEN_AXE, "Gold Axe", TieredTool::TIER_GOLD));
+		self::register(new Axe(Item::IRON_AXE, "Iron Axe", TieredTool::TIER_IRON));
+		self::register(new Axe(Item::STONE_AXE, "Stone Axe", TieredTool::TIER_STONE));
+		self::register(new Axe(Item::WOODEN_AXE, "Wooden Axe", TieredTool::TIER_WOODEN));
+		self::register(new BakedPotato());
+		self::register(new Beetroot());
+		self::register(new BeetrootSeeds());
+		self::register(new BeetrootSoup());
+		self::register(new BlazeRod());
+		self::register(new Boat());
+		self::register(new Book());
+		self::register(new Bow());
+		self::register(new Bowl());
+		self::register(new Bread());
+		self::register(new Bucket(Item::BUCKET, 0, "Bucket"));
+		self::register(new Carrot());
+		self::register(new ChainBoots());
+		self::register(new ChainChestplate());
+		self::register(new ChainHelmet());
+		self::register(new ChainLeggings());
+		self::register(new ChorusFruit());
+		self::register(new Clock());
+		self::register(new Clownfish());
+		self::register(new Coal(Item::COAL, 0, "Coal"));
+		self::register(new Coal(Item::COAL, 1, "Charcoal"));
+		self::register(new CocoaBeans(Item::DYE, 3, "Cocoa Beans"));
+		self::register(new Compass());
+		self::register(new CookedChicken());
+		self::register(new CookedFish());
+		self::register(new CookedMutton());
+		self::register(new CookedPorkchop());
+		self::register(new CookedRabbit());
+		self::register(new CookedSalmon());
+		self::register(new Cookie());
+		self::register(new DiamondBoots());
+		self::register(new DiamondChestplate());
+		self::register(new DiamondHelmet());
+		self::register(new DiamondLeggings());
+		self::register(new DriedKelp());
+		self::register(new Egg());
+		self::register(new EnderPearl());
+		self::register(new ExperienceBottle());
+		self::register(new Fertilizer(Item::DYE, 15, "Bone Meal"));
+		self::register(new FishingRod());
+		self::register(new FlintSteel());
+		self::register(new GlassBottle());
+		self::register(new GoldBoots());
+		self::register(new GoldChestplate());
+		self::register(new GoldHelmet());
+		self::register(new GoldLeggings());
+		self::register(new GoldenApple());
+		self::register(new GoldenAppleEnchanted());
+		self::register(new GoldenCarrot());
+		self::register(new Hoe(Item::DIAMOND_HOE, "Diamond Hoe", TieredTool::TIER_DIAMOND));
+		self::register(new Hoe(Item::GOLDEN_HOE, "Golden Hoe", TieredTool::TIER_GOLD));
+		self::register(new Hoe(Item::IRON_HOE, "Iron Hoe", TieredTool::TIER_IRON));
+		self::register(new Hoe(Item::STONE_HOE, "Stone Hoe", TieredTool::TIER_STONE));
+		self::register(new Hoe(Item::WOODEN_HOE, "Wooden Hoe", TieredTool::TIER_WOODEN));
+		self::register(new IronBoots());
+		self::register(new IronChestplate());
+		self::register(new IronHelmet());
+		self::register(new IronLeggings());
+		self::register(new Item(Item::BLAZE_POWDER, 0, "Blaze Powder"));
+		self::register(new Item(Item::BLEACH, 0, "Bleach")); //EDU
+		self::register(new Item(Item::BONE, 0, "Bone"));
+		self::register(new Item(Item::BRICK, 0, "Brick"));
+		self::register(new Item(Item::CHORUS_FRUIT_POPPED, 0, "Popped Chorus Fruit"));
+		self::register(new Item(Item::CLAY_BALL, 0, "Clay"));
+		self::register(new Item(Item::DIAMOND, 0, "Diamond"));
+		self::register(new Item(Item::DRAGON_BREATH, 0, "Dragon's Breath"));
+		self::register(new Item(Item::DYE, 0, "Ink Sac"));
+		self::register(new Item(Item::DYE, 4, "Lapis Lazuli"));
+		self::register(new Item(Item::EMERALD, 0, "Emerald"));
+		self::register(new Item(Item::FEATHER, 0, "Feather"));
+		self::register(new Item(Item::FERMENTED_SPIDER_EYE, 0, "Fermented Spider Eye"));
+		self::register(new Item(Item::FLINT, 0, "Flint"));
+		self::register(new Item(Item::GHAST_TEAR, 0, "Ghast Tear"));
+		self::register(new Item(Item::GLISTERING_MELON, 0, "Glistering Melon"));
+		self::register(new Item(Item::GLOWSTONE_DUST, 0, "Glowstone Dust"));
+		self::register(new Item(Item::GOLD_INGOT, 0, "Gold Ingot"));
+		self::register(new Item(Item::GOLD_NUGGET, 0, "Gold Nugget"));
+		self::register(new Item(Item::GUNPOWDER, 0, "Gunpowder"));
+		self::register(new Item(Item::HEART_OF_THE_SEA, 0, "Heart of the Sea"));
+		self::register(new Item(Item::IRON_INGOT, 0, "Iron Ingot"));
+		self::register(new Item(Item::IRON_NUGGET, 0, "Iron Nugget"));
+		self::register(new Item(Item::LEATHER, 0, "Leather"));
+		self::register(new Item(Item::MAGMA_CREAM, 0, "Magma Cream"));
+		self::register(new Item(Item::NAUTILUS_SHELL, 0, "Nautilus Shell"));
+		self::register(new Item(Item::NETHER_BRICK, 0, "Nether Brick"));
+		self::register(new Item(Item::NETHER_QUARTZ, 0, "Nether Quartz"));
+		self::register(new Item(Item::NETHER_STAR, 0, "Nether Star"));
+		self::register(new Item(Item::PAPER, 0, "Paper"));
+		self::register(new Item(Item::PRISMARINE_CRYSTALS, 0, "Prismarine Crystals"));
+		self::register(new Item(Item::PRISMARINE_SHARD, 0, "Prismarine Shard"));
+		self::register(new Item(Item::RABBIT_FOOT, 0, "Rabbit's Foot"));
+		self::register(new Item(Item::RABBIT_HIDE, 0, "Rabbit Hide"));
+		self::register(new Item(Item::SHULKER_SHELL, 0, "Shulker Shell"));
+		self::register(new Item(Item::SLIME_BALL, 0, "Slimeball"));
+		self::register(new Item(Item::SUGAR, 0, "Sugar"));
+		self::register(new Item(Item::TURTLE_SHELL_PIECE, 0, "Scute"));
+		self::register(new Item(Item::WHEAT, 0, "Wheat"));
+		self::register(new ItemBlock(Block::ACACIA_DOOR_BLOCK, 0, Item::ACACIA_DOOR));
+		self::register(new ItemBlock(Block::BIRCH_DOOR_BLOCK, 0, Item::BIRCH_DOOR));
+		self::register(new ItemBlock(Block::BREWING_STAND_BLOCK, 0, Item::BREWING_STAND));
+		self::register(new ItemBlock(Block::CAKE_BLOCK, 0, Item::CAKE));
+		self::register(new ItemBlock(Block::CAULDRON_BLOCK, 0, Item::CAULDRON));
+		self::register(new ItemBlock(Block::COMPARATOR_BLOCK, 0, Item::COMPARATOR));
+		self::register(new ItemBlock(Block::DARK_OAK_DOOR_BLOCK, 0, Item::DARK_OAK_DOOR));
+		self::register(new ItemBlock(Block::FLOWER_POT_BLOCK, 0, Item::FLOWER_POT));
+		self::register(new ItemBlock(Block::HOPPER_BLOCK, 0, Item::HOPPER));
+		self::register(new ItemBlock(Block::IRON_DOOR_BLOCK, 0, Item::IRON_DOOR));
+		self::register(new ItemBlock(Block::ITEM_FRAME_BLOCK, 0, Item::ITEM_FRAME));
+		self::register(new ItemBlock(Block::JUNGLE_DOOR_BLOCK, 0, Item::JUNGLE_DOOR));
+		self::register(new ItemBlock(Block::NETHER_WART_PLANT, 0, Item::NETHER_WART));
+		self::register(new ItemBlock(Block::OAK_DOOR_BLOCK, 0, Item::OAK_DOOR));
+		self::register(new ItemBlock(Block::REPEATER_BLOCK, 0, Item::REPEATER));
+		self::register(new ItemBlock(Block::SKULL_BLOCK, Skull::TYPE_CREEPER, Item::SKULL));
+		self::register(new ItemBlock(Block::SKULL_BLOCK, Skull::TYPE_DRAGON, Item::SKULL));
+		self::register(new ItemBlock(Block::SKULL_BLOCK, Skull::TYPE_HUMAN, Item::SKULL));
+		self::register(new ItemBlock(Block::SKULL_BLOCK, Skull::TYPE_SKELETON, Item::SKULL));
+		self::register(new ItemBlock(Block::SKULL_BLOCK, Skull::TYPE_WITHER, Item::SKULL));
+		self::register(new ItemBlock(Block::SKULL_BLOCK, Skull::TYPE_ZOMBIE, Item::SKULL));
+		self::register(new ItemBlock(Block::SPRUCE_DOOR_BLOCK, 0, Item::SPRUCE_DOOR));
+		self::register(new ItemBlock(Block::SUGARCANE_BLOCK, 0, Item::SUGARCANE));
+		self::register(new LeatherBoots());
+		self::register(new LeatherCap());
+		self::register(new LeatherPants());
+		self::register(new LeatherTunic());
 		//TODO: fix metadata for buckets with still liquid in them
 		//the meta values are intentionally hardcoded because block IDs will change in the future
-		self::registerItem(new Bucket(Item::BUCKET, 0, "Bucket"));
-		self::registerItem(new MilkBucket(Item::BUCKET, 1, "Milk Bucket"));
-		self::registerItem(new LiquidBucket(Item::BUCKET, 8, "Water Bucket", Block::FLOWING_WATER));
-		self::registerItem(new LiquidBucket(Item::BUCKET, 10, "Lava Bucket", Block::FLOWING_LAVA));
+		self::register(new LiquidBucket(Item::BUCKET, 10, "Lava Bucket", Block::FLOWING_LAVA));
+		self::register(new LiquidBucket(Item::BUCKET, 8, "Water Bucket", Block::FLOWING_WATER));
+		self::register(new Melon());
+		self::register(new MelonSeeds());
+		self::register(new MilkBucket(Item::BUCKET, 1, "Milk Bucket"));
+		self::register(new Minecart());
+		self::register(new MushroomStew());
+		self::register(new PaintingItem());
+		self::register(new Pickaxe(Item::DIAMOND_PICKAXE, "Diamond Pickaxe", TieredTool::TIER_DIAMOND));
+		self::register(new Pickaxe(Item::GOLDEN_PICKAXE, "Gold Pickaxe", TieredTool::TIER_GOLD));
+		self::register(new Pickaxe(Item::IRON_PICKAXE, "Iron Pickaxe", TieredTool::TIER_IRON));
+		self::register(new Pickaxe(Item::STONE_PICKAXE, "Stone Pickaxe", TieredTool::TIER_STONE));
+		self::register(new Pickaxe(Item::WOODEN_PICKAXE, "Wooden Pickaxe", TieredTool::TIER_WOODEN));
+		self::register(new PoisonousPotato());
+		self::register(new Potato());
+		self::register(new Pufferfish());
+		self::register(new PumpkinPie());
+		self::register(new PumpkinSeeds());
+		self::register(new RabbitStew());
+		self::register(new RawBeef());
+		self::register(new RawChicken());
+		self::register(new RawFish());
+		self::register(new RawMutton());
+		self::register(new RawPorkchop());
+		self::register(new RawRabbit());
+		self::register(new RawSalmon());
+		self::register(new Redstone());
+		self::register(new RottenFlesh());
+		self::register(new Shears());
+		self::register(new Shovel(Item::DIAMOND_SHOVEL, "Diamond Shovel", TieredTool::TIER_DIAMOND));
+		self::register(new Shovel(Item::GOLDEN_SHOVEL, "Gold Shovel", TieredTool::TIER_GOLD));
+		self::register(new Shovel(Item::IRON_SHOVEL, "Iron Shovel", TieredTool::TIER_IRON));
+		self::register(new Shovel(Item::STONE_SHOVEL, "Stone Shovel", TieredTool::TIER_STONE));
+		self::register(new Shovel(Item::WOODEN_SHOVEL, "Wooden Shovel", TieredTool::TIER_WOODEN));
+		self::register(new Sign());
+		self::register(new Snowball());
+		self::register(new SpiderEye());
+		self::register(new Steak());
+		self::register(new Stick());
+		self::register(new StringItem());
+		self::register(new Sword(Item::DIAMOND_SWORD, "Diamond Sword", TieredTool::TIER_DIAMOND));
+		self::register(new Sword(Item::GOLDEN_SWORD, "Gold Sword", TieredTool::TIER_GOLD));
+		self::register(new Sword(Item::IRON_SWORD, "Iron Sword", TieredTool::TIER_IRON));
+		self::register(new Sword(Item::STONE_SWORD, "Stone Sword", TieredTool::TIER_STONE));
+		self::register(new Sword(Item::WOODEN_SWORD, "Wooden Sword", TieredTool::TIER_WOODEN));
+		self::register(new Totem());
+		self::register(new WheatSeeds());
+		self::register(new WritableBook());
+		self::register(new WrittenBook());
 
-		self::registerItem(new Minecart());
-		//TODO: SADDLE
-		self::registerItem(new ItemBlock(Block::IRON_DOOR_BLOCK, 0, Item::IRON_DOOR));
-		self::registerItem(new Redstone());
-		self::registerItem(new Snowball());
-
-		self::registerItem(new Boat());
-		self::registerItem(new Item(Item::LEATHER, 0, "Leather"));
-		//TODO: KELP
-		self::registerItem(new Item(Item::BRICK, 0, "Brick"));
-		self::registerItem(new Item(Item::CLAY_BALL, 0, "Clay"));
-		self::registerItem(new ItemBlock(Block::SUGARCANE_BLOCK, 0, Item::SUGARCANE));
-		self::registerItem(new Item(Item::PAPER, 0, "Paper"));
-		self::registerItem(new Book());
-		self::registerItem(new Item(Item::SLIME_BALL, 0, "Slimeball"));
-		//TODO: CHEST_MINECART
-
-		self::registerItem(new Egg());
-		self::registerItem(new Compass());
-		self::registerItem(new FishingRod());
-		self::registerItem(new Clock());
-		self::registerItem(new Item(Item::GLOWSTONE_DUST, 0, "Glowstone Dust"));
-		self::registerItem(new RawFish());
-		self::registerItem(new CookedFish());
-		for($i = 0; $i < 16; ++$i){
-			//TODO: add colour constants (this is messy)
-			self::registerItem(new Dye($i));
-			self::registerItem(new Bed($i));
-			self::registerItem(new Banner($i));
+		/** @var int[]|\SplObjectStorage $dyeMap */
+		$dyeMap = new \SplObjectStorage();
+		$dyeMap[DyeColor::BLACK()] = 16;
+		$dyeMap[DyeColor::BROWN()] = 17;
+		$dyeMap[DyeColor::BLUE()] = 18;
+		$dyeMap[DyeColor::WHITE()] = 19;
+		foreach(DyeColor::getAll() as $color){
+			//TODO: use colour object directly
+			//TODO: add interface to dye-colour objects
+			self::register(new Dye($dyeMap[$color] ?? $color->getInvertedMagicNumber(), $color->getDisplayName() . " Dye"));
+			self::register(new Bed($color->getMagicNumber(), $color->getDisplayName() . " Bed"));
+			self::register(new Banner($color->getInvertedMagicNumber(), $color->getDisplayName() . " Banner"));
 		}
-		self::registerItem(new Item(Item::BONE, 0, "Bone"));
-		self::registerItem(new Item(Item::SUGAR, 0, "Sugar"));
-		self::registerItem(new ItemBlock(Block::CAKE_BLOCK, 0, Item::CAKE));
-
-		self::registerItem(new ItemBlock(Block::REPEATER_BLOCK, 0, Item::REPEATER));
-		self::registerItem(new Cookie());
-		//TODO: FILLED_MAP
-		self::registerItem(new Shears());
-		self::registerItem(new Melon());
-		self::registerItem(new PumpkinSeeds());
-		self::registerItem(new MelonSeeds());
-		self::registerItem(new RawBeef());
-		self::registerItem(new Steak());
-		self::registerItem(new RawChicken());
-		self::registerItem(new CookedChicken());
-		self::registerItem(new RottenFlesh());
-		self::registerItem(new EnderPearl());
-		self::registerItem(new BlazeRod());
-		self::registerItem(new Item(Item::GHAST_TEAR, 0, "Ghast Tear"));
-		self::registerItem(new Item(Item::GOLD_NUGGET, 0, "Gold Nugget"));
-		self::registerItem(new ItemBlock(Block::NETHER_WART_PLANT, 0, Item::NETHER_WART));
 
 		foreach(Potion::ALL as $type){
-			self::registerItem(new Potion($type));
-			self::registerItem(new SplashPotion($type));
-			//TODO: LINGERING_POTION
+			self::register(new Potion($type));
+			self::register(new SplashPotion($type));
 		}
-		self::registerItem(new GlassBottle());
-		self::registerItem(new SpiderEye());
-		self::registerItem(new Item(Item::FERMENTED_SPIDER_EYE, 0, "Fermented Spider Eye"));
-		self::registerItem(new Item(Item::BLAZE_POWDER, 0, "Blaze Powder"));
-		self::registerItem(new Item(Item::MAGMA_CREAM, 0, "Magma Cream"));
-		self::registerItem(new ItemBlock(Block::BREWING_STAND_BLOCK, 0, Item::BREWING_STAND));
-		self::registerItem(new ItemBlock(Block::CAULDRON_BLOCK, 0, Item::CAULDRON));
-		//TODO: ENDER_EYE
-		self::registerItem(new Item(Item::GLISTERING_MELON, 0, "Glistering Melon"));
 
-		foreach(Entity::getKnownEntityTypes() as $className){
-			/** @var Living $className */
+		foreach(EntityFactory::getKnownTypes() as $className){
+			/** @var Living|string $className */
 			if(is_a($className, Living::class, true) and $className::NETWORK_ID !== -1){
-				self::registerItem(new SpawnEgg(Item::SPAWN_EGG, $className::NETWORK_ID, "Spawn Egg"));
+				self::register(new SpawnEgg(Item::SPAWN_EGG, $className::NETWORK_ID, $className, "Spawn Egg"));
 			}
 		}
 
-		self::registerItem(new ExperienceBottle());
-		//TODO: FIREBALL
-		self::registerItem(new WritableBook());
-		self::registerItem(new WrittenBook());
-		self::registerItem(new Item(Item::EMERALD, 0, "Emerald"));
-		self::registerItem(new ItemBlock(Block::ITEM_FRAME_BLOCK, 0, Item::ITEM_FRAME));
-		self::registerItem(new ItemBlock(Block::FLOWER_POT_BLOCK, 0, Item::FLOWER_POT));
-		self::registerItem(new Carrot());
-		self::registerItem(new Potato());
-		self::registerItem(new BakedPotato());
-		self::registerItem(new PoisonousPotato());
-		//TODO: EMPTYMAP
-		self::registerItem(new GoldenCarrot());
-
-		self::registerItem(new ItemBlock(Block::SKULL_BLOCK, Skull::TYPE_SKELETON, Item::SKULL));
-		self::registerItem(new ItemBlock(Block::SKULL_BLOCK, Skull::TYPE_WITHER, Item::SKULL));
-		self::registerItem(new ItemBlock(Block::SKULL_BLOCK, Skull::TYPE_ZOMBIE, Item::SKULL));
-		self::registerItem(new ItemBlock(Block::SKULL_BLOCK, Skull::TYPE_HUMAN, Item::SKULL));
-		self::registerItem(new ItemBlock(Block::SKULL_BLOCK, Skull::TYPE_CREEPER, Item::SKULL));
-		self::registerItem(new ItemBlock(Block::SKULL_BLOCK, Skull::TYPE_DRAGON, Item::SKULL));
-
-		//TODO: CARROTONASTICK
-		self::registerItem(new Item(Item::NETHER_STAR, 0, "Nether Star"));
-		self::registerItem(new PumpkinPie());
-		//TODO: FIREWORKS
-		//TODO: FIREWORKSCHARGE
-		//TODO: ENCHANTED_BOOK
-		self::registerItem(new ItemBlock(Block::COMPARATOR_BLOCK, 0, Item::COMPARATOR));
-		self::registerItem(new Item(Item::NETHER_BRICK, 0, "Nether Brick"));
-		self::registerItem(new Item(Item::NETHER_QUARTZ, 0, "Nether Quartz"));
-		//TODO: MINECART_WITH_TNT
-		//TODO: HOPPER_MINECART
-		self::registerItem(new Item(Item::PRISMARINE_SHARD, 0, "Prismarine Shard"));
-		self::registerItem(new ItemBlock(Block::HOPPER_BLOCK, 0, Item::HOPPER));
-		self::registerItem(new RawRabbit());
-		self::registerItem(new CookedRabbit());
-		self::registerItem(new RabbitStew());
-		self::registerItem(new Item(Item::RABBIT_FOOT, 0, "Rabbit's Foot"));
-		self::registerItem(new Item(Item::RABBIT_HIDE, 0, "Rabbit Hide"));
-		//TODO: HORSEARMORLEATHER
-		//TODO: HORSEARMORIRON
-		//TODO: GOLD_HORSE_ARMOR
-		//TODO: DIAMOND_HORSE_ARMOR
-		//TODO: LEAD
-		//TODO: NAMETAG
-		self::registerItem(new Item(Item::PRISMARINE_CRYSTALS, 0, "Prismarine Crystals"));
-		self::registerItem(new RawMutton());
-		self::registerItem(new CookedMutton());
-		//TODO: ARMOR_STAND
-		//TODO: END_CRYSTAL
-		self::registerItem(new ItemBlock(Block::SPRUCE_DOOR_BLOCK, 0, Item::SPRUCE_DOOR));
-		self::registerItem(new ItemBlock(Block::BIRCH_DOOR_BLOCK, 0, Item::BIRCH_DOOR));
-		self::registerItem(new ItemBlock(Block::JUNGLE_DOOR_BLOCK, 0, Item::JUNGLE_DOOR));
-		self::registerItem(new ItemBlock(Block::ACACIA_DOOR_BLOCK, 0, Item::ACACIA_DOOR));
-		self::registerItem(new ItemBlock(Block::DARK_OAK_DOOR_BLOCK, 0, Item::DARK_OAK_DOOR));
-		self::registerItem(new ChorusFruit());
-		self::registerItem(new Item(Item::CHORUS_FRUIT_POPPED, 0, "Popped Chorus Fruit"));
-
-		self::registerItem(new Item(Item::DRAGON_BREATH, 0, "Dragon's Breath"));
-
-		//TODO: SPARKLER
-		//TODO: COMMAND_BLOCK_MINECART
-		//TODO: ELYTRA
-		self::registerItem(new Item(Item::SHULKER_SHELL, 0, "Shulker Shell"));
-
-		//TODO: MEDICINE
-		//TODO: BALLOON
-		//TODO: RAPID_FERTILIZER
-		self::registerItem(new Totem());
-		self::registerItem(new Item(Item::BLEACH, 0, "Bleach")); //EDU
-		self::registerItem(new Item(Item::IRON_NUGGET, 0, "Iron Nugget"));
-		//TODO: ICE_BOMB
-
-		//TODO: TRIDENT
-
-		self::registerItem(new Beetroot());
-		self::registerItem(new BeetrootSeeds());
-		self::registerItem(new BeetrootSoup());
-		self::registerItem(new RawSalmon());
-		self::registerItem(new Clownfish());
-		self::registerItem(new Pufferfish());
-		self::registerItem(new CookedSalmon());
-		self::registerItem(new DriedKelp());
-		self::registerItem(new Item(Item::NAUTILUS_SHELL, 0, "Nautilus Shell"));
-		self::registerItem(new GoldenAppleEnchanted());
-		self::registerItem(new Item(Item::HEART_OF_THE_SEA, 0, "Heart of the Sea"));
-		self::registerItem(new Item(Item::TURTLE_SHELL_PIECE, 0, "Scute"));
-		//TODO: TURTLE_HELMET
-
-		//TODO: COMPOUND
-		//TODO: RECORD_13
-		//TODO: RECORD_CAT
-		//TODO: RECORD_BLOCKS
-		//TODO: RECORD_CHIRP
-		//TODO: RECORD_FAR
-		//TODO: RECORD_MALL
-		//TODO: RECORD_MELLOHI
-		//TODO: RECORD_STAL
-		//TODO: RECORD_STRAD
-		//TODO: RECORD_WARD
-		//TODO: RECORD_11
-		//TODO: RECORD_WAIT
+		//TODO: minecraft:acacia_sign
+		//TODO: minecraft:armor_stand
+		//TODO: minecraft:balloon
+		//TODO: minecraft:birch_sign
+		//TODO: minecraft:carrotOnAStick
+		//TODO: minecraft:chest_minecart
+		//TODO: minecraft:command_block_minecart
+		//TODO: minecraft:compound
+		//TODO: minecraft:crossbow
+		//TODO: minecraft:darkoak_sign
+		//TODO: minecraft:elytra
+		//TODO: minecraft:emptyMap
+		//TODO: minecraft:enchanted_book
+		//TODO: minecraft:end_crystal
+		//TODO: minecraft:ender_eye
+		//TODO: minecraft:fireball
+		//TODO: minecraft:fireworks
+		//TODO: minecraft:fireworksCharge
+		//TODO: minecraft:glow_stick
+		//TODO: minecraft:hopper_minecart
+		//TODO: minecraft:horsearmordiamond
+		//TODO: minecraft:horsearmorgold
+		//TODO: minecraft:horsearmoriron
+		//TODO: minecraft:horsearmorleather
+		//TODO: minecraft:ice_bomb
+		//TODO: minecraft:jungle_sign
+		//TODO: minecraft:kelp
+		//TODO: minecraft:lead
+		//TODO: minecraft:lingering_potion
+		//TODO: minecraft:map
+		//TODO: minecraft:medicine
+		//TODO: minecraft:name_tag
+		//TODO: minecraft:phantom_membrane
+		//TODO: minecraft:rapid_fertilizer
+		//TODO: minecraft:record_11
+		//TODO: minecraft:record_13
+		//TODO: minecraft:record_blocks
+		//TODO: minecraft:record_cat
+		//TODO: minecraft:record_chirp
+		//TODO: minecraft:record_far
+		//TODO: minecraft:record_mall
+		//TODO: minecraft:record_mellohi
+		//TODO: minecraft:record_stal
+		//TODO: minecraft:record_strad
+		//TODO: minecraft:record_wait
+		//TODO: minecraft:record_ward
+		//TODO: minecraft:saddle
+		//TODO: minecraft:sparkler
+		//TODO: minecraft:spawn_egg
+		//TODO: minecraft:spruce_sign
+		//TODO: minecraft:tnt_minecart
+		//TODO: minecraft:trident
+		//TODO: minecraft:turtle_helmet
 	}
 
 	/**
@@ -310,7 +330,7 @@ class ItemFactory{
 	 * @throws \RuntimeException if something attempted to override an already-registered item without specifying the
 	 * $override parameter.
 	 */
-	public static function registerItem(Item $item, bool $override = false){
+	public static function register(Item $item, bool $override = false){
 		$id = $item->getId();
 		$variant = $item->getDamage();
 
@@ -324,10 +344,10 @@ class ItemFactory{
 	/**
 	 * Returns an instance of the Item with the specified id, meta, count and NBT.
 	 *
-	 * @param int         $id
-	 * @param int         $meta
-	 * @param int         $count
-	 * @param CompoundTag $tags
+	 * @param int              $id
+	 * @param int              $meta
+	 * @param int              $count
+	 * @param CompoundTag|null $tags
 	 *
 	 * @return Item
 	 * @throws \InvalidArgumentException
@@ -360,51 +380,42 @@ class ItemFactory{
 	}
 
 	/**
-	 * Tries to parse the specified string into Item ID/meta identifiers, and returns Item instances it created.
+	 * Tries to parse the specified string into Item types.
 	 *
 	 * Example accepted formats:
 	 * - `diamond_pickaxe:5`
 	 * - `minecraft:string`
 	 * - `351:4 (lapis lazuli ID:meta)`
 	 *
-	 * If multiple item instances are to be created, their identifiers must be comma-separated, for example:
-	 * `diamond_pickaxe,wooden_shovel:18,iron_ingot`
-	 *
 	 * @param string $str
-	 * @param bool   $multiple
 	 *
-	 * @return Item[]|Item
+	 * @return Item
 	 *
 	 * @throws \InvalidArgumentException if the given string cannot be parsed as an item identifier
 	 */
-	public static function fromString(string $str, bool $multiple = false){
-		if($multiple){
-			$blocks = [];
-			foreach(explode(",", $str) as $b){
-				$blocks[] = self::fromString($b, false);
-			}
-
-			return $blocks;
+	public static function fromString(string $str) : Item{
+		$b = explode(":", str_replace([" ", "minecraft:"], ["_", ""], trim($str)));
+		if(!isset($b[1])){
+			$meta = 0;
+		}elseif(is_numeric($b[1])){
+			$meta = (int) $b[1];
 		}else{
-			$b = explode(":", str_replace([" ", "minecraft:"], ["_", ""], trim($str)));
-			if(!isset($b[1])){
-				$meta = 0;
-			}elseif(is_numeric($b[1])){
-				$meta = (int) $b[1];
-			}else{
-				throw new \InvalidArgumentException("Unable to parse \"" . $b[1] . "\" from \"" . $str . "\" as a valid meta value");
-			}
-
-			if(is_numeric($b[0])){
-				$item = self::get((int) $b[0], $meta);
-			}elseif(defined(ItemIds::class . "::" . strtoupper($b[0]))){
-				$item = self::get(constant(ItemIds::class . "::" . strtoupper($b[0])), $meta);
-			}else{
-				throw new \InvalidArgumentException("Unable to resolve \"" . $str . "\" to a valid item");
-			}
-
-			return $item;
+			throw new \InvalidArgumentException("Unable to parse \"" . $b[1] . "\" from \"" . $str . "\" as a valid meta value");
 		}
+
+		if(is_numeric($b[0])){
+			$item = self::get((int) $b[0], $meta);
+		}elseif(defined(ItemIds::class . "::" . strtoupper($b[0]))){
+			$item = self::get(constant(ItemIds::class . "::" . strtoupper($b[0])), $meta);
+		}else{
+			throw new \InvalidArgumentException("Unable to resolve \"" . $str . "\" to a valid item");
+		}
+
+		return $item;
+	}
+
+	public static function air() : Item{
+		return self::$air ?? (self::$air = self::get(ItemIds::AIR, 0, 0));
 	}
 
 	/**

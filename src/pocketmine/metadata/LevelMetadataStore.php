@@ -25,11 +25,12 @@ namespace pocketmine\metadata;
 
 use pocketmine\level\Level;
 use pocketmine\plugin\Plugin;
+use function strtolower;
 
 class LevelMetadataStore extends MetadataStore{
 
 	private function disambiguate(Level $level, string $metadataKey) : string{
-		return strtolower($level->getName()) . ":" . $metadataKey;
+		return strtolower($level->getFolderName()) . ":" . $metadataKey;
 	}
 
 	public function getMetadata(Level $subject, string $metadataKey){

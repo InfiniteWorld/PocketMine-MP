@@ -24,13 +24,14 @@ declare(strict_types=1);
 namespace pocketmine\level\sound;
 
 use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\DataPacket;
+use pocketmine\network\mcpe\protocol\ClientboundPacket;
 
-abstract class Sound extends Vector3{
+interface Sound{
 
 	/**
-	 * @return DataPacket|DataPacket[]
+	 * @param Vector3 $pos
+	 *
+	 * @return ClientboundPacket|ClientboundPacket[]
 	 */
-	abstract public function encode();
-
+	public function encode(Vector3 $pos);
 }

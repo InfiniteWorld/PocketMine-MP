@@ -32,7 +32,6 @@ use pocketmine\event\entity\EntityDamageByBlockEvent;
 use pocketmine\event\entity\EntityDamageByEntityEvent;
 use pocketmine\event\entity\EntityDamageEvent;
 use pocketmine\event\entity\EntityExplodeEvent;
-use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\level\particle\HugeExplodeSeedParticle;
 use pocketmine\level\utils\SubChunkIteratorManager;
@@ -41,9 +40,9 @@ use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\ExplodePacket;
 use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
-use pocketmine\tile\Chest;
-use pocketmine\tile\Container;
-use pocketmine\tile\Tile;
+use function ceil;
+use function floor;
+use function mt_rand;
 
 class Explosion{
 	/** @var int */
@@ -72,7 +71,7 @@ class Explosion{
 	 */
 	public function __construct(Position $center, float $size, $what = null){
 		if(!$center->isValid()){
-			throw new \InvalidArgumentException("Position does not have a valid level");
+			throw new \InvalidArgumentException("Position does not have a valid world");
 		}
 		$this->source = $center;
 		$this->level = $center->getLevel();
@@ -199,33 +198,23 @@ class Explosion{
 		}
 
 
-		$air = ItemFactory::get(Item::AIR);
+		$air = ItemFactory::air();
 		$airBlock = BlockFactory::get(Block::AIR);
 
 		foreach($this->affectedBlocks as $block){
-			$yieldDrops = false;
-
 			if($block instanceof TNT){
 				$block->ignite(mt_rand(10, 30));
-			}elseif($yieldDrops = (mt_rand(0, 100) < $yield)){
-				foreach($block->getDrops($air) as $drop){
-					$this->level->dropItem($block->add(0.5, 0.5, 0.5), $drop);
-				}
-			}
-
-			$this->level->setBlockAt($block->x, $block->y, $block->z, $airBlock, false); //TODO: should updating really be disabled here?
-
-			$t = $this->level->getTileAt($block->x, $block->y, $block->z);
-			if($t instanceof Tile){
-				if($yieldDrops and $t instanceof Container){
-					if($t instanceof Chest){
-						$t->unpair();
+			}else{
+				if(mt_rand(0, 100) < $yield){
+					foreach($block->getDrops($air) as $drop){
+						$this->level->dropItem($block->add(0.5, 0.5, 0.5), $drop);
 					}
-
-					$t->getInventory()->dropContents($this->level, $t->add(0.5, 0.5, 0.5));
 				}
-
-				$t->close();
+				if(($t = $this->level->getTileAt($block->x, $block->y, $block->z)) !== null){
+					$t->onBlockDestroyed(); //needed to create drops for inventories
+				}
+				$this->level->setBlockAt($block->x, $block->y, $block->z, $airBlock, false); //TODO: should updating really be disabled here?
+				$this->level->updateAllLight($block);
 			}
 
 			$pos = new Vector3($block->x, $block->y, $block->z);
@@ -256,7 +245,7 @@ class Explosion{
 		$pk->records = $send;
 		$this->level->broadcastPacketToViewers($source, $pk);
 
-		$this->level->addParticle(new HugeExplodeSeedParticle($source));
+		$this->level->addParticle($source, new HugeExplodeSeedParticle());
 		$this->level->broadcastLevelSoundEvent($source, LevelSoundEventPacket::SOUND_EXPLODE);
 
 		return true;

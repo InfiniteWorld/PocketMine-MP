@@ -28,13 +28,25 @@ namespace pocketmine\level\format;
 
 use pocketmine\block\BlockFactory;
 use pocketmine\entity\Entity;
+use pocketmine\entity\EntityFactory;
 use pocketmine\level\Level;
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\nbt\tag\StringTag;
 use pocketmine\Player;
 use pocketmine\tile\Spawnable;
 use pocketmine\tile\Tile;
+use pocketmine\tile\TileFactory;
 use pocketmine\utils\BinaryStream;
+use function array_fill;
+use function array_filter;
+use function array_values;
+use function assert;
+use function chr;
+use function count;
+use function ord;
+use function pack;
+use function str_repeat;
+use function strlen;
+use function unpack;
 
 class Chunk{
 
@@ -590,18 +602,13 @@ class Chunk{
 				$level->timings->syncChunkLoadEntitiesTimer->startTiming();
 				foreach($this->NBTentities as $nbt){
 					if($nbt instanceof CompoundTag){
-						if(!$nbt->hasTag("id")){ //allow mixed types (because of leveldb)
-							$changed = true;
-							continue;
-						}
-
 						try{
-							$entity = Entity::createEntity($nbt->getTag("id")->getValue(), $level, $nbt);
+							$entity = EntityFactory::createFromData($level, $nbt);
 							if(!($entity instanceof Entity)){
 								$changed = true;
 								continue;
 							}
-						}catch(\Throwable $t){
+						}catch(\Exception $t){ //TODO: this shouldn't be here
 							$level->getServer()->getLogger()->logException($t);
 							$changed = true;
 							continue;
@@ -613,12 +620,9 @@ class Chunk{
 				$level->timings->syncChunkLoadTileEntitiesTimer->startTiming();
 				foreach($this->NBTtiles as $nbt){
 					if($nbt instanceof CompoundTag){
-						if(!$nbt->hasTag(Tile::TAG_ID, StringTag::class)){
-							$changed = true;
-							continue;
-						}
-
-						if(Tile::createTile($nbt->getString(Tile::TAG_ID), $level, $nbt) === null){
+						if(($tile = TileFactory::createFromData($level, $nbt)) !== null){
+							$level->addTile($tile);
+						}else{
 							$changed = true;
 							continue;
 						}

@@ -28,6 +28,39 @@ use pocketmine\scheduler\DumpWorkerMemoryTask;
 use pocketmine\scheduler\GarbageCollectionTask;
 use pocketmine\timings\Timings;
 use pocketmine\utils\Utils;
+use function arsort;
+use function count;
+use function fclose;
+use function file_exists;
+use function file_put_contents;
+use function fopen;
+use function fwrite;
+use function gc_collect_cycles;
+use function gc_disable;
+use function gc_enable;
+use function get_class;
+use function get_declared_classes;
+use function implode;
+use function ini_get;
+use function ini_set;
+use function is_array;
+use function is_object;
+use function is_resource;
+use function is_string;
+use function json_encode;
+use function min;
+use function mkdir;
+use function preg_match;
+use function print_r;
+use function round;
+use function spl_object_hash;
+use function sprintf;
+use function strlen;
+use function strtoupper;
+use function substr;
+use const JSON_PRETTY_PRINT;
+use const JSON_UNESCAPED_SLASHES;
+use const SORT_NUMERIC;
 
 class MemoryManager{
 
@@ -178,13 +211,13 @@ class MemoryManager{
 		$this->server->getLogger()->debug(sprintf("[Memory Manager] %sLow memory triggered, limit %gMB, using %gMB",
 			$global ? "Global " : "", round(($limit / 1024) / 1024, 2), round(($memory / 1024) / 1024, 2)));
 		if($this->lowMemClearWorldCache){
-			foreach($this->server->getLevels() as $level){
+			foreach($this->server->getLevelManager()->getLevels() as $level){
 				$level->clearCache(true);
 			}
 		}
 
 		if($this->lowMemChunkGC){
-			foreach($this->server->getLevels() as $level){
+			foreach($this->server->getLevelManager()->getLevels() as $level){
 				$level->doChunkGarbageCollection();
 			}
 		}

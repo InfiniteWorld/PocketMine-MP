@@ -30,16 +30,6 @@ use pocketmine\item\TieredTool;
 
 class Magma extends Solid{
 
-	protected $id = Block::MAGMA;
-
-	public function __construct(){
-
-	}
-
-	public function getName() : string{
-		return "Magma Block";
-	}
-
 	public function getHardness() : float{
 		return 0.5;
 	}
@@ -60,7 +50,7 @@ class Magma extends Solid{
 		return true;
 	}
 
-	public function onEntityCollide(Entity $entity) : void{
+	public function onEntityInside(Entity $entity) : void{
 		if(!$entity->isSneaking()){
 			$ev = new EntityDamageByBlockEvent($this, $entity, EntityDamageEvent::CAUSE_FIRE, 1);
 			$entity->attack($ev);

@@ -25,29 +25,20 @@ namespace pocketmine\block;
 
 use pocketmine\inventory\CraftingGrid;
 use pocketmine\item\Item;
+use pocketmine\math\Vector3;
 use pocketmine\Player;
 
 class CraftingTable extends Solid{
 
-	protected $id = self::CRAFTING_TABLE;
-
-	public function __construct(){
-
-	}
-
 	public function getHardness() : float{
 		return 2.5;
-	}
-
-	public function getName() : string{
-		return "Crafting Table";
 	}
 
 	public function getToolType() : int{
 		return BlockToolType::TYPE_AXE;
 	}
 
-	public function onActivate(Item $item, Player $player = null) : bool{
+	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($player instanceof Player){
 			$player->setCraftingGrid(new CraftingGrid($player, CraftingGrid::SIZE_BIG));
 		}

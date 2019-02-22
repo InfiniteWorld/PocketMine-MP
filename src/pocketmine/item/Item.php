@@ -33,8 +33,9 @@ use pocketmine\entity\Entity;
 use pocketmine\item\enchantment\Enchantment;
 use pocketmine\item\enchantment\EnchantmentInstance;
 use pocketmine\math\Vector3;
-use pocketmine\nbt\LittleEndianNBTStream;
+use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\NBT;
+use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\ListTag;
@@ -43,6 +44,14 @@ use pocketmine\nbt\tag\ShortTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\Player;
 use pocketmine\utils\Binary;
+use function array_map;
+use function base64_decode;
+use function base64_encode;
+use function file_get_contents;
+use function get_class;
+use function hex2bin;
+use function json_decode;
+use const DIRECTORY_SEPARATOR;
 
 class Item implements ItemIds, \JsonSerializable{
 	public const TAG_ENCH = "ench";
@@ -53,16 +62,18 @@ class Item implements ItemIds, \JsonSerializable{
 	public const TAG_DISPLAY_LORE = "Lore";
 
 
-	/** @var LittleEndianNBTStream */
+	/** @var LittleEndianNbtSerializer */
 	private static $cachedParser = null;
 
+	/**
+	 * @param string $tag
+	 *
+	 * @return CompoundTag
+	 * @throws NbtDataException
+	 */
 	private static function parseCompoundTag(string $tag) : CompoundTag{
-		if($tag === ""){
-			throw new \InvalidArgumentException("No NBT data found in supplied string");
-		}
-
 		if(self::$cachedParser === null){
-			self::$cachedParser = new LittleEndianNBTStream();
+			self::$cachedParser = new LittleEndianNbtSerializer();
 		}
 
 		return self::$cachedParser->read($tag);
@@ -70,7 +81,7 @@ class Item implements ItemIds, \JsonSerializable{
 
 	private static function writeCompoundTag(CompoundTag $tag) : string{
 		if(self::$cachedParser === null){
-			self::$cachedParser = new LittleEndianNBTStream();
+			self::$cachedParser = new LittleEndianNbtSerializer();
 		}
 
 		return self::$cachedParser->write($tag);
@@ -93,17 +104,17 @@ class Item implements ItemIds, \JsonSerializable{
 	}
 
 	/**
-	 * Tries to parse the specified string into Item ID/meta identifiers, and returns Item instances it created.
+	 * Tries to parse the specified string into Item types.
 	 *
 	 * This function redirects to {@link ItemFactory#fromString}.
 	 *
 	 * @param string $str
-	 * @param bool   $multiple
 	 *
-	 * @return Item[]|Item
+	 * @return Item
+	 * @throws \InvalidArgumentException
 	 */
-	public static function fromString(string $str, bool $multiple = false){
-		return ItemFactory::fromString($str, $multiple);
+	public static function fromString(string $str) : Item{
+		return ItemFactory::fromString($str);
 	}
 
 
@@ -148,7 +159,7 @@ class Item implements ItemIds, \JsonSerializable{
 	}
 
 	/**
-	 * @param $index
+	 * @param int $index
 	 *
 	 * @return Item|null
 	 */
@@ -238,16 +249,17 @@ class Item implements ItemIds, \JsonSerializable{
 	}
 
 	/**
-	 * @param int $id
-	 * @param int $level
+	 * @param Enchantment $enchantment
+	 * @param int         $level
 	 *
 	 * @return bool
 	 */
-	public function hasEnchantment(int $id, int $level = -1) : bool{
+	public function hasEnchantment(Enchantment $enchantment, int $level = -1) : bool{
 		$ench = $this->getNamedTagEntry(self::TAG_ENCH);
 		if(!($ench instanceof ListTag)){
 			return false;
 		}
+		$id = $enchantment->getId();
 
 		/** @var CompoundTag $entry */
 		foreach($ench as $entry){
@@ -260,16 +272,17 @@ class Item implements ItemIds, \JsonSerializable{
 	}
 
 	/**
-	 * @param int $id
+	 * @param Enchantment $enchantment
 	 *
 	 * @return EnchantmentInstance|null
 	 */
-	public function getEnchantment(int $id) : ?EnchantmentInstance{
+	public function getEnchantment(Enchantment $enchantment) : ?EnchantmentInstance{
 		$ench = $this->getNamedTagEntry(self::TAG_ENCH);
 		if(!($ench instanceof ListTag)){
 			return null;
 		}
 
+		$id = $enchantment->getId();
 		/** @var CompoundTag $entry */
 		foreach($ench as $entry){
 			if($entry->getShort("id") === $id){
@@ -284,17 +297,18 @@ class Item implements ItemIds, \JsonSerializable{
 	}
 
 	/**
-	 * @param int $id
-	 * @param int $level
+	 * @param Enchantment $enchantment
+	 * @param int         $level
 	 *
 	 * @return Item
 	 */
-	public function removeEnchantment(int $id, int $level = -1) : Item{
+	public function removeEnchantment(Enchantment $enchantment, int $level = -1) : Item{
 		$ench = $this->getNamedTagEntry(self::TAG_ENCH);
 		if(!($ench instanceof ListTag)){
 			return $this;
 		}
 
+		$id = $enchantment->getId();
 		/** @var CompoundTag $entry */
 		foreach($ench as $k => $entry){
 			if($entry->getShort("id") === $id and ($level === -1 or $entry->getShort("lvl") === $level)){
@@ -379,14 +393,15 @@ class Item implements ItemIds, \JsonSerializable{
 	 * Returns the level of the enchantment on this item with the specified ID, or 0 if the item does not have the
 	 * enchantment.
 	 *
-	 * @param int $enchantmentId
+	 * @param Enchantment $enchantment
 	 *
 	 * @return int
 	 */
-	public function getEnchantmentLevel(int $enchantmentId) : int{
+	public function getEnchantmentLevel(Enchantment $enchantment) : int{
 		$ench = $this->getNamedTag()->getListTag(self::TAG_ENCH);
 		if($ench !== null){
 			/** @var CompoundTag $entry */
+			$enchantmentId = $enchantment->getId();
 			foreach($ench as $entry){
 				if($entry->getShort("id") === $enchantmentId){
 					return $entry->getShort("lvl");
@@ -629,7 +644,7 @@ class Item implements ItemIds, \JsonSerializable{
 	 * @return Block
 	 */
 	public function getBlock() : Block{
-		return BlockFactory::get(self::AIR);
+		return BlockFactory::get(Block::AIR);
 	}
 
 	/**
@@ -724,10 +739,10 @@ class Item implements ItemIds, \JsonSerializable{
 	 * @param int     $face
 	 * @param Vector3 $clickVector
 	 *
-	 * @return bool
+	 * @return ItemUseResult
 	 */
-	public function onActivate(Player $player, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector) : bool{
-		return false;
+	public function onActivate(Player $player, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector) : ItemUseResult{
+		return ItemUseResult::NONE();
 	}
 
 	/**
@@ -737,10 +752,10 @@ class Item implements ItemIds, \JsonSerializable{
 	 * @param Player  $player
 	 * @param Vector3 $directionVector
 	 *
-	 * @return bool
+	 * @return ItemUseResult
 	 */
-	public function onClickAir(Player $player, Vector3 $directionVector) : bool{
-		return false;
+	public function onClickAir(Player $player, Vector3 $directionVector) : ItemUseResult{
+		return ItemUseResult::NONE();
 	}
 
 	/**
@@ -749,10 +764,10 @@ class Item implements ItemIds, \JsonSerializable{
 	 *
 	 * @param Player $player
 	 *
-	 * @return bool
+	 * @return ItemUseResult
 	 */
-	public function onReleaseUsing(Player $player) : bool{
-		return false;
+	public function onReleaseUsing(Player $player) : ItemUseResult{
+		return ItemUseResult::NONE();
 	}
 
 	/**
@@ -928,7 +943,7 @@ class Item implements ItemIds, \JsonSerializable{
 				$item = ItemFactory::fromString($idTag->getValue() . ":$meta");
 			}catch(\InvalidArgumentException $e){
 				//TODO: improve error handling
-				return ItemFactory::get(Item::AIR, 0, 0);
+				return ItemFactory::air();
 			}
 			$item->setCount($count);
 		}else{

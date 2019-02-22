@@ -27,7 +27,11 @@ use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
 use pocketmine\command\utils\InvalidCommandSyntaxException;
 use pocketmine\lang\TranslationContainer;
+use pocketmine\Player;
 use pocketmine\utils\TextFormat;
+use function count;
+use function implode;
+use function strtolower;
 
 class WhitelistCommand extends VanillaCommand{
 
@@ -90,6 +94,9 @@ class WhitelistCommand extends VanillaCommand{
 		}elseif(count($args) === 2){
 			if($this->badPerm($sender, strtolower($args[0]))){
 				return false;
+			}
+			if(!Player::isValidUserName($args[1])){
+				throw new InvalidCommandSyntaxException();
 			}
 			switch(strtolower($args[0])){
 				case "add":

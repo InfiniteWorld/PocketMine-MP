@@ -25,36 +25,7 @@ namespace pocketmine\block;
 
 use pocketmine\item\TieredTool;
 
-class StonePressurePlate extends Transparent{
-
-	protected $id = self::STONE_PRESSURE_PLATE;
-
-	/** @var bool */
-	protected $powered = false;
-
-	public function __construct(){
-
-	}
-
-	protected function writeStateToMeta() : int{
-		return $this->powered ? 1 : 0;
-	}
-
-	public function readStateFromMeta(int $meta) : void{
-		$this->powered = $meta !== 0;
-	}
-
-	public function getStateBitmask() : int{
-		return 0b1;
-	}
-
-	public function getName() : string{
-		return "Stone Pressure Plate";
-	}
-
-	public function isSolid() : bool{
-		return false;
-	}
+class StonePressurePlate extends SimplePressurePlate{
 
 	public function getHardness() : float{
 		return 0.5;

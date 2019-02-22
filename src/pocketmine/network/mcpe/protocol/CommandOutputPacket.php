@@ -28,8 +28,10 @@ namespace pocketmine\network\mcpe\protocol;
 use pocketmine\network\mcpe\handler\SessionHandler;
 use pocketmine\network\mcpe\protocol\types\CommandOriginData;
 use pocketmine\network\mcpe\protocol\types\CommandOutputMessage;
+use pocketmine\utils\BinaryDataException;
+use function count;
 
-class CommandOutputPacket extends DataPacket{
+class CommandOutputPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::COMMAND_OUTPUT_PACKET;
 
 	/** @var CommandOriginData */
@@ -57,6 +59,10 @@ class CommandOutputPacket extends DataPacket{
 		}
 	}
 
+	/**
+	 * @return CommandOutputMessage
+	 * @throws BinaryDataException
+	 */
 	protected function getCommandMessage() : CommandOutputMessage{
 		$message = new CommandOutputMessage();
 

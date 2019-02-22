@@ -23,42 +23,35 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
 use pocketmine\tile\ItemFrame as TileItemFrame;
-use pocketmine\tile\Tile;
+use function lcg_value;
 
 class ItemFrame extends Flowable{
-	protected $id = Block::ITEM_FRAME_BLOCK;
-
-	protected $itemId = Item::ITEM_FRAME;
 
 	/** @var int */
 	protected $facing = Facing::NORTH;
-
-	public function __construct(){
-
-	}
+	/** @var bool */
+	protected $hasMap = false; //makes frame appear large if set
 
 	protected function writeStateToMeta() : int{
-		return 5 - $this->facing;
+		return (5 - $this->facing) | ($this->hasMap ? 0x04 : 0);
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->facing = 5 - $meta;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		$this->facing = BlockDataValidator::readHorizontalFacing(5 - ($stateMeta & 0x03));
+		$this->hasMap = ($stateMeta & 0x04) !== 0;
 	}
 
 	public function getStateBitmask() : int{
-		return 0b11;
+		return 0b111;
 	}
 
-	public function getName() : string{
-		return "Item Frame";
-	}
-
-	public function onActivate(Item $item, Player $player = null) : bool{
+	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$tile = $this->level->getTile($this);
 		if($tile instanceof TileItemFrame){
 			if($tile->hasItem()){
@@ -77,20 +70,14 @@ class ItemFrame extends Flowable{
 		}
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($face === Facing::DOWN or $face === Facing::UP or !$blockClicked->isSolid()){
 			return false;
 		}
 
 		$this->facing = $face;
 
-		if(parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player)){
-			Tile::createTile(Tile::ITEM_FRAME, $this->getLevel(), TileItemFrame::createNBT($this, $item));
-			return true;
-		}
-
-		return false;
-
+		return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 	}
 
 	public function getDropsForCompatibleTool(Item $item) : array{
@@ -109,5 +96,9 @@ class ItemFrame extends Flowable{
 
 	public function isAffectedBySilkTouch() : bool{
 		return false;
+	}
+
+	public function getHardness() : float{
+		return 0.25;
 	}
 }

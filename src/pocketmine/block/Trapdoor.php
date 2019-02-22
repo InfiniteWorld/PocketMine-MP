@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
 use pocketmine\level\sound\DoorSound;
 use pocketmine\math\AxisAlignedBB;
@@ -34,8 +35,6 @@ class Trapdoor extends Transparent{
 	private const MASK_UPPER = 0x04;
 	private const MASK_OPENED = 0x08;
 
-	protected $id = self::TRAPDOOR;
-
 	/** @var int */
 	protected $facing = Facing::NORTH;
 	/** @var bool */
@@ -43,28 +42,20 @@ class Trapdoor extends Transparent{
 	/** @var bool */
 	protected $top = false;
 
-	public function __construct(){
-
-	}
-
 	protected function writeStateToMeta() : int{
 		return (5 - $this->facing) | ($this->top ? self::MASK_UPPER : 0) | ($this->open ? self::MASK_OPENED : 0);
 	}
 
-	public function readStateFromMeta(int $meta) : void{
+	public function readStateFromData(int $id, int $stateMeta) : void{
 		//TODO: in PC the values are reversed (facing - 2)
 
-		$this->facing = 5 - ($meta & 0x03);
-		$this->top = ($meta & self::MASK_UPPER) !== 0;
-		$this->open = ($meta & self::MASK_OPENED) !== 0;
+		$this->facing = BlockDataValidator::readHorizontalFacing(5 - ($stateMeta & 0x03));
+		$this->top = ($stateMeta & self::MASK_UPPER) !== 0;
+		$this->open = ($stateMeta & self::MASK_OPENED) !== 0;
 	}
 
 	public function getStateBitmask() : int{
 		return 0b1111;
-	}
-
-	public function getName() : string{
-		return "Wooden Trapdoor";
 	}
 
 	public function getHardness() : float{
@@ -75,7 +66,7 @@ class Trapdoor extends Transparent{
 		return AxisAlignedBB::one()->trim($this->open ? $this->facing : ($this->top ? Facing::DOWN : Facing::UP), 13 / 16);
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($player !== null){
 			$this->facing = Facing::opposite($player->getHorizontalFacing());
 		}
@@ -86,10 +77,10 @@ class Trapdoor extends Transparent{
 		return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 	}
 
-	public function onActivate(Item $item, Player $player = null) : bool{
+	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$this->open = !$this->open;
 		$this->level->setBlock($this, $this);
-		$this->level->addSound(new DoorSound($this));
+		$this->level->addSound($this, new DoorSound());
 		return true;
 	}
 

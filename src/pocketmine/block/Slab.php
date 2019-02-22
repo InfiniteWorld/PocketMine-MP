@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\block;
 
+use pocketmine\block\utils\SlabType;
 use pocketmine\item\Item;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
@@ -30,35 +31,61 @@ use pocketmine\math\Vector3;
 use pocketmine\Player;
 
 abstract class Slab extends Transparent{
-	/** @var int */
-	protected $doubleId;
+	/** @var BlockIdentifierFlattened */
+	protected $idInfo;
 
-	/** @var bool */
-	protected $top = false;
+	/** @var SlabType */
+	protected $slabType;
 
-	public function __construct(int $id, int $doubleId, int $variant = 0, ?string $name = null){
-		parent::__construct($id, $variant, $name . " Slab");
-		$this->doubleId = $doubleId;
+	public function __construct(BlockIdentifierFlattened $idInfo, string $name){
+		parent::__construct($idInfo, $name . " Slab");
+		$this->slabType = SlabType::BOTTOM();
+	}
+
+	public function getId() : int{
+		return $this->slabType === SlabType::DOUBLE() ? $this->idInfo->getSecondId() : parent::getId();
 	}
 
 	protected function writeStateToMeta() : int{
-		return ($this->top ? 0x08 : 0);
+		if($this->slabType !== SlabType::DOUBLE()){
+			return ($this->slabType === SlabType::TOP() ? 0x08 : 0);
+		}
+		return 0;
 	}
 
-	public function readStateFromMeta(int $meta) : void{
-		$this->top = ($meta & 0x08) !== 0;
+	public function readStateFromData(int $id, int $stateMeta) : void{
+		if($id === $this->idInfo->getSecondId()){
+			$this->slabType = SlabType::DOUBLE();
+		}else{
+			$this->slabType = ($stateMeta & 0x08) !== 0 ? SlabType::TOP() : SlabType::BOTTOM();
+		}
 	}
 
 	public function getStateBitmask() : int{
 		return 0b1000;
 	}
 
-	public function getDoubleSlabId() : int{
-		return $this->doubleId;
+	public function isTransparent() : bool{
+		return $this->slabType !== SlabType::DOUBLE();
 	}
 
-	protected function getDouble() : Block{
-		return BlockFactory::get($this->doubleId, $this->variant);
+	/**
+	 * Returns the type of slab block.
+	 *
+	 * @return SlabType
+	 */
+	public function getSlabType() : SlabType{
+		return $this->slabType;
+	}
+
+	/**
+	 * @param SlabType $slabType
+	 *
+	 * @return $this
+	 */
+	public function setSlabType(SlabType $slabType) : self{
+		$this->slabType = $slabType;
+		return $this;
 	}
 
 	public function canBePlacedAt(Block $blockReplace, Vector3 $clickVector, int $face, bool $isClickedBlock) : bool{
@@ -66,8 +93,8 @@ abstract class Slab extends Transparent{
 			return true;
 		}
 
-		if($blockReplace instanceof Slab and $blockReplace->isSameType($this)){
-			if($blockReplace->top){ //Trying to combine with top slab
+		if($blockReplace instanceof Slab and $blockReplace->slabType !== SlabType::DOUBLE() and $blockReplace->isSameType($this)){
+			if($blockReplace->slabType === SlabType::TOP()){ //Trying to combine with top slab
 				return $clickVector->y <= 0.5 or (!$isClickedBlock and $face === Facing::UP);
 			}else{
 				return $clickVector->y >= 0.5 or (!$isClickedBlock and $face === Facing::DOWN);
@@ -77,30 +104,38 @@ abstract class Slab extends Transparent{
 		return false;
 	}
 
-	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, Player $player = null) : bool{
+	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		/* note these conditions can't be merged, since one targets clicked and the other replace */
 
-		if($blockClicked instanceof Slab and $blockClicked->isSameType($this) and (
-			($face === Facing::DOWN and $blockClicked->top) or //Bottom face of top slab
-			($face === Facing::UP and !$blockClicked->top) //Top face of bottom slab
+		if($blockClicked instanceof Slab and $blockClicked->slabType !== SlabType::DOUBLE() and $blockClicked->isSameType($this) and (
+			($face === Facing::DOWN and $blockClicked->slabType === SlabType::TOP()) or
+			($face === Facing::UP and $blockClicked->slabType === SlabType::BOTTOM())
 		)){
-			return $this->level->setBlock($blockClicked, $this->getDouble());
+			$this->slabType = SlabType::DOUBLE();
+			return $this->level->setBlock($blockClicked, $this);
 		}
 
-		if($blockReplace instanceof Slab and $blockReplace->isSameType($this) and (
-			($blockReplace->top and $clickVector->y <= 0.5) or
-			(!$blockReplace->top and $clickVector->y >= 0.5)
+		if($blockReplace instanceof Slab and $blockReplace->slabType !== SlabType::DOUBLE() and $blockReplace->isSameType($this) and (
+			($blockReplace->slabType === SlabType::TOP() and ($clickVector->y <= 0.5 or $face === Facing::UP)) or
+			($blockReplace->slabType === SlabType::BOTTOM() and ($clickVector->y >= 0.5 or $face === Facing::DOWN))
 		)){
 			//Clicked in empty half of existing slab
-			return $this->level->setBlock($blockReplace, $this->getDouble());
+			$this->slabType = SlabType::DOUBLE();
+		}else{
+			$this->slabType = (($face !== Facing::UP && $clickVector->y > 0.5) || $face === Facing::DOWN) ? SlabType::TOP() : SlabType::BOTTOM();
 		}
-
-		$this->top = ($face !== Facing::UP && $clickVector->y > 0.5) || $face === Facing::DOWN;
 
 		return parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player);
 	}
 
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
-		return AxisAlignedBB::one()->trim($this->top ? Facing::DOWN : Facing::UP, 0.5);
+		if($this->slabType === SlabType::DOUBLE()){
+			return parent::recalculateBoundingBox();
+		}
+		return AxisAlignedBB::one()->trim($this->slabType === SlabType::TOP() ? Facing::DOWN : Facing::UP, 0.5);
+	}
+
+	public function getDropsForCompatibleTool(Item $item) : array{
+		return [$this->getItem()->setCount($this->slabType === SlabType::DOUBLE() ? 2 : 1)];
 	}
 }

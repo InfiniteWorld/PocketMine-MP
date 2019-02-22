@@ -52,12 +52,6 @@ class Rail extends BaseRail{
 		]
 	];
 
-	protected $id = self::RAIL;
-
-	public function getName() : string{
-		return "Rail";
-	}
-
 	protected function getMetaForState(array $connections) : int{
 		try{
 			return self::searchState($connections, self::CURVE_CONNECTIONS);
@@ -66,8 +60,8 @@ class Rail extends BaseRail{
 		}
 	}
 
-	protected function getConnectionsFromMeta(int $meta) : array{
-		return self::CURVE_CONNECTIONS[$meta] ?? self::CONNECTIONS[$meta] ?? [];
+	protected function getConnectionsFromMeta(int $meta) : ?array{
+		return self::CURVE_CONNECTIONS[$meta] ?? self::CONNECTIONS[$meta] ?? null;
 	}
 
 	protected function getPossibleConnectionDirectionsOneConstraint(int $constraint) : array{

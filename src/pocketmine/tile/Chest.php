@@ -26,6 +26,7 @@ namespace pocketmine\tile;
 use pocketmine\inventory\ChestInventory;
 use pocketmine\inventory\DoubleChestInventory;
 use pocketmine\inventory\InventoryHolder;
+use pocketmine\level\Level;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
@@ -34,7 +35,9 @@ class Chest extends Spawnable implements InventoryHolder, Container, Nameable{
 	use NameableTrait {
 		addAdditionalSpawnData as addNameSpawnData;
 	}
-	use ContainerTrait;
+	use ContainerTrait {
+		onBlockDestroyedHook as containerTraitBlockDestroyedHook;
+	}
 
 	public const TAG_PAIRX = "pairx";
 	public const TAG_PAIRZ = "pairz";
@@ -50,14 +53,17 @@ class Chest extends Spawnable implements InventoryHolder, Container, Nameable{
 	/** @var int|null */
 	private $pairZ;
 
-	protected function readSaveData(CompoundTag $nbt) : void{
+	public function __construct(Level $level, Vector3 $pos){
+		$this->inventory = new ChestInventory($this);
+		parent::__construct($level, $pos);
+	}
+
+	public function readSaveData(CompoundTag $nbt) : void{
 		if($nbt->hasTag(self::TAG_PAIRX, IntTag::class) and $nbt->hasTag(self::TAG_PAIRZ, IntTag::class)){
 			$this->pairX = $nbt->getInt(self::TAG_PAIRX);
 			$this->pairZ = $nbt->getInt(self::TAG_PAIRZ);
 		}
 		$this->loadName($nbt);
-
-		$this->inventory = new ChestInventory($this);
 		$this->loadItems($nbt);
 	}
 
@@ -68,6 +74,15 @@ class Chest extends Spawnable implements InventoryHolder, Container, Nameable{
 		}
 		$this->saveName($nbt);
 		$this->saveItems($nbt);
+	}
+
+	public function getCleanedNBT() : ?CompoundTag{
+		$tag = parent::getCleanedNBT();
+		if($tag !== null){
+			//TODO: replace this with a purpose flag on writeSaveData()
+			$tag->removeTag(self::TAG_PAIRX, self::TAG_PAIRZ);
+		}
+		return $tag;
 	}
 
 	public function close() : void{
@@ -89,6 +104,11 @@ class Chest extends Spawnable implements InventoryHolder, Container, Nameable{
 
 			parent::close();
 		}
+	}
+
+	protected function onBlockDestroyedHook() : void{
+		$this->unpair();
+		$this->containerTraitBlockDestroyedHook();
 	}
 
 	/**
