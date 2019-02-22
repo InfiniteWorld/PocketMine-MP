@@ -1916,11 +1916,11 @@ class Level implements ChunkManager, Metadatable{
 	}
 
 	/**
-	 * @param int $entityId
+	 * @param int|string $entityId
 	 *
 	 * @return Entity|null
 	 */
-	public function getEntity(int $entityId){
+	public function getEntity($entityId){
 		return $this->entities[$entityId] ?? null;
 	}
 

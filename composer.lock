@@ -234,12 +234,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/NBT_MoreSupport.git",
-                "reference": "8af84102bf7973470934d026ba9ea6fb9d66d024"
+                "reference": "daeb7e7c3d3141a5c83071c0689b9a1c45fc3323"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/NBT_MoreSupport/zipball/8af84102bf7973470934d026ba9ea6fb9d66d024",
-                "reference": "8af84102bf7973470934d026ba9ea6fb9d66d024",
+                "url": "https://api.github.com/repos/InfiniteWorld/NBT_MoreSupport/zipball/daeb7e7c3d3141a5c83071c0689b9a1c45fc3323",
+                "reference": "daeb7e7c3d3141a5c83071c0689b9a1c45fc3323",
                 "shasum": ""
             },
             "require": {
@@ -265,7 +265,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/NBT_MoreSupport/tree/master_32-bit"
             },
-            "time": "2019-02-12T15:38:03+00:00"
+            "time": "2019-02-22T13:35:27+00:00"
         },
         {
             "name": "infiniteworld/raklib",

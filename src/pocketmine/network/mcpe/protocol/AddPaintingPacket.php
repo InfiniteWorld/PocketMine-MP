@@ -35,7 +35,7 @@ class AddPaintingPacket extends DataPacket implements ClientboundPacket{
 	public $title;
 	/** @var int|null */
 	public $entityUniqueId = null;
-	/** @var int */
+	/** @var int|string */
 	public $entityRuntimeId;
 	/** @var int */
 	public $x;

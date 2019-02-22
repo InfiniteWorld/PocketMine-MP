@@ -38,7 +38,7 @@ class MoveEntityDeltaPacket extends DataPacket implements ClientboundPacket{
 	public const FLAG_HAS_ROT_Y = 0x10;
 	public const FLAG_HAS_ROT_Z = 0x20;
 
-	/** @var int */
+	/** @var int|string */
 	public $entityRuntimeId;
 	/** @var int */
 	public $flags;

@@ -32,7 +32,7 @@ class UseItemOnEntityTransactionData extends TransactionData{
 	public const ACTION_INTERACT = 0;
 	public const ACTION_ATTACK = 1;
 
-	/** @var int */
+	/** @var int|string */
 	private $entityRuntimeId;
 	/** @var int */
 	private $actionType;
@@ -46,9 +46,9 @@ class UseItemOnEntityTransactionData extends TransactionData{
 	private $clickPos;
 
 	/**
-	 * @return int
+	 * @return int|string
 	 */
-	public function getEntityRuntimeId() : int{
+	public function getEntityRuntimeId(){
 		return $this->entityRuntimeId;
 	}
 

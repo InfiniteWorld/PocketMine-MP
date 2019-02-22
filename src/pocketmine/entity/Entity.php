@@ -1762,7 +1762,7 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 		return true;
 	}
 
-	public function getId() : int{
+	public function getId(){
 		return $this->id;
 	}
 
