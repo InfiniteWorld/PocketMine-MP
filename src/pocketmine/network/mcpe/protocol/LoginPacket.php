@@ -181,7 +181,7 @@ class LoginPacket extends DataPacket implements ServerboundPacket{
 		$v->required(self::I_GEOMETRY_NAME)->string();
 		$v->required(self::I_GEOMETRY_DATA, null, true)->string();
 
-		if(isset($clientData["ClientRandomId"]) and is_float($clientData["ClientRandomId"])) { //TODO: HACK! (Replaces float ID with random int, 32-bit only)
+		if(is_float($clientData["ClientRandomId"])) { //TODO: HACK! (Replaces float ID with random int, 32-bit only)
 			$clientData["ClientRandomId"] = random_int(PHP_INT_MIN, PHP_INT_MAX);
 		}
 		self::validate($v, 'clientData', $clientData);
