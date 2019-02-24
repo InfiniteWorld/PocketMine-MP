@@ -210,7 +210,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	protected $iusername = "";
 	/** @var string */
 	protected $displayName = "";
-	/** @var int */
+	/** @var int|string */
 	protected $randomClientId;
 	/** @var string */
 	protected $xuid = "";
@@ -323,7 +323,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	 * This might disappear in the future. Please use getUniqueId() instead.
 	 * @deprecated
 	 *
-	 * @return int
+	 * @return int|string
 	 */
 	public function getClientId(){
 		return $this->randomClientId;

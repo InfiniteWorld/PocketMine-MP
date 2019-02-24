@@ -498,7 +498,7 @@ class Utils{
 		if($payloadJSON === false){
 			throw new \UnexpectedValueException("Invalid base64 JWT payload");
 		}
-		$result = json_decode($payloadJSON, true);
+		$result = json_decode($payloadJSON, true, 512, JSON_BIGINT_AS_STRING);
 		if(!is_array($result)){
 			throw new \UnexpectedValueException("Failed to decode JWT payload JSON: " . json_last_error_msg());
 		}

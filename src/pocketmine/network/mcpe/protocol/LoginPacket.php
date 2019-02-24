@@ -171,7 +171,11 @@ class LoginPacket extends DataPacket implements ServerboundPacket{
 		}
 
 		$v = new Validator();
-		$v->required(self::I_CLIENT_RANDOM_ID)->integer();
+		if(PHP_INT_SIZE < 8) {
+			$v->required(self::I_CLIENT_RANDOM_ID)->string();
+		} else {
+			$v->required(self::I_CLIENT_RANDOM_ID)->integer();
+		}
 		$v->required(self::I_SERVER_ADDRESS)->string();
 		$v->required(self::I_LANGUAGE_CODE)->string();
 
@@ -181,9 +185,6 @@ class LoginPacket extends DataPacket implements ServerboundPacket{
 		$v->required(self::I_GEOMETRY_NAME)->string();
 		$v->required(self::I_GEOMETRY_DATA, null, true)->string();
 
-		if(is_float($clientData["ClientRandomId"])) { //TODO: HACK! (Replaces float ID with random int, 32-bit only)
-			$clientData["ClientRandomId"] = random_int(PHP_INT_MIN, PHP_INT_MAX);
-		}
 		self::validate($v, 'clientData', $clientData);
 
 		$this->clientData = $clientData;

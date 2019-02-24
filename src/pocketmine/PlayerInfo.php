@@ -41,10 +41,10 @@ class PlayerInfo{
 	private $locale;
 	/** @var string */
 	private $xuid;
-	/** @var int */
+	/** @var int|string */
 	private $clientId;
 
-	public function __construct(string $username, UUID $uuid, Skin $skin, string $locale, string $xuid, int $clientId){
+	public function __construct(string $username, UUID $uuid, Skin $skin, string $locale, string $xuid, $clientId){
 		$this->username = $username;
 		$this->uuid = $uuid;
 		$this->skin = $skin;
@@ -89,9 +89,9 @@ class PlayerInfo{
 	}
 
 	/**
-	 * @return int
+	 * @return int|string
 	 */
-	public function getClientId() : int{
+	public function getClientId(){
 		return $this->clientId;
 	}
 }
