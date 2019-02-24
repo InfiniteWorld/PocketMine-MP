@@ -50,19 +50,19 @@ interface LevelData{
 	public function getGeneratorOptions() : array;
 
 	/**
-	 * @return int|string
+	 * @return int|string int, or the string numeric representation of a long in 32-bit systems
 	 */
 	public function getSeed();
 
 
 
 	/**
-	 * @return int|string
+	 * @return int|string int, or the string numeric representation of a long in 32-bit systems
 	 */
 	public function getTime();
 
 	/**
-	 * @param int|string $value
+	 * @param int|string $value int, or the string numeric representation of a long in 32-bit systems
 	 */
 	public function setTime($value) : void;
 

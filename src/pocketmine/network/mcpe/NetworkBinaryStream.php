@@ -318,9 +318,9 @@ class NetworkBinaryStream extends BinaryStream{
 	/**
 	 * Writes an EntityUniqueID
 	 *
-	 * @param int $eid
+	 * @param int|string $eid
 	 */
-	public function putEntityUniqueId(int $eid) : void{
+	public function putEntityUniqueId($eid) : void{
 		$this->putVarLong($eid);
 	}
 

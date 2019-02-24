@@ -300,7 +300,7 @@ class Level implements ChunkManager, Metadatable{
 		return ($y << 8) | (($z & 0xf) << 4) | ($x & 0xf);
 	}
 
-	public static function getBlockXYZ(int $hash, ?int &$x, ?int &$y, ?int &$z) : void{
+	public static function getBlockXYZ($hash, ?int &$x, ?int &$y, ?int &$z) : void{
 		if(PHP_INT_SIZE === 8){
 			$x = $hash >> 36;
 			$y = ($hash >> 28) & Level::Y_MASK; //it's always positive
@@ -1076,12 +1076,11 @@ class Level implements ChunkManager, Metadatable{
 
 			foreach($chunk->getSubChunks() as $Y => $subChunk){
 				if(!($subChunk instanceof EmptySubChunk)){
-					$k = mt_rand(0, 0xfffffffff); //36 bits
 					for($i = 0; $i < 3; ++$i){
+						$k = mt_rand(0, 0xfff);
 						$x = $k & 0x0f;
 						$y = ($k >> 4) & 0x0f;
 						$z = ($k >> 8) & 0x0f;
-						$k >>= 12;
 
 						$state = $subChunk->getFullBlock($x, $y, $z);
 
@@ -2879,9 +2878,9 @@ class Level implements ChunkManager, Metadatable{
 	/**
 	 * Gets the level seed
 	 *
-	 * @return int
+	 * @return int|string
 	 */
-	public function getSeed() : int{
+	public function getSeed(){
 		return $this->provider->getLevelData()->getSeed();
 	}
 
