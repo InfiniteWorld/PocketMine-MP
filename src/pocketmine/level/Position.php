@@ -37,12 +37,12 @@ class Position extends Vector3{
 	 * @param int   $z
 	 * @param Level $level
 	 */
-	public function __construct($x = 0, $y = 0, $z = 0, Level $level = null){
+	public function __construct($x = 0, $y = 0, $z = 0, ?Level $level = null){
 		parent::__construct($x, $y, $z);
 		$this->setLevel($level);
 	}
 
-	public static function fromObject(Vector3 $pos, Level $level = null){
+	public static function fromObject(Vector3 $pos, ?Level $level = null){
 		return new Position($pos->x, $pos->y, $pos->z, $level);
 	}
 
@@ -79,7 +79,7 @@ class Position extends Vector3{
 	 *
 	 * @throws \InvalidArgumentException if the specified Level has been closed
 	 */
-	public function setLevel(Level $level = null){
+	public function setLevel(?Level $level){
 		if($level !== null and $level->isClosed()){
 			throw new \InvalidArgumentException("Specified world has been unloaded and cannot be used");
 		}

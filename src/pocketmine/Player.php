@@ -92,26 +92,21 @@ use pocketmine\level\Level;
 use pocketmine\level\Position;
 use pocketmine\math\Vector3;
 use pocketmine\metadata\MetadataValue;
-use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\DoubleTag;
 use pocketmine\nbt\tag\ListTag;
-use pocketmine\network\BadPacketException;
 use pocketmine\network\mcpe\CompressBatchPromise;
 use pocketmine\network\mcpe\NetworkCipher;
-use pocketmine\network\mcpe\NetworkNbtSerializer;
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\ProcessLoginTask;
 use pocketmine\network\mcpe\protocol\AdventureSettingsPacket;
 use pocketmine\network\mcpe\protocol\AnimatePacket;
 use pocketmine\network\mcpe\protocol\AvailableCommandsPacket;
-use pocketmine\network\mcpe\protocol\BlockEntityDataPacket;
 use pocketmine\network\mcpe\protocol\BookEditPacket;
 use pocketmine\network\mcpe\protocol\ChunkRadiusUpdatedPacket;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\EntityEventPacket;
-use pocketmine\network\mcpe\protocol\ItemFrameDropItemPacket;
 use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\network\mcpe\protocol\LoginPacket;
@@ -135,8 +130,6 @@ use pocketmine\permission\PermissionAttachment;
 use pocketmine\permission\PermissionAttachmentInfo;
 use pocketmine\permission\PermissionManager;
 use pocketmine\plugin\Plugin;
-use pocketmine\tile\ItemFrame;
-use pocketmine\tile\Spawnable;
 use pocketmine\tile\Tile;
 use pocketmine\timings\Timings;
 use pocketmine\utils\TextFormat;
@@ -154,7 +147,6 @@ use function in_array;
 use function is_int;
 use function json_encode;
 use function json_last_error_msg;
-use function lcg_value;
 use function max;
 use function microtime;
 use function min;
@@ -333,8 +325,8 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		return $this->server->getNameBans()->isBanned($this->username);
 	}
 
-	public function setBanned(bool $value){
-		if($value){
+	public function setBanned(bool $banned) : void{
+		if($banned){
 			$this->server->getNameBans()->addBan($this->getName(), null, null, null);
 			$this->kick("You have been banned");
 		}else{
@@ -346,7 +338,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		return $this->server->isWhitelisted($this->username);
 	}
 
-	public function setWhitelisted(bool $value){
+	public function setWhitelisted(bool $value) : void{
 		if($value){
 			$this->server->addWhitelist($this->username);
 		}else{
@@ -389,15 +381,23 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		return parent::getUniqueId();
 	}
 
-	public function getPlayer(){
+	public function getPlayer() : ?Player{
 		return $this;
 	}
 
-	public function getFirstPlayed(){
+	/**
+	 * TODO: not sure this should be nullable
+	 * @return int|null
+	 */
+	public function getFirstPlayed() : ?int{
 		return $this->firstPlayed;
 	}
 
-	public function getLastPlayed(){
+	/**
+	 * TODO: not sure this should be nullable
+	 * @return int|null
+	 */
+	public function getLastPlayed() : ?int{
 		return $this->lastPlayed;
 	}
 
@@ -455,7 +455,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	/**
 	 * @return Server
 	 */
-	public function getServer(){
+	public function getServer() : Server{
 		return $this->server;
 	}
 
@@ -477,7 +477,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		return $this->lineHeight ?? 7;
 	}
 
-	public function setScreenLineHeight(int $height = null){
+	public function setScreenLineHeight(?int $height) : void{
 		if($height !== null and $height < 1){
 			throw new \InvalidArgumentException("Line height must be at least 1");
 		}
@@ -565,7 +565,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	/**
 	 * @param bool $value
 	 */
-	public function setOp(bool $value){
+	public function setOp(bool $value) : void{
 		if($value === $this->isOp()){
 			return;
 		}
@@ -609,18 +609,18 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	 *
 	 * @return PermissionAttachment
 	 */
-	public function addAttachment(Plugin $plugin, string $name = null, bool $value = null) : PermissionAttachment{
+	public function addAttachment(Plugin $plugin, ?string $name = null, ?bool $value = null) : PermissionAttachment{
 		return $this->perm->addAttachment($plugin, $name, $value);
 	}
 
 	/**
 	 * @param PermissionAttachment $attachment
 	 */
-	public function removeAttachment(PermissionAttachment $attachment){
+	public function removeAttachment(PermissionAttachment $attachment) : void{
 		$this->perm->removeAttachment($attachment);
 	}
 
-	public function recalculatePermissions(){
+	public function recalculatePermissions() : void{
 		$permManager = PermissionManager::getInstance();
 		$permManager->unsubscribeFromPermission(Server::BROADCAST_CHANNEL_USERS, $this);
 		$permManager->unsubscribeFromPermission(Server::BROADCAST_CHANNEL_ADMINISTRATIVE, $this);
@@ -910,7 +910,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		return false;
 	}
 
-	protected function unloadChunk(int $x, int $z, Level $level = null){
+	protected function unloadChunk(int $x, int $z, ?Level $level = null){
 		$level = $level ?? $this->level;
 		$index = Level::chunkHash($x, $z);
 		if(isset($this->usedChunks[$index])){
@@ -1382,11 +1382,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	 * @return bool
 	 */
 	public function isSurvival(bool $literal = false) : bool{
-		if($literal){
-			return $this->gamemode === GameMode::SURVIVAL;
-		}else{
-			return ($this->gamemode & 0x01) === 0;
-		}
+		return $this->gamemode === GameMode::SURVIVAL or (!$literal and $this->gamemode === GameMode::ADVENTURE);
 	}
 
 	/**
@@ -1398,11 +1394,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	 * @return bool
 	 */
 	public function isCreative(bool $literal = false) : bool{
-		if($literal){
-			return $this->gamemode === GameMode::CREATIVE;
-		}else{
-			return ($this->gamemode & 0x01) === 1;
-		}
+		return $this->gamemode === GameMode::CREATIVE or (!$literal and $this->gamemode === GameMode::SPECTATOR);
 	}
 
 	/**
@@ -1414,11 +1406,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	 * @return bool
 	 */
 	public function isAdventure(bool $literal = false) : bool{
-		if($literal){
-			return $this->gamemode === GameMode::ADVENTURE;
-		}else{
-			return ($this->gamemode & 0x02) > 0;
-		}
+		return $this->gamemode === GameMode::ADVENTURE or (!$literal and $this->gamemode === GameMode::SPECTATOR);
 	}
 
 	/**
@@ -2174,7 +2162,15 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		return true;
 	}
 
-	public function startBreakBlock(Vector3 $pos, int $face) : bool{
+	/**
+	 * Performs a left-click (attack) action on the block.
+	 *
+	 * @param Vector3 $pos
+	 * @param int     $face
+	 *
+	 * @return bool
+	 */
+	public function attackBlock(Vector3 $pos, int $face) : bool{
 		if($pos->distanceSquared($this) > 10000){
 			return false; //TODO: maybe this should throw an exception instead?
 		}
@@ -2184,7 +2180,11 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		$ev = new PlayerInteractEvent($this, $this->inventory->getItemInHand(), $target, null, $face, PlayerInteractEvent::LEFT_CLICK_BLOCK);
 		$ev->call();
 		if($ev->isCancelled()){
+			$this->level->sendBlocks([$this], [$target]);
 			$this->inventory->sendHeldItem($this);
+			return true;
+		}
+		if($target->onAttack($this->inventory->getItemInHand(), $face, $this)){
 			return true;
 		}
 
@@ -2253,13 +2253,6 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		$blocks[] = $target;
 
 		$this->level->sendBlocks([$this], $blocks);
-
-		foreach($blocks as $b){
-			$tile = $this->level->getTile($b);
-			if($tile instanceof Spawnable){
-				$tile->spawnTo($this);
-			}
-		}
 
 		return false;
 	}
@@ -2465,61 +2458,6 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		//TODO: check other changes
 
 		return $handled;
-	}
-
-	/**
-	 * @param BlockEntityDataPacket $packet
-	 *
-	 * @return bool
-	 * @throws BadPacketException
-	 */
-	public function handleBlockEntityData(BlockEntityDataPacket $packet) : bool{
-		$this->doCloseInventory();
-
-		$pos = new Vector3($packet->x, $packet->y, $packet->z);
-		if($pos->distanceSquared($this) > 10000){
-			return true;
-		}
-
-		$t = $this->level->getTile($pos);
-		if($t instanceof Spawnable){
-			$nbt = new NetworkNbtSerializer();
-			try{
-				$compound = $nbt->read($packet->namedtag);
-			}catch(NbtDataException $e){
-				throw new BadPacketException($e->getMessage(), 0, $e);
-			}
-			if(!$t->updateCompoundTag($compound, $this)){
-				$t->spawnTo($this);
-			}
-		}
-
-		return true;
-	}
-
-	public function handleItemFrameDropItem(ItemFrameDropItemPacket $packet) : bool{
-		$tile = $this->level->getTileAt($packet->x, $packet->y, $packet->z);
-		if($tile instanceof ItemFrame){
-			//TODO: use facing blockstate property instead of damage value
-			$ev = new PlayerInteractEvent($this, $this->inventory->getItemInHand(), $tile->getBlock(), null, 5 - $tile->getBlock()->getDamage(), PlayerInteractEvent::LEFT_CLICK_BLOCK);
-			if($this->isSpectator()){
-				$ev->setCancelled();
-			}
-
-			$ev->call();
-			if($ev->isCancelled()){
-				$tile->spawnTo($this);
-				return true;
-			}
-
-			if(lcg_value() <= $tile->getItemDropChance()){
-				$this->level->dropItem($tile->getBlock(), $tile->getItem());
-			}
-			$tile->setItem(null);
-			$tile->setItemRotation(0);
-		}
-
-		return true;
 	}
 
 	public function handleBookEdit(BookEditPacket $packet) : bool{
@@ -2748,7 +2686,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	 *
 	 * @param TextContainer|string $message
 	 */
-	public function sendMessage($message){
+	public function sendMessage($message) : void{
 		if($message instanceof TextContainer){
 			if($message instanceof TranslationContainer){
 				$this->sendTranslation($message->getText(), $message->getParameters());
@@ -3030,13 +2968,17 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 			}
 
 			if($this->inventory !== null){
-				$this->inventory->setHeldItemIndex(0, false); //This is already handled when sending contents, don't send it twice
+				$this->inventory->setHeldItemIndex(0);
 				$this->inventory->clearAll();
 			}
 			if($this->armorInventory !== null){
 				$this->armorInventory->clearAll();
 			}
 		}
+
+		//TODO: allow this number to be manipulated during PlayerDeathEvent
+		$this->level->dropExperience($this, $this->getXpDropAmount());
+		$this->setXpAndProgress(0, 0);
 
 		if($ev->getDeathMessage() != ""){
 			$this->server->broadcastMessage($ev->getDeathMessage());
@@ -3132,7 +3074,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		return $result;
 	}
 
-	public function sendPosition(Vector3 $pos, float $yaw = null, float $pitch = null, int $mode = MovePlayerPacket::MODE_NORMAL, array $targets = null){
+	public function sendPosition(Vector3 $pos, ?float $yaw = null, ?float $pitch = null, int $mode = MovePlayerPacket::MODE_NORMAL, ?array $targets = null){
 		$yaw = $yaw ?? $this->yaw;
 		$pitch = $pitch ?? $this->pitch;
 
@@ -3156,7 +3098,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	/**
 	 * {@inheritdoc}
 	 */
-	public function teleport(Vector3 $pos, float $yaw = null, float $pitch = null) : bool{
+	public function teleport(Vector3 $pos, ?float $yaw = null, ?float $pitch = null) : bool{
 		if(parent::teleport($pos, $yaw, $pitch)){
 
 			$this->removeAllWindows();
@@ -3281,7 +3223,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	 *
 	 * @return Inventory|null
 	 */
-	public function getWindow(int $windowId){
+	public function getWindow(int $windowId) : ?Inventory{
 		return $this->windowIndex[$windowId] ?? null;
 	}
 
@@ -3298,7 +3240,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	 * @throws \InvalidArgumentException if a forceID which is already in use is specified
 	 * @throws \InvalidStateException if trying to add a window without forceID when no slots are free
 	 */
-	public function addWindow(Inventory $inventory, int $forceId = null, bool $isPermanent = false) : int{
+	public function addWindow(Inventory $inventory, ?int $forceId = null, bool $isPermanent = false) : int{
 		if(($id = $this->getWindowId($inventory)) !== ContainerIds::NONE){
 			return $id;
 		}
@@ -3348,8 +3290,8 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 			throw new \InvalidArgumentException("Cannot remove fixed window $id (" . get_class($inventory) . ") from " . $this->getName());
 		}
 
-		$inventory->close($this);
 		if($id !== null){
+			$inventory->close($this);
 			unset($this->windows[$hash], $this->windowIndex[$id], $this->permanentWindows[$id]);
 		}
 	}
@@ -3375,7 +3317,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		}
 	}
 
-	public function setMetadata(string $metadataKey, MetadataValue $newMetadataValue){
+	public function setMetadata(string $metadataKey, MetadataValue $newMetadataValue) : void{
 		$this->server->getPlayerMetadata()->setMetadata($this, $metadataKey, $newMetadataValue);
 	}
 
@@ -3387,30 +3329,30 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		return $this->server->getPlayerMetadata()->hasMetadata($this, $metadataKey);
 	}
 
-	public function removeMetadata(string $metadataKey, Plugin $owningPlugin){
+	public function removeMetadata(string $metadataKey, Plugin $owningPlugin) : void{
 		$this->server->getPlayerMetadata()->removeMetadata($this, $metadataKey, $owningPlugin);
 	}
 
-	public function onChunkChanged(Chunk $chunk){
+	public function onChunkChanged(Chunk $chunk) : void{
 		if(isset($this->usedChunks[$hash = Level::chunkHash($chunk->getX(), $chunk->getZ())])){
 			$this->usedChunks[$hash] = false;
 			$this->nextChunkOrderRun = 0;
 		}
 	}
 
-	public function onChunkLoaded(Chunk $chunk){
+	public function onChunkLoaded(Chunk $chunk) : void{
 
 	}
 
-	public function onChunkPopulated(Chunk $chunk){
+	public function onChunkPopulated(Chunk $chunk) : void{
 
 	}
 
-	public function onChunkUnloaded(Chunk $chunk){
+	public function onChunkUnloaded(Chunk $chunk) : void{
 
 	}
 
-	public function onBlockChanged(Vector3 $block){
+	public function onBlockChanged(Vector3 $block) : void{
 
 	}
 }

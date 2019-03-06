@@ -33,6 +33,10 @@ abstract class Durable extends Item{
 	/** @var int */
 	protected $damage = 0;
 
+	public function getMeta() : int{
+		return $this->damage;
+	}
+
 	/**
 	 * Returns whether this item will take damage when used.
 	 * @return bool
@@ -46,7 +50,7 @@ abstract class Durable extends Item{
 	 *
 	 * @param bool $value
 	 */
-	public function setUnbreakable(bool $value = true){
+	public function setUnbreakable(bool $value = true) : void{
 		$this->setNamedTagEntry(new ByteTag("Unbreakable", $value ? 1 : 0));
 	}
 

@@ -26,10 +26,10 @@ namespace pocketmine\item;
 use pocketmine\block\Block;
 use pocketmine\block\BlockFactory;
 use pocketmine\block\utils\DyeColor;
+use pocketmine\block\utils\SkullType;
 use pocketmine\entity\EntityFactory;
 use pocketmine\entity\Living;
 use pocketmine\nbt\tag\CompoundTag;
-use pocketmine\tile\Skull;
 use function constant;
 use function defined;
 use function explode;
@@ -50,7 +50,7 @@ class ItemFactory{
 	/** @var Item|null */
 	private static $air = null;
 
-	public static function init(){
+	public static function init() : void{
 		self::$list = []; //in case of re-initializing
 
 		self::register(new Apple());
@@ -172,12 +172,6 @@ class ItemFactory{
 		self::register(new ItemBlock(Block::NETHER_WART_PLANT, 0, Item::NETHER_WART));
 		self::register(new ItemBlock(Block::OAK_DOOR_BLOCK, 0, Item::OAK_DOOR));
 		self::register(new ItemBlock(Block::REPEATER_BLOCK, 0, Item::REPEATER));
-		self::register(new ItemBlock(Block::SKULL_BLOCK, Skull::TYPE_CREEPER, Item::SKULL));
-		self::register(new ItemBlock(Block::SKULL_BLOCK, Skull::TYPE_DRAGON, Item::SKULL));
-		self::register(new ItemBlock(Block::SKULL_BLOCK, Skull::TYPE_HUMAN, Item::SKULL));
-		self::register(new ItemBlock(Block::SKULL_BLOCK, Skull::TYPE_SKELETON, Item::SKULL));
-		self::register(new ItemBlock(Block::SKULL_BLOCK, Skull::TYPE_WITHER, Item::SKULL));
-		self::register(new ItemBlock(Block::SKULL_BLOCK, Skull::TYPE_ZOMBIE, Item::SKULL));
 		self::register(new ItemBlock(Block::SPRUCE_DOOR_BLOCK, 0, Item::SPRUCE_DOOR));
 		self::register(new ItemBlock(Block::SUGARCANE_BLOCK, 0, Item::SUGARCANE));
 		self::register(new LeatherBoots());
@@ -236,6 +230,10 @@ class ItemFactory{
 		self::register(new WritableBook());
 		self::register(new WrittenBook());
 
+		foreach(SkullType::getAll() as $skullType){
+			self::register(new Skull(Item::SKULL, $skullType->getMagicNumber(), $skullType->getDisplayName(), $skullType));
+		}
+
 		/** @var int[]|\SplObjectStorage $dyeMap */
 		$dyeMap = new \SplObjectStorage();
 		$dyeMap[DyeColor::BLACK()] = 16;
@@ -245,9 +243,9 @@ class ItemFactory{
 		foreach(DyeColor::getAll() as $color){
 			//TODO: use colour object directly
 			//TODO: add interface to dye-colour objects
-			self::register(new Dye($dyeMap[$color] ?? $color->getInvertedMagicNumber(), $color->getDisplayName() . " Dye"));
-			self::register(new Bed($color->getMagicNumber(), $color->getDisplayName() . " Bed"));
-			self::register(new Banner($color->getInvertedMagicNumber(), $color->getDisplayName() . " Banner"));
+			self::register(new Dye($dyeMap[$color] ?? $color->getInvertedMagicNumber(), $color->getDisplayName() . " Dye", $color));
+			self::register(new Bed($color->getMagicNumber(), $color->getDisplayName() . " Bed", $color));
+			self::register(new Banner($color->getInvertedMagicNumber(), $color->getDisplayName() . " Banner", $color));
 		}
 
 		foreach(Potion::ALL as $type){
@@ -330,9 +328,9 @@ class ItemFactory{
 	 * @throws \RuntimeException if something attempted to override an already-registered item without specifying the
 	 * $override parameter.
 	 */
-	public static function register(Item $item, bool $override = false){
+	public static function register(Item $item, bool $override = false) : void{
 		$id = $item->getId();
-		$variant = $item->getDamage();
+		$variant = $item->getMeta();
 
 		if(!$override and self::isRegistered($id, $variant)){
 			throw new \RuntimeException("Trying to overwrite an already registered item");

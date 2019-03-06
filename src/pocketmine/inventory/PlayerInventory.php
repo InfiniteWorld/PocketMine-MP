@@ -48,10 +48,6 @@ class PlayerInventory extends BaseInventory{
 		parent::__construct();
 	}
 
-	public function getName() : string{
-		return "Player";
-	}
-
 	public function getDefaultSize() : int{
 		return 36;
 	}
@@ -65,7 +61,7 @@ class PlayerInventory extends BaseInventory{
 	 *
 	 * @throws \InvalidArgumentException
 	 */
-	private function throwIfNotHotbarSlot(int $slot){
+	private function throwIfNotHotbarSlot(int $slot) : void{
 		if(!$this->isHotbarSlot($slot)){
 			throw new \InvalidArgumentException("$slot is not a valid hotbar slot index (expected 0 - " . ($this->getHotbarSize() - 1) . ")");
 		}
@@ -102,7 +98,7 @@ class PlayerInventory extends BaseInventory{
 	 *
 	 * @throws \InvalidArgumentException if the hotbar slot is out of range
 	 */
-	public function setHeldItemIndex(int $hotbarSlot, bool $send = true){
+	public function setHeldItemIndex(int $hotbarSlot, bool $send = true) : void{
 		$this->throwIfNotHotbarSlot($hotbarSlot);
 
 		$this->itemInHandIndex = $hotbarSlot;
@@ -144,7 +140,7 @@ class PlayerInventory extends BaseInventory{
 	 *
 	 * @param Player|Player[] $target
 	 */
-	public function sendHeldItem($target){
+	public function sendHeldItem($target) : void{
 		$item = $this->getItemInHand();
 
 		$pk = new MobEquipmentPacket();
@@ -174,7 +170,7 @@ class PlayerInventory extends BaseInventory{
 		return 9;
 	}
 
-	public function sendCreativeContents(){
+	public function sendCreativeContents() : void{
 		//TODO: this mess shouldn't be in here
 		$holder = $this->getHolder();
 		if(!($holder instanceof Player)){

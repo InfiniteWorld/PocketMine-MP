@@ -105,16 +105,6 @@ abstract class Slab extends Transparent{
 	}
 
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
-		/* note these conditions can't be merged, since one targets clicked and the other replace */
-
-		if($blockClicked instanceof Slab and $blockClicked->slabType !== SlabType::DOUBLE() and $blockClicked->isSameType($this) and (
-			($face === Facing::DOWN and $blockClicked->slabType === SlabType::TOP()) or
-			($face === Facing::UP and $blockClicked->slabType === SlabType::BOTTOM())
-		)){
-			$this->slabType = SlabType::DOUBLE();
-			return $this->level->setBlock($blockClicked, $this);
-		}
-
 		if($blockReplace instanceof Slab and $blockReplace->slabType !== SlabType::DOUBLE() and $blockReplace->isSameType($this) and (
 			($blockReplace->slabType === SlabType::TOP() and ($clickVector->y <= 0.5 or $face === Facing::UP)) or
 			($blockReplace->slabType === SlabType::BOTTOM() and ($clickVector->y >= 0.5 or $face === Facing::DOWN))
@@ -136,6 +126,6 @@ abstract class Slab extends Transparent{
 	}
 
 	public function getDropsForCompatibleTool(Item $item) : array{
-		return [$this->getItem()->setCount($this->slabType === SlabType::DOUBLE() ? 2 : 1)];
+		return [$this->asItem()->setCount($this->slabType === SlabType::DOUBLE() ? 2 : 1)];
 	}
 }

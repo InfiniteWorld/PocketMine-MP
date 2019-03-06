@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace pocketmine\tile;
 
-use pocketmine\item\Item;
 use pocketmine\level\Level;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
@@ -46,10 +45,11 @@ final class TileFactory{
 		//NOOP
 	}
 
-	public static function init(){
+	public static function init() : void{
 		self::register(Banner::class, ["Banner", "minecraft:banner"]);
 		self::register(Bed::class, ["Bed", "minecraft:bed"]);
 		self::register(Chest::class, ["Chest", "minecraft:chest"]);
+		self::register(Comparator::class, ["Comparator", "minecraft:comparator"]);
 		self::register(EnchantTable::class, ["EnchantTable", "minecraft:enchanting_table"]);
 		self::register(EnderChest::class, ["EnderChest", "minecraft:ender_chest"]);
 		self::register(FlowerPot::class, ["FlowerPot", "minecraft:flower_pot"]);
@@ -117,24 +117,6 @@ final class TileFactory{
 		}
 
 		throw new \InvalidArgumentException("Class $baseClass is not a registered tile");
-	}
-
-	/**
-	 * @internal
-	 *
-	 * @param string  $baseClass
-	 * @param Level   $level
-	 * @param Vector3 $pos
-	 * @param Item    $item
-	 *
-	 * @return Tile (instanceof $baseClass)
-	 * @throws \InvalidArgumentException if the base class is not a registered tile
-	 */
-	public static function createFromItem(string $baseClass, Level $level, Vector3 $pos, Item $item) : Tile{
-		$tile = self::create($baseClass, $level, $pos);
-		$tile->copyDataFromItem($item);
-
-		return $tile;
 	}
 
 	/**

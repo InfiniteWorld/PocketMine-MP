@@ -40,11 +40,8 @@ use function array_shift;
 use function asort;
 use function assert;
 use function count;
-use function floor;
 use function implode;
-use function max;
 use function microtime;
-use function min;
 use function random_int;
 use function round;
 use function sprintf;
@@ -62,29 +59,15 @@ class LevelManager{
 	private $server;
 
 	/** @var bool */
-	private $autoTickRate = true;
-	/** @var int */
-	private $autoTickRateLimit = 20;
-	/** @var bool */
-	private $alwaysTickPlayers = false;
-	/** @var int */
-	private $baseTickRate = 1;
-	/** @var bool */
 	private $autoSave = true;
 	/** @var int */
 	private $autoSaveTicks = 6000;
-
 
 	/** @var int */
 	private $autoSaveTicker = 0;
 
 	public function __construct(Server $server){
 		$this->server = $server;
-
-		$this->autoTickRate = (bool) $this->server->getProperty("level-settings.auto-tick-rate", $this->autoTickRate);
-		$this->autoTickRateLimit = (int) $this->server->getProperty("level-settings.auto-tick-rate-limit", $this->autoTickRateLimit);
-		$this->alwaysTickPlayers = (bool) $this->server->getProperty("level-settings.always-tick-players", $this->alwaysTickPlayers);
-		$this->baseTickRate = (int) $this->server->getProperty("level-settings.base-tick-rate", $this->baseTickRate);
 
 		$this->autoSave = $this->server->getConfigBool("auto-save", $this->autoSave);
 		$this->autoSaveTicks = (int) $this->server->getProperty("ticks-per.autosave", 6000);
@@ -239,7 +222,6 @@ class LevelManager{
 		}
 
 		$this->levels[$level->getId()] = $level;
-		$level->setTickRate($this->baseTickRate);
 		$level->setAutoSave($this->autoSave);
 
 		(new LevelLoadEvent($level))->call();
@@ -259,7 +241,7 @@ class LevelManager{
 	 * @return bool
 	 * @throws \InvalidArgumentException
 	 */
-	public function generateLevel(string $name, int $seed = null, string $generator = Normal::class, array $options = [], bool $backgroundGeneration = true) : bool{
+	public function generateLevel(string $name, ?int $seed = null, string $generator = Normal::class, array $options = [], bool $backgroundGeneration = true) : bool{
 		if(trim($name) === "" or $this->isLevelGenerated($name)){
 			return false;
 		}
@@ -278,7 +260,6 @@ class LevelManager{
 		$level = new Level($this->server, $name, new $providerClass($path));
 		$this->levels[$level->getId()] = $level;
 
-		$level->setTickRate($this->baseTickRate);
 		$level->setAutoSave($this->autoSave);
 
 		(new LevelInitEvent($level))->call();
@@ -338,11 +319,11 @@ class LevelManager{
 	 * Searches all levels for the entity with the specified ID.
 	 * Useful for tracking entities across multiple worlds without needing strong references.
 	 *
-	 * @param int|string $entityId
+	 * @param int $entityId
 	 *
 	 * @return Entity|null
 	 */
-	public function findEntity($entityId){
+	public function findEntity(int $entityId) : ?Entity{
 		foreach($this->levels as $level){
 			assert(!$level->isClosed());
 			if(($entity = $level->getEntity($entityId)) instanceof Entity){
@@ -360,45 +341,23 @@ class LevelManager{
 				// Level unloaded during the tick of a level earlier in this loop, perhaps by plugin
 				continue;
 			}
-			if($level->getTickRate() > $this->baseTickRate and --$level->tickRateCounter > 0){
-				if($this->alwaysTickPlayers){
-					foreach($level->getPlayers() as $p){
-						if($p->spawned){
-							$p->onUpdate($currentTick);
-						}
-					}
-				}
-				continue;
-			}
 
 			$levelTime = microtime(true);
 			$level->doTick($currentTick);
 			$tickMs = (microtime(true) - $levelTime) * 1000;
 			$level->tickRateTime = $tickMs;
-
-			if($this->autoTickRate){
-				if($tickMs < 50 and $level->getTickRate() > $this->baseTickRate){
-					$level->setTickRate($r = $level->getTickRate() - 1);
-					if($r > $this->baseTickRate){
-						$level->tickRateCounter = $level->getTickRate();
-					}
-					$this->server->getLogger()->debug("Raising world \"{$level->getDisplayName()}\" tick rate to {$level->getTickRate()} ticks");
-				}elseif($tickMs >= 50){
-					if($level->getTickRate() === $this->baseTickRate){
-						$level->setTickRate(max($this->baseTickRate + 1, min($this->autoTickRateLimit, (int) floor($tickMs / 50))));
-						$this->server->getLogger()->debug(sprintf("World \"%s\" took %gms, setting tick rate to %d ticks", $level->getDisplayName(), (int) round($tickMs, 2), $level->getTickRate()));
-					}elseif(($tickMs / $level->getTickRate()) >= 50 and $level->getTickRate() < $this->autoTickRateLimit){
-						$level->setTickRate($level->getTickRate() + 1);
-						$this->server->getLogger()->debug(sprintf("World \"%s\" took %gms, setting tick rate to %d ticks", $level->getDisplayName(), (int) round($tickMs, 2), $level->getTickRate()));
-					}
-					$level->tickRateCounter = $level->getTickRate();
-				}
+			if($tickMs >= 50){
+				$this->server->getLogger()->debug(sprintf("World \"%s\" took too long to tick: %gms (%g ticks)", $level->getDisplayName(), $tickMs, round($tickMs / 50, 2)));
 			}
 		}
 
 		if($this->autoSave and ++$this->autoSaveTicker >= $this->autoSaveTicks){
 			$this->autoSaveTicker = 0;
+			$this->server->getLogger()->debug("[Auto Save] Saving worlds...");
+			$start = microtime(true);
 			$this->doAutoSave();
+			$time = microtime(true) - $start;
+			$this->server->getLogger()->debug("[Auto Save] Save completed in " . ($time >= 1 ? round($time, 3) . "s" : round($time * 1000) . "ms"));
 		}
 	}
 
@@ -413,7 +372,7 @@ class LevelManager{
 	/**
 	 * @param bool $value
 	 */
-	public function setAutoSave(bool $value){
+	public function setAutoSave(bool $value) : void{
 		$this->autoSave = $value;
 		foreach($this->levels as $level){
 			$level->setAutoSave($this->autoSave);

@@ -28,7 +28,9 @@ use pocketmine\level\format\io\BaseLevelProvider;
 use pocketmine\level\format\io\data\JavaLevelData;
 use pocketmine\level\format\io\exception\CorruptedChunkException;
 use pocketmine\level\format\io\LevelData;
+use pocketmine\level\generator\Generator;
 use pocketmine\level\Level;
+use pocketmine\utils\Utils;
 use function assert;
 use function file_exists;
 use function is_dir;
@@ -69,6 +71,7 @@ abstract class RegionLevelProvider extends BaseLevelProvider{
 	}
 
 	public static function generate(string $path, string $name, int $seed, string $generator, array $options = []) : void{
+		Utils::testValidInstance($generator, Generator::class);
 		if(!file_exists($path)){
 			mkdir($path, 0777, true);
 		}
@@ -208,8 +211,8 @@ abstract class RegionLevelProvider extends BaseLevelProvider{
 		$this->getRegion($regionX, $regionZ)->writeChunk($chunkX & 0x1f, $chunkZ & 0x1f, $this->serializeChunk($chunk));
 	}
 
-	public function getAllChunks() : \Generator{
-		$iterator = new \RegexIterator(
+	private function createRegionIterator() : \RegexIterator{
+		return new \RegexIterator(
 			new \FilesystemIterator(
 				$this->path . '/region/',
 				\FilesystemIterator::CURRENT_AS_PATHNAME | \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::UNIX_PATHS
@@ -217,6 +220,10 @@ abstract class RegionLevelProvider extends BaseLevelProvider{
 			'/\/r\.(-?\d+)\.(-?\d+)\.' . static::getRegionFileExtension() . '$/',
 			\RegexIterator::GET_MATCH
 		);
+	}
+
+	public function getAllChunks() : \Generator{
+		$iterator = $this->createRegionIterator();
 
 		foreach($iterator as $region){
 			$rX = ((int) $region[1]) << 5;
@@ -231,5 +238,14 @@ abstract class RegionLevelProvider extends BaseLevelProvider{
 				}
 			}
 		}
+	}
+
+	public function calculateChunkCount() : int{
+		$count = 0;
+		foreach($this->createRegionIterator() as $region){
+			$this->loadRegion((int) $region[1], (int) $region[2]);
+			$count += $this->getRegion((int) $region[1], (int) $region[2])->calculateChunkCount();
+		}
+		return $count;
 	}
 }

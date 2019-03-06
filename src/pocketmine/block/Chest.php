@@ -67,7 +67,6 @@ class Chest extends Transparent{
 		}
 
 		if(parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player)){
-			//TODO: this is fragile and might have unintended side effects on ender chests if modified carelessly
 			$tile = $this->level->getTile($this);
 			if($tile instanceof TileChest){
 				foreach([
@@ -92,7 +91,7 @@ class Chest extends Transparent{
 		return false;
 	}
 
-	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($player instanceof Player){
 
 			$chest = $this->getLevel()->getTile($this);

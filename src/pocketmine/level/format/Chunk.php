@@ -38,6 +38,7 @@ use pocketmine\tile\TileFactory;
 use pocketmine\utils\BinaryStream;
 use function array_fill;
 use function array_filter;
+use function array_map;
 use function array_values;
 use function assert;
 use function chr;
@@ -106,7 +107,7 @@ class Chunk{
 	 * @param string              $biomeIds
 	 * @param int[]               $heightMap
 	 */
-	public function __construct(int $chunkX, int $chunkZ, array $subChunks = [], array $entities = [], array $tiles = [], string $biomeIds = "", array $heightMap = []){
+	public function __construct(int $chunkX, int $chunkZ, array $subChunks = [], ?array $entities = null, ?array $tiles = null, string $biomeIds = "", array $heightMap = []){
 		$this->x = $chunkX;
 		$this->z = $chunkZ;
 
@@ -152,14 +153,14 @@ class Chunk{
 		return $this->z;
 	}
 
-	public function setX(int $x){
+	public function setX(int $x) : void{
 		$this->x = $x;
 	}
 
 	/**
 	 * @param int $z
 	 */
-	public function setZ(int $z){
+	public function setZ(int $z) : void{
 		$this->z = $z;
 	}
 
@@ -251,7 +252,7 @@ class Chunk{
 	 * @param int $z 0-15
 	 * @param int $level 0-15
 	 */
-	public function setBlockSkyLight(int $x, int $y, int $z, int $level){
+	public function setBlockSkyLight(int $x, int $y, int $z, int $level) : void{
 		if($this->getSubChunk($y >> 4, true)->setBlockSkyLight($x, $y & 0x0f, $z, $level)){
 			$this->hasChanged = true;
 		}
@@ -260,7 +261,7 @@ class Chunk{
 	/**
 	 * @param int $level
 	 */
-	public function setAllBlockSkyLight(int $level){
+	public function setAllBlockSkyLight(int $level) : void{
 		$char = chr(($level & 0x0f) | ($level << 4));
 		$data = str_repeat($char, 2048);
 		for($y = $this->getHighestSubChunkIndex(); $y >= 0; --$y){
@@ -289,7 +290,7 @@ class Chunk{
 	 * @param int $z 0-15
 	 * @param int $level 0-15
 	 */
-	public function setBlockLight(int $x, int $y, int $z, int $level){
+	public function setBlockLight(int $x, int $y, int $z, int $level) : void{
 		if($this->getSubChunk($y >> 4, true)->setBlockLight($x, $y & 0x0f, $z, $level)){
 			$this->hasChanged = true;
 		}
@@ -298,7 +299,7 @@ class Chunk{
 	/**
 	 * @param int $level
 	 */
-	public function setAllBlockLight(int $level){
+	public function setAllBlockLight(int $level) : void{
 		$char = chr(($level & 0x0f) | ($level << 4));
 		$data = str_repeat($char, 2048);
 		for($y = $this->getHighestSubChunkIndex(); $y >= 0; --$y){
@@ -353,14 +354,14 @@ class Chunk{
 	 * @param int $z 0-15
 	 * @param int $value
 	 */
-	public function setHeightMap(int $x, int $z, int $value){
+	public function setHeightMap(int $x, int $z, int $value) : void{
 		$this->heightMap[($z << 4) | $x] = $value;
 	}
 
 	/**
 	 * Recalculates the heightmap for the whole chunk.
 	 */
-	public function recalculateHeightMap(){
+	public function recalculateHeightMap() : void{
 		for($z = 0; $z < 16; ++$z){
 			for($x = 0; $x < 16; ++$x){
 				$this->recalculateHeightMapColumn($x, $z);
@@ -395,7 +396,7 @@ class Chunk{
 	 *
 	 * TODO: fast adjacent light spread
 	 */
-	public function populateSkyLight(){
+	public function populateSkyLight() : void{
 		$maxY = $this->getMaxY();
 
 		$this->setAllBlockSkyLight(0);
@@ -441,7 +442,7 @@ class Chunk{
 	 * @param int $z 0-15
 	 * @param int $biomeId 0-255
 	 */
-	public function setBiomeId(int $x, int $z, int $biomeId){
+	public function setBiomeId(int $x, int $z, int $biomeId) : void{
 		$this->hasChanged = true;
 		$this->biomeIds{($z << 4) | $x} = chr($biomeId & 0xff);
 	}
@@ -456,7 +457,7 @@ class Chunk{
 	/**
 	 * @param bool $value
 	 */
-	public function setLightPopulated(bool $value = true){
+	public function setLightPopulated(bool $value = true) : void{
 		$this->lightPopulated = $value;
 	}
 
@@ -470,7 +471,7 @@ class Chunk{
 	/**
 	 * @param bool $value
 	 */
-	public function setPopulated(bool $value = true){
+	public function setPopulated(bool $value = true) : void{
 		$this->terrainPopulated = $value;
 	}
 
@@ -484,14 +485,14 @@ class Chunk{
 	/**
 	 * @param bool $value
 	 */
-	public function setGenerated(bool $value = true){
+	public function setGenerated(bool $value = true) : void{
 		$this->terrainGenerated = $value;
 	}
 
 	/**
 	 * @param Entity $entity
 	 */
-	public function addEntity(Entity $entity){
+	public function addEntity(Entity $entity) : void{
 		if($entity->isClosed()){
 			throw new \InvalidArgumentException("Attempted to add a garbage closed Entity to a chunk");
 		}
@@ -504,7 +505,7 @@ class Chunk{
 	/**
 	 * @param Entity $entity
 	 */
-	public function removeEntity(Entity $entity){
+	public function removeEntity(Entity $entity) : void{
 		unset($this->entities[$entity->getId()]);
 		if(!($entity instanceof Player) and $this->isInit){
 			$this->hasChanged = true;
@@ -514,7 +515,7 @@ class Chunk{
 	/**
 	 * @param Tile $tile
 	 */
-	public function addTile(Tile $tile){
+	public function addTile(Tile $tile) : void{
 		if($tile->isClosed()){
 			throw new \InvalidArgumentException("Attempted to add a garbage closed Tile to a chunk");
 		}
@@ -531,7 +532,7 @@ class Chunk{
 	/**
 	 * @param Tile $tile
 	 */
-	public function removeTile(Tile $tile){
+	public function removeTile(Tile $tile) : void{
 		unset($this->tiles[Chunk::blockHash($tile->x, $tile->y, $tile->z)]);
 		if($this->isInit){
 			$this->hasChanged = true;
@@ -570,7 +571,7 @@ class Chunk{
 	 *
 	 * @return Tile|null
 	 */
-	public function getTile(int $x, int $y, int $z){
+	public function getTile(int $x, int $y, int $z) : ?Tile{
 		return $this->tiles[Chunk::blockHash($x, $y, $z)] ?? null;
 	}
 
@@ -591,11 +592,25 @@ class Chunk{
 	}
 
 	/**
+	 * @return CompoundTag[]
+	 */
+	public function getNBTtiles() : array{
+		return $this->NBTtiles ?? array_map(function(Tile $tile) : CompoundTag{ return $tile->saveNBT(); }, $this->tiles);
+	}
+
+	/**
+	 * @return CompoundTag[]
+	 */
+	public function getNBTentities() : array{
+		return $this->NBTentities ?? array_map(function(Entity $entity) : CompoundTag{ return $entity->saveNBT(); }, $this->getSavableEntities());
+	}
+
+	/**
 	 * Deserializes tiles and entities from NBT
 	 *
 	 * @param Level $level
 	 */
-	public function initChunk(Level $level){
+	public function initChunk(Level $level) : void{
 		if(!$this->isInit){
 			$changed = false;
 			if($this->NBTentities !== null){
@@ -605,6 +620,7 @@ class Chunk{
 						try{
 							$entity = EntityFactory::createFromData($level, $nbt);
 							if(!($entity instanceof Entity)){
+								$level->getServer()->getLogger()->warning("Chunk $this->x $this->z: Deleted unknown entity type " . $nbt->getString("id", "<unknown>", true));
 								$changed = true;
 								continue;
 							}
@@ -623,6 +639,7 @@ class Chunk{
 						if(($tile = TileFactory::createFromData($level, $nbt)) !== null){
 							$level->addTile($tile);
 						}else{
+							$level->getServer()->getLogger()->warning("Chunk $this->x $this->z: Deleted unknown tile entity type " . $nbt->getString("id", "<unknown>", true));
 							$changed = true;
 							continue;
 						}
@@ -665,7 +682,7 @@ class Chunk{
 	/**
 	 * @param bool $value
 	 */
-	public function setChanged(bool $value = true){
+	public function setChanged(bool $value = true) : void{
 		$this->hasChanged = $value;
 	}
 
@@ -696,7 +713,7 @@ class Chunk{
 	 *
 	 * @return bool
 	 */
-	public function setSubChunk(int $y, SubChunkInterface $subChunk = null, bool $allowEmpty = false) : bool{
+	public function setSubChunk(int $y, ?SubChunkInterface $subChunk, bool $allowEmpty = false) : bool{
 		if($y < 0 or $y >= $this->height){
 			return false;
 		}
@@ -858,7 +875,7 @@ class Chunk{
 			}
 		}
 
-		$chunk = new Chunk($x, $z, $subChunks, [], [], $biomeIds, $heightMap);
+		$chunk = new Chunk($x, $z, $subChunks, null, null, $biomeIds, $heightMap);
 		$chunk->setGenerated($terrainGenerated);
 		$chunk->setPopulated($terrainPopulated);
 		$chunk->setLightPopulated($lightPopulated);

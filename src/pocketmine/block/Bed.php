@@ -25,6 +25,7 @@ namespace pocketmine\block;
 
 use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\block\utils\DyeColor;
+use pocketmine\item\Bed as ItemBed;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\lang\TranslationContainer;
@@ -108,7 +109,7 @@ class Bed extends Transparent{
 		return $this->occupied;
 	}
 
-	public function setOccupied(bool $occupied = true){
+	public function setOccupied(bool $occupied = true) : void{
 		$this->occupied = $occupied;
 		$this->level->setBlock($this, $this, false);
 
@@ -137,7 +138,7 @@ class Bed extends Transparent{
 		return null;
 	}
 
-	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($player !== null){
 			$other = $this->getOtherHalf();
 			if($other === null){
@@ -175,7 +176,9 @@ class Bed extends Transparent{
 	}
 
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
-		$this->color = DyeColor::fromMagicNumber($item->getDamage()); //TODO: replace this with a proper colour getter
+		if($item instanceof ItemBed){ //TODO: the item should do this
+			$this->color = $item->getColor();
+		}
 		$down = $this->getSide(Facing::DOWN);
 		if(!$down->isTransparent()){
 			$this->facing = $player !== null ? $player->getHorizontalFacing() : Facing::NORTH;
@@ -194,20 +197,16 @@ class Bed extends Transparent{
 		return false;
 	}
 
-	public function getDropsForCompatibleTool(Item $item) : array{
-		if($this->isHeadPart()){
-			return parent::getDropsForCompatibleTool($item);
+	public function getDrops(Item $item) : array{
+		if($this->head){
+			return parent::getDrops($item);
 		}
 
 		return [];
 	}
 
-	public function getItem() : Item{
+	public function asItem() : Item{
 		return ItemFactory::get($this->idInfo->getItemId(), $this->color->getMagicNumber());
-	}
-
-	public function isAffectedBySilkTouch() : bool{
-		return false;
 	}
 
 	public function getAffectedBlocks() : array{

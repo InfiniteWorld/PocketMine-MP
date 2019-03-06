@@ -74,8 +74,8 @@ class Grass extends Solid{
 
 				$b = $this->level->getBlockAt($x, $y, $z);
 				if(
-					$b->getId() !== Block::DIRT or
-					$b->getDamage() === 1 or //coarse dirt
+					!($b instanceof Dirt) or
+					$b instanceof CoarseDirt or
 					$this->level->getFullLightAt($x, $y + 1, $z) < 4 or
 					$this->level->getBlockAt($x, $y + 1, $z)->getLightFilter() >= 2
 				){
@@ -91,7 +91,7 @@ class Grass extends Solid{
 		}
 	}
 
-	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($face !== Facing::UP){
 			return false;
 		}

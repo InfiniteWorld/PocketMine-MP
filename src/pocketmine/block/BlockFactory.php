@@ -30,7 +30,9 @@ use pocketmine\block\utils\PillarRotationTrait;
 use pocketmine\block\utils\TreeType;
 use pocketmine\item\ItemIds;
 use pocketmine\level\Position;
+use pocketmine\tile\Comparator;
 use function array_fill;
+use function array_filter;
 use function file_get_contents;
 use function get_class;
 use function json_decode;
@@ -41,18 +43,15 @@ use function min;
  * Manages block registration and instance creation
  */
 class BlockFactory{
-	/** @var \SplFixedArray<Block> */
+	/** @var \SplFixedArray|Block[] */
 	private static $fullList = null;
 
-	/** @var \SplFixedArray<int> */
-	public static $lightFilter = null;
-	/** @var \SplFixedArray<bool> */
-	public static $diffusesSkyLight = null;
-	/** @var \SplFixedArray<float> */
-	public static $blastResistance = null;
-
 	/** @var \SplFixedArray|int[] */
-	private static $stateMasks = null;
+	public static $lightFilter = null;
+	/** @var \SplFixedArray|bool[] */
+	public static $diffusesSkyLight = null;
+	/** @var \SplFixedArray|float[] */
+	public static $blastResistance = null;
 
 	/** @var int[] */
 	public static $staticRuntimeIdMap = [];
@@ -73,8 +72,6 @@ class BlockFactory{
 		self::$lightFilter = \SplFixedArray::fromArray(array_fill(0, 8192, 1));
 		self::$diffusesSkyLight = \SplFixedArray::fromArray(array_fill(0, 8192, false));
 		self::$blastResistance = \SplFixedArray::fromArray(array_fill(0, 8192, 0));
-
-		self::$stateMasks = new \SplFixedArray(8192);
 
 		self::register(new ActivatorRail(new BID(Block::ACTIVATOR_RAIL, BaseRail::STRAIGHT_NORTH_SOUTH), "Activator Rail"));
 		self::register(new Air(new BID(Block::AIR), "Air"));
@@ -118,6 +115,7 @@ class BlockFactory{
 		self::register(new DoublePlant(new BID(Block::DOUBLE_PLANT, 5), "Peony"));
 		self::register(new DoubleTallGrass(new BID(Block::DOUBLE_PLANT, 2), "Double Tallgrass"));
 		self::register(new DoubleTallGrass(new BID(Block::DOUBLE_PLANT, 3), "Large Fern"));
+		self::register(new DragonEgg(new BID(Block::DRAGON_EGG), "Dragon Egg"));
 		self::register(new Emerald(new BID(Block::EMERALD_BLOCK), "Emerald Block"));
 		self::register(new EmeraldOre(new BID(Block::EMERALD_ORE), "Emerald Ore"));
 		self::register(new EnchantingTable(new BID(Block::ENCHANTING_TABLE, 0, null, \pocketmine\tile\EnchantTable::class), "Enchanting Table"));
@@ -140,6 +138,7 @@ class BlockFactory{
 		self::register(new Flower(new BID(Block::RED_FLOWER, Flower::TYPE_RED_TULIP), "Red Tulip"));
 		self::register(new Flower(new BID(Block::RED_FLOWER, Flower::TYPE_WHITE_TULIP), "White Tulip"));
 		self::register(new FlowerPot(new BID(Block::FLOWER_POT_BLOCK, 0, ItemIds::FLOWER_POT, \pocketmine\tile\FlowerPot::class), "Flower Pot"));
+		self::register(new FrostedIce(new BID(Block::FROSTED_ICE), "Frosted Ice"));
 		self::register(new Furnace(new BlockIdentifierFlattened(Block::FURNACE, Block::LIT_FURNACE, 0, null, \pocketmine\tile\Furnace::class), "Furnace"));
 		self::register(new Glass(new BID(Block::GLASS), "Glass"));
 		self::register(new GlassPane(new BID(Block::GLASS_PANE), "Glass Pane"));
@@ -213,6 +212,7 @@ class BlockFactory{
 		self::register(new RedMushroom(new BID(Block::RED_MUSHROOM), "Red Mushroom"));
 		self::register(new RedMushroomBlock(new BID(Block::RED_MUSHROOM_BLOCK), "Red Mushroom Block"));
 		self::register(new Redstone(new BID(Block::REDSTONE_BLOCK), "Redstone Block"));
+		self::register(new RedstoneComparator(new BlockIdentifierFlattened(Block::UNPOWERED_COMPARATOR, Block::POWERED_COMPARATOR, 0, ItemIds::COMPARATOR, Comparator::class), "Redstone Comparator"));
 		self::register(new RedstoneLamp(new BlockIdentifierFlattened(Block::REDSTONE_LAMP, Block::LIT_REDSTONE_LAMP), "Redstone Lamp"));
 		self::register(new RedstoneOre(new BlockIdentifierFlattened(Block::REDSTONE_ORE, Block::LIT_REDSTONE_ORE), "Redstone Ore"));
 		self::register(new RedstoneRepeater(new BlockIdentifierFlattened(Block::UNPOWERED_REPEATER, Block::POWERED_REPEATER, 0, ItemIds::REPEATER), "Redstone Repeater"));
@@ -275,7 +275,7 @@ class BlockFactory{
 		self::register(new Torch(new BID(Block::TORCH), "Torch"));
 		self::register(new Trapdoor(new BID(Block::TRAPDOOR), "Wooden Trapdoor"));
 		self::register(new TrappedChest(new BID(Block::TRAPPED_CHEST, 0, null, \pocketmine\tile\Chest::class), "Trapped Chest"));
-		self::register(new Tripwire(new BID(Block::TRIPWIRE), "Tripwire"));
+		self::register(new Tripwire(new BID(Block::TRIPWIRE, 0, ItemIds::STRING), "Tripwire"));
 		self::register(new TripwireHook(new BID(Block::TRIPWIRE_HOOK), "Tripwire Hook"));
 		self::register(new UnderwaterTorch(new BID(Block::UNDERWATER_TORCH), "Underwater Torch"));
 		self::register(new Vine(new BID(Block::VINE), "Vines"));
@@ -557,7 +557,7 @@ class BlockFactory{
 				$v = clone $block;
 				try{
 					$v->readStateFromData($id, $m & $stateMask);
-					if($v->getDamage() !== $m){
+					if($v->getMeta() !== $m){
 						throw new InvalidBlockStateException("Corrupted meta"); //don't register anything that isn't the same when we read it back again
 					}
 				}catch(InvalidBlockStateException $e){ //invalid property combination
@@ -575,7 +575,6 @@ class BlockFactory{
 
 	private static function fillStaticArrays(int $index, Block $block) : void{
 		self::$fullList[$index] = $block;
-		self::$stateMasks[$index] = $block->getStateBitmask();
 		self::$lightFilter[$index] = min(15, $block->getLightFilter() + 1); //opacity plus 1 standard light filter
 		self::$diffusesSkyLight[$index] = $block->diffusesSkyLight();
 		self::$blastResistance[$index] = $block->getBlastResistance();
@@ -619,10 +618,6 @@ class BlockFactory{
 
 	public static function fromFullBlock(int $fullState, ?Position $pos = null) : Block{
 		return self::get($fullState >> 4, $fullState & 0xf, $pos);
-	}
-
-	public static function getStateMask(int $id) : int{
-		return self::$stateMasks[$id] ?? 0;
 	}
 
 	/**
@@ -684,5 +679,12 @@ class BlockFactory{
 		self::$staticRuntimeIdMap[($legacyId << 4) | $legacyMeta] = $staticRuntimeId;
 		self::$legacyIdMap[$staticRuntimeId] = ($legacyId << 4) | $legacyMeta;
 		self::$lastRuntimeId = max(self::$lastRuntimeId, $staticRuntimeId);
+	}
+
+	/**
+	 * @return Block[]
+	 */
+	public static function getAllKnownStates() : array{
+		return array_filter(self::$fullList->toArray(), function(?Block $v) : bool{ return $v !== null; });
 	}
 }

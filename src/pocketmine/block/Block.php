@@ -107,7 +107,7 @@ class Block extends Position implements BlockIds, Metadatable{
 		return $this->idInfo->getBlockId();
 	}
 
-	public function getItem() : Item{
+	public function asItem() : Item{
 		return ItemFactory::get($this->idInfo->getItemId(), $this->idInfo->getVariant());
 	}
 
@@ -116,13 +116,13 @@ class Block extends Position implements BlockIds, Metadatable{
 	 * @return int
 	 */
 	public function getRuntimeId() : int{
-		return BlockFactory::toStaticRuntimeId($this->getId(), $this->getDamage());
+		return BlockFactory::toStaticRuntimeId($this->getId(), $this->getMeta());
 	}
 
 	/**
 	 * @return int
 	 */
-	public function getDamage() : int{
+	public function getMeta() : int{
 		$stateMeta = $this->writeStateToMeta();
 		assert(($stateMeta & ~$this->getStateBitmask()) === 0);
 		return $this->idInfo->getVariant() | $stateMeta;
@@ -155,7 +155,7 @@ class Block extends Position implements BlockIds, Metadatable{
 	}
 
 	public function writeStateToWorld() : void{
-		$this->level->getChunkAtPosition($this)->setBlock($this->x & 0xf, $this->y, $this->z & 0xf, $this->getId(), $this->getDamage());
+		$this->level->getChunkAtPosition($this)->setBlock($this->x & 0xf, $this->y, $this->z & 0xf, $this->getId(), $this->getMeta());
 
 		$tileType = $this->idInfo->getTileClass();
 		$oldTile = $this->level->getTile($this);
@@ -325,7 +325,7 @@ class Block extends Position implements BlockIds, Metadatable{
 			$base *= 5;
 		}
 
-		$efficiency = $item->getMiningEfficiency($this);
+		$efficiency = $item->getMiningEfficiency(($this->getToolType() & $item->getBlockToolType()) !== 0);
 		if($efficiency <= 0){
 			throw new \InvalidArgumentException(get_class($item) . " has invalid mining efficiency: expected >= 0, got $efficiency");
 		}
@@ -367,7 +367,7 @@ class Block extends Position implements BlockIds, Metadatable{
 	}
 
 	/**
-	 * Do actions when activated by Item. Returns if it has done anything
+	 * Do actions when interacted by Item. Returns if it has done anything
 	 *
 	 * @param Item        $item
 	 * @param int         $face
@@ -376,7 +376,21 @@ class Block extends Position implements BlockIds, Metadatable{
 	 *
 	 * @return bool
 	 */
-	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+		return false;
+	}
+
+	/**
+	 * Called when this block is attacked (left-clicked). This is called when a player left-clicks the block to try and
+	 * start to break it in survival mode.
+	 *
+	 * @param Item        $item
+	 * @param int         $face
+	 * @param Player|null $player
+	 *
+	 * @return bool if an action took place, prevents starting to break the block if true.
+	 */
+	public function onAttack(Item $item, int $face, ?Player $player = null) : bool{
 		return false;
 	}
 
@@ -511,7 +525,7 @@ class Block extends Position implements BlockIds, Metadatable{
 	 * @return Item[]
 	 */
 	public function getDropsForCompatibleTool(Item $item) : array{
-		return [$this->getItem()];
+		return [$this->asItem()];
 	}
 
 	/**
@@ -522,7 +536,7 @@ class Block extends Position implements BlockIds, Metadatable{
 	 * @return Item[]
 	 */
 	public function getSilkTouchDrops(Item $item) : array{
-		return [$this->getItem()];
+		return [$this->asItem()];
 	}
 
 	/**
@@ -564,7 +578,7 @@ class Block extends Position implements BlockIds, Metadatable{
 	 * @return Item
 	 */
 	public function getPickedItem() : Item{
-		return $this->getItem();
+		return $this->asItem();
 	}
 
 	/**
@@ -678,7 +692,7 @@ class Block extends Position implements BlockIds, Metadatable{
 	 * @return string
 	 */
 	public function __toString(){
-		return "Block[" . $this->getName() . "] (" . $this->getId() . ":" . $this->getDamage() . ")";
+		return "Block[" . $this->getName() . "] (" . $this->getId() . ":" . $this->getMeta() . ")";
 	}
 
 	/**
@@ -786,7 +800,7 @@ class Block extends Position implements BlockIds, Metadatable{
 		return $currentHit;
 	}
 
-	public function setMetadata(string $metadataKey, MetadataValue $newMetadataValue){
+	public function setMetadata(string $metadataKey, MetadataValue $newMetadataValue) : void{
 		if($this->isValid()){
 			$this->level->getBlockMetadata()->setMetadata($this, $metadataKey, $newMetadataValue);
 		}
@@ -808,7 +822,7 @@ class Block extends Position implements BlockIds, Metadatable{
 		return false;
 	}
 
-	public function removeMetadata(string $metadataKey, Plugin $owningPlugin){
+	public function removeMetadata(string $metadataKey, Plugin $owningPlugin) : void{
 		if($this->isValid()){
 			$this->level->getBlockMetadata()->removeMetadata($this, $metadataKey, $owningPlugin);
 		}

@@ -44,7 +44,7 @@ class TNT extends Solid{
 		return 0;
 	}
 
-	public function onActivate(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
+	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($item instanceof FlintSteel or $item->hasEnchantment(Enchantment::FIRE_ASPECT())){
 			if($item instanceof Durable){
 				$item->applyDamage(1);
@@ -66,7 +66,7 @@ class TNT extends Solid{
 		}
 	}
 
-	public function ignite(int $fuse = 80){
+	public function ignite(int $fuse = 80) : void{
 		$this->getLevel()->setBlock($this, BlockFactory::get(Block::AIR));
 
 		$mot = (new Random())->nextSignedFloat() * M_PI * 2;

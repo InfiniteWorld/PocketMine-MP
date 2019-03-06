@@ -41,10 +41,6 @@ class EnderChestInventory extends ChestInventory{
 		return WindowTypes::CONTAINER;
 	}
 
-	public function getName() : string{
-		return "EnderChest";
-	}
-
 	public function getDefaultSize() : int{
 		return 27;
 	}
@@ -54,7 +50,7 @@ class EnderChestInventory extends ChestInventory{
 	 *
 	 * @param EnderChest $enderChest
 	 */
-	public function setHolderPosition(EnderChest $enderChest){
+	public function setHolderPosition(EnderChest $enderChest) : void{
 		$this->holder->setComponents($enderChest->getFloorX(), $enderChest->getFloorY(), $enderChest->getFloorZ());
 		$this->holder->setLevel($enderChest->getLevel());
 	}

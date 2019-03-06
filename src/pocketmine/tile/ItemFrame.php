@@ -29,6 +29,10 @@ use pocketmine\level\Level;
 use pocketmine\math\Vector3;
 use pocketmine\nbt\tag\CompoundTag;
 
+/**
+ * @deprecated
+ * @see \pocketmine\block\ItemFrame
+ */
 class ItemFrame extends Spawnable{
 	public const TAG_ITEM_ROTATION = "ItemRotation";
 	public const TAG_ITEM_DROP_CHANCE = "ItemDropChance";
@@ -68,7 +72,7 @@ class ItemFrame extends Spawnable{
 		return clone $this->item;
 	}
 
-	public function setItem(Item $item = null){
+	public function setItem(?Item $item) : void{
 		if($item !== null and !$item->isNull()){
 			$this->item = clone $item;
 		}else{
@@ -81,7 +85,7 @@ class ItemFrame extends Spawnable{
 		return $this->itemRotation;
 	}
 
-	public function setItemRotation(int $rotation){
+	public function setItemRotation(int $rotation) : void{
 		$this->itemRotation = $rotation;
 		$this->onChanged();
 	}
@@ -90,7 +94,7 @@ class ItemFrame extends Spawnable{
 		return $this->itemDropChance;
 	}
 
-	public function setItemDropChance(float $chance){
+	public function setItemDropChance(float $chance) : void{
 		$this->itemDropChance = $chance;
 		$this->onChanged();
 	}

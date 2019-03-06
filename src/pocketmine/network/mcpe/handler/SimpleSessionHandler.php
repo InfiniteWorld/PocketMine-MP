@@ -23,12 +23,18 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\handler;
 
+use pocketmine\block\ItemFrame;
+use pocketmine\block\SignPost;
+use pocketmine\block\utils\SignText;
 use pocketmine\inventory\transaction\action\InventoryAction;
 use pocketmine\inventory\transaction\CraftingTransaction;
 use pocketmine\inventory\transaction\InventoryTransaction;
 use pocketmine\inventory\transaction\TransactionValidationException;
 use pocketmine\math\Vector3;
+use pocketmine\nbt\NbtDataException;
+use pocketmine\nbt\tag\StringTag;
 use pocketmine\network\BadPacketException;
+use pocketmine\network\mcpe\NetworkNbtSerializer;
 use pocketmine\network\mcpe\protocol\AdventureSettingsPacket;
 use pocketmine\network\mcpe\protocol\AnimatePacket;
 use pocketmine\network\mcpe\protocol\BlockEntityDataPacket;
@@ -53,6 +59,7 @@ use pocketmine\network\mcpe\protocol\MobArmorEquipmentPacket;
 use pocketmine\network\mcpe\protocol\MobEquipmentPacket;
 use pocketmine\network\mcpe\protocol\ModalFormResponsePacket;
 use pocketmine\network\mcpe\protocol\MovePlayerPacket;
+use pocketmine\network\mcpe\protocol\NetworkStackLatencyPacket;
 use pocketmine\network\mcpe\protocol\PlayerActionPacket;
 use pocketmine\network\mcpe\protocol\PlayerHotbarPacket;
 use pocketmine\network\mcpe\protocol\PlayerInputPacket;
@@ -70,6 +77,7 @@ use pocketmine\network\mcpe\protocol\types\ReleaseItemTransactionData;
 use pocketmine\network\mcpe\protocol\types\UseItemOnEntityTransactionData;
 use pocketmine\network\mcpe\protocol\types\UseItemTransactionData;
 use pocketmine\Player;
+use function base64_encode;
 use function implode;
 use function json_decode;
 use function json_encode;
@@ -308,7 +316,7 @@ class SimpleSessionHandler extends SessionHandler{
 
 		switch($packet->action){
 			case PlayerActionPacket::ACTION_START_BREAK:
-				$this->player->startBreakBlock($pos, $packet->face);
+				$this->player->attackBlock($pos, $packet->face);
 
 				break;
 
@@ -383,7 +391,37 @@ class SimpleSessionHandler extends SessionHandler{
 	}
 
 	public function handleBlockEntityData(BlockEntityDataPacket $packet) : bool{
-		return $this->player->handleBlockEntityData($packet);
+		$pos = new Vector3($packet->x, $packet->y, $packet->z);
+		if($pos->distanceSquared($this->player) > 10000){
+			return false;
+		}
+
+		$block = $this->player->getLevel()->getBlock($pos);
+		try{
+			$nbt = (new NetworkNbtSerializer())->read($packet->namedtag);
+		}catch(NbtDataException $e){
+			throw new BadPacketException($e->getMessage(), 0, $e);
+		}
+
+		if($block instanceof SignPost){
+			if($nbt->hasTag("Text", StringTag::class)){
+				try{
+					$text = SignText::fromBlob($nbt->getString("Text"));
+				}catch(\InvalidArgumentException $e){
+					throw new BadPacketException("Invalid sign text update: " . $e->getMessage(), 0, $e);
+				}
+
+				if(!$block->updateText($this->player, $text)){
+					$this->player->getLevel()->sendBlocks([$this->player], [$block]);
+				}
+
+				return true;
+			}
+
+			$this->player->getServer()->getLogger()->debug("Invalid sign update data from " . $this->player->getName() . ": " . base64_encode($packet->namedtag));
+		}
+
+		return false;
 	}
 
 	public function handlePlayerInput(PlayerInputPacket $packet) : bool{
@@ -414,7 +452,11 @@ class SimpleSessionHandler extends SessionHandler{
 	}
 
 	public function handleItemFrameDropItem(ItemFrameDropItemPacket $packet) : bool{
-		return $this->player->handleItemFrameDropItem($packet);
+		$block = $this->player->getLevel()->getBlockAt($packet->x, $packet->y, $packet->z);
+		if($block instanceof ItemFrame and $block->getFramedItem() !== null){
+			return $this->player->attackBlock(new Vector3($packet->x, $packet->y, $packet->z), $block->getFacing());
+		}
+		return false;
 	}
 
 	public function handleBossEvent(BossEventPacket $packet) : bool{
@@ -490,5 +532,9 @@ class SimpleSessionHandler extends SessionHandler{
 
 	public function handleLevelSoundEvent(LevelSoundEventPacket $packet) : bool{
 		return $this->player->handleLevelSoundEvent($packet);
+	}
+
+	public function handleNetworkStackLatency(NetworkStackLatencyPacket $packet) : bool{
+		return true; //TODO: implement this properly - this is here to silence debug spam from MCPE dev builds
 	}
 }

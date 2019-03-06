@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c9cfdc716006c436f4fc8a34f207dd6c",
+    "content-hash": "fe0900755c7002211d27e438533bc99b",
     "packages": [
         {
             "name": "adhocore/json-comment",
@@ -165,12 +165,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/BinaryUtils_MoreSupport.git",
-                "reference": "5e966a966554b3611d613b7e9dff9d0c63e75615"
+                "reference": "913e83f4d7b12ab4806fb20548b5f456111d5dfa"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/BinaryUtils_MoreSupport/zipball/5e966a966554b3611d613b7e9dff9d0c63e75615",
-                "reference": "5e966a966554b3611d613b7e9dff9d0c63e75615",
+                "url": "https://api.github.com/repos/InfiniteWorld/BinaryUtils_MoreSupport/zipball/913e83f4d7b12ab4806fb20548b5f456111d5dfa",
+                "reference": "913e83f4d7b12ab4806fb20548b5f456111d5dfa",
                 "shasum": ""
             },
             "require": {
@@ -189,7 +189,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/BinaryUtils_MoreSupport/tree/master_32-bit"
             },
-            "time": "2019-02-12T15:29:38+00:00"
+            "time": "2019-02-24T07:49:06+00:00"
         },
         {
             "name": "infiniteworld/math",
@@ -273,12 +273,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/RakLib_MoreSupport.git",
-                "reference": "6475d11856e031b3fd68cd98bc1aa4ee16414da9"
+                "reference": "bb9a3e49324e91fdae984457578e94efecd1e207"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/RakLib_MoreSupport/zipball/6475d11856e031b3fd68cd98bc1aa4ee16414da9",
-                "reference": "6475d11856e031b3fd68cd98bc1aa4ee16414da9",
+                "url": "https://api.github.com/repos/InfiniteWorld/RakLib_MoreSupport/zipball/bb9a3e49324e91fdae984457578e94efecd1e207",
+                "reference": "bb9a3e49324e91fdae984457578e94efecd1e207",
                 "shasum": ""
             },
             "require": {
@@ -304,7 +304,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/RakLib_MoreSupport/tree/master_32-bit"
             },
-            "time": "2019-02-22T12:34:28+00:00"
+            "time": "2019-02-24T12:34:41+00:00"
         },
         {
             "name": "infiniteworld/snooze",
@@ -479,12 +479,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/pmmp/SPL.git",
-                "reference": "d7bd7b8cb10c264ca6e6b5c3ef9b52e48a6f29d8"
+                "reference": "35110fcc742701d5f2b8093d63365c42900236c1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/pmmp/SPL/zipball/d7bd7b8cb10c264ca6e6b5c3ef9b52e48a6f29d8",
-                "reference": "d7bd7b8cb10c264ca6e6b5c3ef9b52e48a6f29d8",
+                "url": "https://api.github.com/repos/pmmp/SPL/zipball/35110fcc742701d5f2b8093d63365c42900236c1",
+                "reference": "35110fcc742701d5f2b8093d63365c42900236c1",
                 "shasum": ""
             },
             "type": "library",
@@ -503,7 +503,7 @@
             "support": {
                 "source": "https://github.com/pmmp/SPL/tree/master"
             },
-            "time": "2019-01-17T18:54:01+00:00"
+            "time": "2019-02-23T12:20:29+00:00"
         }
     ],
     "packages-dev": [],
@@ -541,6 +541,7 @@
         "ext-crypto": "^0.3.1",
         "ext-ctype": "*",
         "ext-date": "*",
+        "ext-ds": "^1.2.7",
         "ext-gmp": "*",
         "ext-hash": "*",
         "ext-json": "*",

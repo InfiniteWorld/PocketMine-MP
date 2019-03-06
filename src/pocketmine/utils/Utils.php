@@ -54,6 +54,8 @@ use function gettype;
 use function hexdec;
 use function implode;
 use function is_array;
+use function is_dir;
+use function is_file;
 use function is_object;
 use function is_readable;
 use function is_string;
@@ -73,6 +75,8 @@ use function preg_match_all;
 use function preg_replace;
 use function proc_close;
 use function proc_open;
+use function rmdir;
+use function scandir;
 use function sha1;
 use function spl_object_hash;
 use function str_pad;
@@ -87,11 +91,13 @@ use function strval;
 use function substr;
 use function sys_get_temp_dir;
 use function trim;
+use function unlink;
 use function xdebug_get_function_stack;
 use const PHP_EOL;
 use const PHP_INT_MAX;
 use const PHP_INT_SIZE;
 use const PHP_MAXPATHLEN;
+use const SCANDIR_SORT_NONE;
 use const STR_PAD_LEFT;
 use const STR_PAD_RIGHT;
 
@@ -110,7 +116,7 @@ class Utils{
 	 *
 	 * @return string
 	 */
-	public static function getCallableIdentifier(callable $variable){
+	public static function getCallableIdentifier(callable $variable) : string{
 		if(is_array($variable)){
 			return sha1(strtolower(spl_object_hash($variable[0])) . "::" . strtolower($variable[1]));
 		}else{
@@ -532,7 +538,7 @@ class Utils{
 	 *
 	 * @return int
 	 */
-	public static function getReferenceCount($value, bool $includeCurrent = true){
+	public static function getReferenceCount($value, bool $includeCurrent = true) : int{
 		ob_start();
 		debug_zval_dump($value);
 		$ret = explode("\n", ob_get_contents());
@@ -662,6 +668,24 @@ class Utils{
 	public static function validateCallableSignature(callable $signature, callable $subject) : void{
 		if(!($sigType = CallbackType::createFromCallable($signature))->isSatisfiedBy($subject)){
 			throw new \TypeError("Declaration of callable `" . CallbackType::createFromCallable($subject) . "` must be compatible with `" . $sigType . "`");
+		}
+	}
+
+	public static function recursiveUnlink(string $dir) : void{
+		if(is_dir($dir)){
+			$objects = scandir($dir, SCANDIR_SORT_NONE);
+			foreach($objects as $object){
+				if($object !== "." and $object !== ".."){
+					if(is_dir($dir . "/" . $object)){
+						self::recursiveUnlink($dir . "/" . $object);
+					}else{
+						unlink($dir . "/" . $object);
+					}
+				}
+			}
+			rmdir($dir);
+		}elseif(is_file($dir)){
+			unlink($dir);
 		}
 	}
 }
