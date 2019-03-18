@@ -21,19 +21,26 @@
 
 declare(strict_types=1);
 
-namespace pocketmine\item;
+namespace pocketmine\level\format\io;
 
+use pocketmine\level\format\Chunk;
 
-class GoldChestplate extends Armor{
-	public function __construct(){
-		parent::__construct(self::GOLD_CHESTPLATE, 0, "Gold Chestplate");
-	}
+interface WritableLevelProvider extends LevelProvider{
+	/**
+	 * Generate the needed files in the path given
+	 *
+	 * @param string  $path
+	 * @param string  $name
+	 * @param int     $seed
+	 * @param string  $generator
+	 * @param array[] $options
+	 */
+	public static function generate(string $path, string $name, int $seed, string $generator, array $options = []) : void;
 
-	public function getDefensePoints() : int{
-		return 5;
-	}
-
-	public function getMaxDurability() : int{
-		return 113;
-	}
+	/**
+	 * Saves a chunk (usually to disk).
+	 *
+	 * @param Chunk $chunk
+	 */
+	public function saveChunk(Chunk $chunk) : void;
 }

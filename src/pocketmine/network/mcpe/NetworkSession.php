@@ -42,11 +42,14 @@ use pocketmine\network\mcpe\protocol\PlayStatusPacket;
 use pocketmine\network\mcpe\protocol\ServerboundPacket;
 use pocketmine\network\mcpe\protocol\ServerToClientHandshakePacket;
 use pocketmine\network\NetworkInterface;
+use pocketmine\network\NetworkSessionManager;
 use pocketmine\Player;
+use pocketmine\PlayerInfo;
 use pocketmine\Server;
 use pocketmine\timings\Timings;
 use pocketmine\utils\BinaryDataException;
 use function bin2hex;
+use function get_class;
 use function strlen;
 use function substr;
 use function time;
@@ -56,12 +59,16 @@ class NetworkSession{
 	private $server;
 	/** @var Player|null */
 	private $player;
+	/** @var NetworkSessionManager */
+	private $manager;
 	/** @var NetworkInterface */
 	private $interface;
 	/** @var string */
 	private $ip;
 	/** @var int */
 	private $port;
+	/** @var PlayerInfo */
+	private $info;
 	/** @var int */
 	private $ping;
 
@@ -70,6 +77,8 @@ class NetworkSession{
 
 	/** @var bool */
 	private $connected = true;
+	/** @var bool */
+	private $loggedIn = false;
 	/** @var int */
 	private $connectTime;
 
@@ -82,8 +91,9 @@ class NetworkSession{
 	/** @var \SplQueue|CompressBatchPromise[] */
 	private $compressedQueue;
 
-	public function __construct(Server $server, NetworkInterface $interface, string $ip, int $port){
+	public function __construct(Server $server, NetworkSessionManager $manager, NetworkInterface $interface, string $ip, int $port){
 		$this->server = $server;
+		$this->manager = $manager;
 		$this->interface = $interface;
 		$this->ip = $ip;
 		$this->port = $port;
@@ -91,12 +101,13 @@ class NetworkSession{
 		$this->compressedQueue = new \SplQueue();
 
 		$this->connectTime = time();
-		$this->server->getNetwork()->scheduleSessionTick($this);
 
 		//TODO: this should happen later in the login sequence
 		$this->createPlayer();
 
 		$this->setHandler(new LoginSessionHandler($this->player, $this));
+
+		$this->manager->add($this);
 	}
 
 	protected function createPlayer() : void{
@@ -109,12 +120,27 @@ class NetworkSession{
 		 * @see Player::__construct()
 		 */
 		$this->player = new $class($this->server, $this);
-
-		$this->server->addPlayer($this->player);
 	}
 
 	public function getPlayer() : ?Player{
 		return $this->player;
+	}
+
+	public function getPlayerInfo() : ?PlayerInfo{
+		return $this->info;
+	}
+
+	/**
+	 * TODO: this shouldn't be accessible after the initial login phase
+	 *
+	 * @param PlayerInfo $info
+	 * @throws \InvalidStateException
+	 */
+	public function setPlayerInfo(PlayerInfo $info) : void{
+		if($this->info !== null){
+			throw new \InvalidStateException("Player info has already been set");
+		}
+		$this->info = $info;
 	}
 
 	public function isConnected() : bool{
@@ -253,6 +279,11 @@ class NetworkSession{
 	}
 
 	public function sendDataPacket(ClientboundPacket $packet, bool $immediate = false) : bool{
+		//Basic safety restriction. TODO: improve this
+		if(!$this->loggedIn and !$packet->canBeSentBeforeLogin()){
+			throw new \InvalidArgumentException("Attempted to send " . get_class($packet) . " to " . $this->getDisplayName() . " too early");
+		}
+
 		$timings = Timings::getSendDataPacketTimings($packet);
 		$timings->startTiming();
 		try{
@@ -285,7 +316,7 @@ class NetworkSession{
 				$this->sendBuffer = new PacketStream();
 			}
 			$this->sendBuffer->putPacket($packet);
-			$this->server->getNetwork()->scheduleSessionTick($this);
+			$this->manager->scheduleUpdate($this); //schedule flush at end of tick
 		}finally{
 			$timings->stopTiming();
 		}
@@ -337,6 +368,15 @@ class NetworkSession{
 		$this->interface->putPacket($this, $payload, $immediate);
 	}
 
+	private function checkDisconnect() : bool{
+		if($this->connected){
+			$this->connected = false;
+			$this->manager->remove($this);
+			return true;
+		}
+		return false;
+	}
+
 	/**
 	 * Disconnects the session, destroying the associated player (if it exists).
 	 *
@@ -344,8 +384,7 @@ class NetworkSession{
 	 * @param bool   $notify
 	 */
 	public function disconnect(string $reason, bool $notify = true) : void{
-		if($this->connected){
-			$this->connected = false;
+		if($this->checkDisconnect()){
 			$this->player->close($this->player->getLeaveMessage(), $reason);
 			$this->doServerDisconnect($reason, $notify);
 		}
@@ -358,8 +397,7 @@ class NetworkSession{
 	 * @param bool   $notify
 	 */
 	public function onPlayerDestroyed(string $reason, bool $notify = true) : void{
-		if($this->connected){
-			$this->connected = false;
+		if($this->checkDisconnect()){
 			$this->doServerDisconnect($reason, $notify);
 		}
 	}
@@ -388,8 +426,7 @@ class NetworkSession{
 	 * @param string $reason
 	 */
 	public function onClientDisconnect(string $reason) : void{
-		if($this->connected){
-			$this->connected = false;
+		if($this->checkDisconnect()){
 			$this->player->close($this->player->getLeaveMessage(), $reason);
 		}
 	}
@@ -406,6 +443,8 @@ class NetworkSession{
 	}
 
 	public function onLoginSuccess() : void{
+		$this->loggedIn = true;
+
 		$pk = new PlayStatusPacket();
 		$pk->status = PlayStatusPacket::LOGIN_SUCCESS;
 		$this->sendDataPacket($pk);

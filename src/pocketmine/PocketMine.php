@@ -72,6 +72,7 @@ namespace pocketmine {
 
 		$extensions = [
 			"bcmath" => "BC Math",
+			"chunkutils2" => "PocketMine ChunkUtils v2",
 			"curl" => "cURL",
 			"crypto" => "php-crypto",
 			"ctype" => "ctype",
@@ -80,6 +81,7 @@ namespace pocketmine {
 			"gmp" => "GMP",
 			"hash" => "Hash",
 			"json" => "JSON",
+			"leveldb" => "LevelDB",
 			"mbstring" => "Multibyte String",
 			"openssl" => "OpenSSL",
 			"pcre" => "PCRE",

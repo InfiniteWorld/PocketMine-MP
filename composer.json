@@ -7,6 +7,7 @@
    "require": {
       "php": ">=7.2.0",
       "ext-bcmath": "*",
+      "ext-chunkutils2": "^0.1.0",
       "ext-curl": "*",
       "ext-crypto": "^0.3.1",
       "ext-ctype": "*",
@@ -15,6 +16,7 @@
       "ext-gmp": "*",
       "ext-hash": "*",
       "ext-json": "*",
+      "ext-leveldb": "^0.2.1",
       "ext-mbstring": "*",
       "ext-openssl": "*",
       "ext-pcre": "*",

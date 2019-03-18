@@ -78,9 +78,12 @@ class BlockFactory{
 		self::register(new Anvil(new BID(Block::ANVIL, Anvil::TYPE_NORMAL), "Anvil"));
 		self::register(new Anvil(new BID(Block::ANVIL, Anvil::TYPE_SLIGHTLY_DAMAGED), "Slightly Damaged Anvil"));
 		self::register(new Anvil(new BID(Block::ANVIL, Anvil::TYPE_VERY_DAMAGED), "Very Damaged Anvil"));
+		self::register(new Banner(new BlockIdentifierFlattened(Block::STANDING_BANNER, Block::WALL_BANNER, 0, ItemIds::BANNER, \pocketmine\tile\Banner::class), "Banner"));
+		self::register(new Barrier(new BID(Block::BARRIER), "Barrier"));
 		self::register(new Bed(new BID(Block::BED_BLOCK, 0, ItemIds::BED, \pocketmine\tile\Bed::class), "Bed Block"));
 		self::register(new Bedrock(new BID(Block::BEDROCK), "Bedrock"));
 		self::register(new Beetroot(new BID(Block::BEETROOT_BLOCK), "Beetroot Block"));
+		self::register(new BlueIce(new BID(Block::BLUE_ICE), "Blue Ice"));
 		self::register(new BoneBlock(new BID(Block::BONE_BLOCK), "Bone Block"));
 		self::register(new Bookshelf(new BID(Block::BOOKSHELF), "Bookshelf"));
 		self::register(new BrewingStand(new BID(Block::BREWING_STAND_BLOCK, 0, ItemIds::BREWING_STAND), "Brewing Stand"));
@@ -224,14 +227,13 @@ class BlockFactory{
 		self::register(new SandstoneStairs(new BID(Block::RED_SANDSTONE_STAIRS), "Red Sandstone Stairs"));
 		self::register(new SandstoneStairs(new BID(Block::SANDSTONE_STAIRS), "Sandstone Stairs"));
 		self::register(new SeaLantern(new BID(Block::SEALANTERN), "Sea Lantern"));
-		self::register(new SignPost(new BID(Block::SIGN_POST, 0, ItemIds::SIGN, \pocketmine\tile\Sign::class), "Sign Post"));
+		self::register(new Sign(new BlockIdentifierFlattened(Block::STANDING_SIGN, Block::WALL_SIGN, 0, ItemIds::SIGN, \pocketmine\tile\Sign::class), "Sign"));
 		self::register(new Skull(new BID(Block::MOB_HEAD_BLOCK, 0, null, \pocketmine\tile\Skull::class), "Mob Head"));
 		self::register(new SmoothStone(new BID(Block::STONE, Stone::NORMAL), "Stone"));
 		self::register(new Snow(new BID(Block::SNOW), "Snow Block"));
 		self::register(new SnowLayer(new BID(Block::SNOW_LAYER), "Snow Layer"));
 		self::register(new SoulSand(new BID(Block::SOUL_SAND), "Soul Sand"));
 		self::register(new Sponge(new BID(Block::SPONGE), "Sponge"));
-		self::register(new StandingBanner(new BID(Block::STANDING_BANNER, 0, ItemIds::BANNER, \pocketmine\tile\Banner::class), "Standing Banner"));
 		self::register(new Stone(new BID(Block::STONE, Stone::ANDESITE), "Andesite"));
 		self::register(new Stone(new BID(Block::STONE, Stone::DIORITE), "Diorite"));
 		self::register(new Stone(new BID(Block::STONE, Stone::GRANITE), "Granite"));
@@ -273,21 +275,16 @@ class BlockFactory{
 		self::register(new Torch(new BID(Block::COLORED_TORCH_RG), "Red Torch"));
 		self::register(new Torch(new BID(Block::COLORED_TORCH_RG, 8), "Green Torch"));
 		self::register(new Torch(new BID(Block::TORCH), "Torch"));
-		self::register(new Trapdoor(new BID(Block::TRAPDOOR), "Wooden Trapdoor"));
 		self::register(new TrappedChest(new BID(Block::TRAPPED_CHEST, 0, null, \pocketmine\tile\Chest::class), "Trapped Chest"));
 		self::register(new Tripwire(new BID(Block::TRIPWIRE, 0, ItemIds::STRING), "Tripwire"));
 		self::register(new TripwireHook(new BID(Block::TRIPWIRE_HOOK), "Tripwire Hook"));
 		self::register(new UnderwaterTorch(new BID(Block::UNDERWATER_TORCH), "Underwater Torch"));
 		self::register(new Vine(new BID(Block::VINE), "Vines"));
-		self::register(new WallBanner(new BID(Block::WALL_BANNER, 0, ItemIds::BANNER, \pocketmine\tile\Banner::class), "Wall Banner"));
-		self::register(new WallSign(new BID(Block::WALL_SIGN, 0, ItemIds::SIGN, \pocketmine\tile\Sign::class), "Wall Sign"));
 		self::register(new Water(new BlockIdentifierFlattened(Block::FLOWING_WATER, Block::STILL_WATER), "Water"));
 		self::register(new WaterLily(new BID(Block::LILY_PAD), "Lily Pad"));
 		self::register(new WeightedPressurePlateHeavy(new BID(Block::HEAVY_WEIGHTED_PRESSURE_PLATE), "Weighted Pressure Plate Heavy"));
 		self::register(new WeightedPressurePlateLight(new BID(Block::LIGHT_WEIGHTED_PRESSURE_PLATE), "Weighted Pressure Plate Light"));
 		self::register(new Wheat(new BID(Block::WHEAT_BLOCK), "Wheat Block"));
-		self::register(new WoodenButton(new BID(Block::WOODEN_BUTTON), "Wooden Button"));
-		self::register(new WoodenPressurePlate(new BID(Block::WOODEN_PRESSURE_PLATE), "Wooden Pressure Plate"));
 
 		/** @var int[]|\SplObjectStorage $woodenStairIds */
 		$woodenStairIds = new \SplObjectStorage();
@@ -316,6 +313,33 @@ class BlockFactory{
 		$woodenDoorIds[TreeType::ACACIA()] = new BID(Block::ACACIA_DOOR_BLOCK, 0, ItemIds::ACACIA_DOOR);
 		$woodenDoorIds[TreeType::DARK_OAK()] = new BID(Block::DARK_OAK_DOOR_BLOCK, 0, ItemIds::DARK_OAK_DOOR);
 
+		/** @var int[]|\SplObjectStorage $woodenPressurePlateIds */
+		$woodenPressurePlateIds = new \SplObjectStorage();
+		$woodenPressurePlateIds[TreeType::OAK()] = Block::WOODEN_PRESSURE_PLATE;
+		$woodenPressurePlateIds[TreeType::SPRUCE()] = Block::SPRUCE_PRESSURE_PLATE;
+		$woodenPressurePlateIds[TreeType::BIRCH()] = Block::BIRCH_PRESSURE_PLATE;
+		$woodenPressurePlateIds[TreeType::JUNGLE()] = Block::JUNGLE_PRESSURE_PLATE;
+		$woodenPressurePlateIds[TreeType::ACACIA()] = Block::ACACIA_PRESSURE_PLATE;
+		$woodenPressurePlateIds[TreeType::DARK_OAK()] = Block::DARK_OAK_PRESSURE_PLATE;
+
+		/** @var int[]|\SplObjectStorage $woodenButtonIds */
+		$woodenButtonIds = new \SplObjectStorage();
+		$woodenButtonIds[TreeType::OAK()] = Block::WOODEN_BUTTON;
+		$woodenButtonIds[TreeType::SPRUCE()] = Block::SPRUCE_BUTTON;
+		$woodenButtonIds[TreeType::BIRCH()] = Block::BIRCH_BUTTON;
+		$woodenButtonIds[TreeType::JUNGLE()] = Block::JUNGLE_BUTTON;
+		$woodenButtonIds[TreeType::ACACIA()] = Block::ACACIA_BUTTON;
+		$woodenButtonIds[TreeType::DARK_OAK()] = Block::DARK_OAK_BUTTON;
+
+		/** @var int[]|\SplObjectStorage $woodenTrapdoorIds */
+		$woodenTrapdoorIds = new \SplObjectStorage();
+		$woodenTrapdoorIds[TreeType::OAK()] = Block::WOODEN_TRAPDOOR;
+		$woodenTrapdoorIds[TreeType::SPRUCE()] = Block::SPRUCE_TRAPDOOR;
+		$woodenTrapdoorIds[TreeType::BIRCH()] = Block::BIRCH_TRAPDOOR;
+		$woodenTrapdoorIds[TreeType::JUNGLE()] = Block::JUNGLE_TRAPDOOR;
+		$woodenTrapdoorIds[TreeType::ACACIA()] = Block::ACACIA_TRAPDOOR;
+		$woodenTrapdoorIds[TreeType::DARK_OAK()] = Block::DARK_OAK_TRAPDOOR;
+
 		foreach(TreeType::getAll() as $treeType){
 			$magicNumber = $treeType->getMagicNumber();
 			$name = $treeType->getDisplayName();
@@ -332,6 +356,10 @@ class BlockFactory{
 			self::register(new FenceGate(new BID($fenceGateIds[$treeType]), $treeType->getDisplayName() . " Fence Gate"));
 			self::register(new WoodenStairs(new BID($woodenStairIds[$treeType]), $treeType->getDisplayName() . " Stairs"));
 			self::register(new WoodenDoor($woodenDoorIds[$treeType], $treeType->getDisplayName() . " Door"));
+
+			self::register(new WoodenButton(new BID($woodenButtonIds[$treeType]), $treeType->getDisplayName() . " Button"));
+			self::register(new WoodenPressurePlate(new BID($woodenPressurePlateIds[$treeType]), $treeType->getDisplayName() . " Pressure Plate"));
+			self::register(new Trapdoor(new BID($woodenTrapdoorIds[$treeType]), $treeType->getDisplayName() . " Trapdoor"));
 		}
 
 		static $sandstoneTypes = [
@@ -397,22 +425,15 @@ class BlockFactory{
 			self::register(new CobblestoneWall(new BID(Block::COBBLESTONE_WALL, $magicNumber), $prefix . " Wall"));
 		}
 
-		//TODO: minecraft:acacia_button
-		//TODO: minecraft:acacia_pressure_plate
 		//TODO: minecraft:acacia_standing_sign
-		//TODO: minecraft:acacia_trapdoor
 		//TODO: minecraft:acacia_wall_sign
 		//TODO: minecraft:andesite_stairs
 		//TODO: minecraft:bamboo
 		//TODO: minecraft:bamboo_sapling
 		//TODO: minecraft:barrel
-		//TODO: minecraft:barrier
 		//TODO: minecraft:beacon
 		//TODO: minecraft:bell
-		//TODO: minecraft:birch_button
-		//TODO: minecraft:birch_pressure_plate
 		//TODO: minecraft:birch_standing_sign
-		//TODO: minecraft:birch_trapdoor
 		//TODO: minecraft:birch_wall_sign
 		//TODO: minecraft:blast_furnace
 		//TODO: minecraft:blue_ice
@@ -434,9 +455,6 @@ class BlockFactory{
 		//TODO: minecraft:coral_fan_hang
 		//TODO: minecraft:coral_fan_hang2
 		//TODO: minecraft:coral_fan_hang3
-		//TODO: minecraft:dark_oak_button
-		//TODO: minecraft:dark_oak_pressure_plate
-		//TODO: minecraft:dark_oak_trapdoor
 		//TODO: minecraft:dark_prismarine_stairs
 		//TODO: minecraft:darkoak_standing_sign
 		//TODO: minecraft:darkoak_wall_sign
@@ -444,7 +462,6 @@ class BlockFactory{
 		//TODO: minecraft:dispenser
 		//TODO: minecraft:double_stone_slab3
 		//TODO: minecraft:double_stone_slab4
-		//TODO: minecraft:dragon_egg
 		//TODO: minecraft:dried_kelp_block
 		//TODO: minecraft:dropper
 		//TODO: minecraft:element_0
@@ -452,15 +469,11 @@ class BlockFactory{
 		//TODO: minecraft:end_gateway
 		//TODO: minecraft:end_portal
 		//TODO: minecraft:fletching_table
-		//TODO: minecraft:frosted_ice
 		//TODO: minecraft:granite_stairs
 		//TODO: minecraft:grindstone
 		//TODO: minecraft:hopper
 		//TODO: minecraft:jukebox
-		//TODO: minecraft:jungle_button
-		//TODO: minecraft:jungle_pressure_plate
 		//TODO: minecraft:jungle_standing_sign
-		//TODO: minecraft:jungle_trapdoor
 		//TODO: minecraft:jungle_wall_sign
 		//TODO: minecraft:kelp
 		//TODO: minecraft:lantern
@@ -477,7 +490,6 @@ class BlockFactory{
 		//TODO: minecraft:polished_diorite_stairs
 		//TODO: minecraft:polished_granite_stairs
 		//TODO: minecraft:portal
-		//TODO: minecraft:powered_comparator
 		//TODO: minecraft:prismarine_bricks_stairs
 		//TODO: minecraft:prismarine_stairs
 		//TODO: minecraft:red_nether_brick_stairs
@@ -493,10 +505,7 @@ class BlockFactory{
 		//TODO: minecraft:smooth_red_sandstone_stairs
 		//TODO: minecraft:smooth_sandstone_stairs
 		//TODO: minecraft:smooth_stone
-		//TODO: minecraft:spruce_button
-		//TODO: minecraft:spruce_pressure_plate
 		//TODO: minecraft:spruce_standing_sign
-		//TODO: minecraft:spruce_trapdoor
 		//TODO: minecraft:spruce_wall_sign
 		//TODO: minecraft:sticky_piston
 		//TODO: minecraft:stone_slab3
@@ -510,7 +519,6 @@ class BlockFactory{
 		//TODO: minecraft:structure_block
 		//TODO: minecraft:turtle_egg
 		//TODO: minecraft:undyed_shulker_box
-		//TODO: minecraft:unpowered_comparator
 	}
 
 	public static function isInit() : bool{

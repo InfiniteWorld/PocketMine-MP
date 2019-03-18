@@ -49,6 +49,7 @@ use pocketmine\lang\LanguageNotFoundException;
 use pocketmine\lang\TextContainer;
 use pocketmine\level\biome\Biome;
 use pocketmine\level\format\io\LevelProviderManager;
+use pocketmine\level\format\io\WritableLevelProvider;
 use pocketmine\level\generator\Generator;
 use pocketmine\level\generator\GeneratorManager;
 use pocketmine\level\generator\normal\Normal;
@@ -118,6 +119,7 @@ use function getopt;
 use function implode;
 use function ini_get;
 use function ini_set;
+use function is_a;
 use function is_array;
 use function is_bool;
 use function is_string;
@@ -288,12 +290,6 @@ class Server{
 
 	/** @var Config */
 	private $config;
-
-	/** @var Player[] */
-	private $players = [];
-
-	/** @var Player[] */
-	private $loggedInPlayers = [];
 
 	/** @var Player[] */
 	private $playerList = [];
@@ -598,13 +594,6 @@ class Server{
 	 */
 	public function getCommandMap(){
 		return $this->commandMap;
-	}
-
-	/**
-	 * @return Player[]
-	 */
-	public function getLoggedInPlayers() : array{
-		return $this->loggedInPlayers;
 	}
 
 	/**
@@ -1244,7 +1233,10 @@ class Server{
 			$this->pluginManager->registerInterface(new ScriptPluginLoader());
 
 			LevelProviderManager::init();
-			if(($format = LevelProviderManager::getProviderByName($formatName = (string) $this->getProperty("level-settings.default-format"))) !== null){
+			if(
+				($format = LevelProviderManager::getProviderByName($formatName = (string) $this->getProperty("level-settings.default-format"))) !== null and
+				is_a($format, WritableLevelProvider::class, true)
+			){
 				LevelProviderManager::setDefault($format);
 			}elseif($formatName !== ""){
 				$this->logger->warning($this->language->translateString("pocketmine.level.badDefaultFormat", [$formatName]));
@@ -1275,7 +1267,7 @@ class Server{
 				}elseif(!is_array($options)){
 					continue;
 				}
-				if(!$this->levelManager->loadLevel($name)){
+				if(!$this->levelManager->loadLevel($name, true)){
 					if(isset($options["generator"])){
 						$generatorOptions = explode(":", $options["generator"]);
 						$generator = GeneratorManager::getGenerator(array_shift($generatorOptions));
@@ -1297,7 +1289,7 @@ class Server{
 					$default = "world";
 					$this->setConfigString("level-name", "world");
 				}
-				if(!$this->levelManager->loadLevel($default)){
+				if(!$this->levelManager->loadLevel($default, true)){
 					$this->levelManager->generateLevel(
 						$default,
 						Generator::convertSeed($this->getConfigString("level-seed")),
@@ -1649,8 +1641,8 @@ class Server{
 				$this->pluginManager->disablePlugins();
 			}
 
-			foreach($this->players as $player){
-				$player->close($player->getLeaveMessage(), $this->getProperty("settings.shutdown-message", "Server closed"));
+			if($this->network instanceof Network){
+				$this->network->getSessionManager()->close($this->getProperty("settings.shutdown-message", "Server closed"));
 			}
 
 			if($this->levelManager instanceof LevelManager){
@@ -1874,33 +1866,14 @@ class Server{
 		}
 	}
 
-	public function onPlayerLogin(Player $player) : void{
-		if($this->sendUsageTicker > 0){
-			$this->uniquePlayers[$player->getRawUniqueId()] = $player->getRawUniqueId();
-		}
-
-		$this->loggedInPlayers[$player->getRawUniqueId()] = $player;
-	}
-
-	public function onPlayerLogout(Player $player) : void{
-		unset($this->loggedInPlayers[$player->getRawUniqueId()]);
-	}
-
-	public function addPlayer(Player $player) : void{
-		$this->players[spl_object_id($player)] = $player;
-	}
-
-	/**
-	 * @param Player $player
-	 */
-	public function removePlayer(Player $player) : void{
-		unset($this->players[spl_object_id($player)]);
-	}
-
 	public function addOnlinePlayer(Player $player) : void{
 		$this->updatePlayerListData($player->getUniqueId(), $player->getId(), $player->getDisplayName(), $player->getSkin(), $player->getXuid());
 
 		$this->playerList[$player->getRawUniqueId()] = $player;
+
+		if($this->sendUsageTicker > 0){
+			$this->uniquePlayers[$player->getRawUniqueId()] = $player->getRawUniqueId();
+		}
 	}
 
 	public function removeOnlinePlayer(Player $player) : void{

@@ -50,7 +50,6 @@ use pocketmine\event\player\PlayerChangeSkinEvent;
 use pocketmine\event\player\PlayerChatEvent;
 use pocketmine\event\player\PlayerCommandPreprocessEvent;
 use pocketmine\event\player\PlayerDeathEvent;
-use pocketmine\event\player\PlayerDuplicateLoginEvent;
 use pocketmine\event\player\PlayerEditBookEvent;
 use pocketmine\event\player\PlayerExhaustEvent;
 use pocketmine\event\player\PlayerGameModeChangeEvent;
@@ -1605,10 +1604,6 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	}
 
 	public function onUpdate(int $currentTick) : bool{
-		if(!$this->loggedIn){
-			return false;
-		}
-
 		$tickDiff = $currentTick - $this->lastUpdate;
 
 		if($tickDiff <= 0){
@@ -1795,25 +1790,11 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 			$this->server->getLogger()->debug($this->getName() . " is logged into Xbox Live");
 		}
 
-		foreach($this->server->getLoggedInPlayers() as $p){
-			if($p !== $this and ($p->iusername === $this->iusername or $this->getUniqueId()->equals($p->getUniqueId()))){
-				$ev = new PlayerDuplicateLoginEvent($this->networkSession, $p->networkSession);
-				$ev->call();
-				if($ev->isCancelled()){
-					$this->networkSession->disconnect($ev->getDisconnectMessage());
-					return false;
-				}
-
-				$p->networkSession->disconnect($ev->getDisconnectMessage());
-			}
-		}
-
-		return true;
+		return $this->server->getNetwork()->getSessionManager()->kickDuplicates($this->networkSession);
 	}
 
 	public function onLoginSuccess() : void{
 		$this->loggedIn = true;
-		$this->server->onPlayerLogin($this);
 	}
 
 	public function _actuallyConstruct(){
@@ -2520,11 +2501,6 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 			return false;
 		}
 
-		//Basic safety restriction. TODO: improve this
-		if(!$this->loggedIn and !$packet->canBeSentBeforeLogin()){
-			throw new \InvalidArgumentException("Attempted to send " . get_class($packet) . " to " . $this->getName() . " too early");
-		}
-
 		return $this->networkSession->sendDataPacket($packet, $immediate);
 	}
 
@@ -2843,7 +2819,6 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 			$this->loadQueue = [];
 
 			if($this->loggedIn){
-				$this->server->onPlayerLogout($this);
 				foreach($this->server->getOnlinePlayers() as $player){
 					if(!$player->canSee($this)){
 						$player->showPlayer($this);
@@ -2869,7 +2844,6 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 				$this->loggedIn = false;
 				$this->server->removeOnlinePlayer($this);
 			}
-			$this->server->removePlayer($this);
 
 			$this->server->getLogger()->info($this->getServer()->getLanguage()->translateString("pocketmine.player.logOut", [
 				TextFormat::AQUA . $this->getName() . TextFormat::WHITE,

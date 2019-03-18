@@ -21,19 +21,21 @@
 
 declare(strict_types=1);
 
-namespace pocketmine\item;
+namespace pocketmine\block;
 
+use pocketmine\item\Item;
 
-class LeatherCap extends Armor{
-	public function __construct(){
-		parent::__construct(self::LEATHER_CAP, 0, "Leather Cap");
+class Barrier extends Transparent{
+
+	public function getHardness() : float{
+		return -1;
 	}
 
-	public function getDefensePoints() : int{
-		return 1;
+	public function getBlastResistance() : float{
+		return 18000003; //don't even ask
 	}
 
-	public function getMaxDurability() : int{
-		return 56;
+	public function isBreakable(Item $item) : bool{
+		return false;
 	}
 }

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "fe0900755c7002211d27e438533bc99b",
+    "content-hash": "2e8299748829c2ea44f29de6c5a8f84c",
     "packages": [
         {
             "name": "adhocore/json-comment",
@@ -234,12 +234,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/NBT_MoreSupport.git",
-                "reference": "daeb7e7c3d3141a5c83071c0689b9a1c45fc3323"
+                "reference": "9add666cda7e9782b900d8fa2c517b194e76808d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/NBT_MoreSupport/zipball/daeb7e7c3d3141a5c83071c0689b9a1c45fc3323",
-                "reference": "daeb7e7c3d3141a5c83071c0689b9a1c45fc3323",
+                "url": "https://api.github.com/repos/InfiniteWorld/NBT_MoreSupport/zipball/9add666cda7e9782b900d8fa2c517b194e76808d",
+                "reference": "9add666cda7e9782b900d8fa2c517b194e76808d",
                 "shasum": ""
             },
             "require": {
@@ -265,7 +265,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/NBT_MoreSupport/tree/master_32-bit"
             },
-            "time": "2019-02-22T13:35:27+00:00"
+            "time": "2019-03-18T04:51:53+00:00"
         },
         {
             "name": "infiniteworld/raklib",
@@ -479,12 +479,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/pmmp/SPL.git",
-                "reference": "35110fcc742701d5f2b8093d63365c42900236c1"
+                "reference": "02476b8990ad31c38fa999ec0392f6d01208574d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/pmmp/SPL/zipball/35110fcc742701d5f2b8093d63365c42900236c1",
-                "reference": "35110fcc742701d5f2b8093d63365c42900236c1",
+                "url": "https://api.github.com/repos/pmmp/SPL/zipball/02476b8990ad31c38fa999ec0392f6d01208574d",
+                "reference": "02476b8990ad31c38fa999ec0392f6d01208574d",
                 "shasum": ""
             },
             "type": "library",
@@ -503,7 +503,7 @@
             "support": {
                 "source": "https://github.com/pmmp/SPL/tree/master"
             },
-            "time": "2019-02-23T12:20:29+00:00"
+            "time": "2019-03-15T15:22:36+00:00"
         }
     ],
     "packages-dev": [],
@@ -537,6 +537,7 @@
     "platform": {
         "php": ">=7.2.0",
         "ext-bcmath": "*",
+        "ext-chunkutils2": "^0.1.0",
         "ext-curl": "*",
         "ext-crypto": "^0.3.1",
         "ext-ctype": "*",
@@ -545,6 +546,7 @@
         "ext-gmp": "*",
         "ext-hash": "*",
         "ext-json": "*",
+        "ext-leveldb": "^0.2.1",
         "ext-mbstring": "*",
         "ext-openssl": "*",
         "ext-pcre": "*",

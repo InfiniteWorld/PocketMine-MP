@@ -39,36 +39,20 @@ interface SubChunkInterface{
 	 *
 	 * @return int
 	 */
-	public function getBlockId(int $x, int $y, int $z) : int;
-
-	/**
-	 * @param int $x
-	 * @param int $y
-	 * @param int $z
-	 *
-	 * @return int
-	 */
-	public function getBlockData(int $x, int $y, int $z) : int;
-
-	/**
-	 * @param int $x
-	 * @param int $y
-	 * @param int $z
-	 *
-	 * @return int
-	 */
 	public function getFullBlock(int $x, int $y, int $z) : int;
 
 	/**
 	 * @param int $x
 	 * @param int $y
 	 * @param int $z
-	 * @param int $id
-	 * @param int $data
-	 *
-	 * @return bool
+	 * @param int $block
 	 */
-	public function setBlock(int $x, int $y, int $z, int $id, int $data) : bool;
+	public function setFullBlock(int $x, int $y, int $z, int $block) : void;
+
+	/**
+	 * @return PalettedBlockArray[]
+	 */
+	public function getBlockLayers() : array;
 
 	/**
 	 * @param int $x
@@ -119,16 +103,6 @@ interface SubChunkInterface{
 	/**
 	 * @return string
 	 */
-	public function getBlockIdArray() : string;
-
-	/**
-	 * @return string
-	 */
-	public function getBlockDataArray() : string;
-
-	/**
-	 * @return string
-	 */
 	public function getBlockSkyLightArray() : string;
 
 	/**
@@ -145,9 +119,4 @@ interface SubChunkInterface{
 	 * @param string $data
 	 */
 	public function setBlockLightArray(string $data) : void;
-
-	/**
-	 * @return string
-	 */
-	public function networkSerialize() : string;
 }

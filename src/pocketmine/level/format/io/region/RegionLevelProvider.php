@@ -148,7 +148,7 @@ abstract class RegionLevelProvider extends BaseLevelProvider{
 				$logger = \GlobalLogger::get();
 				$logger->error("Corrupted region file detected: " . $e->getMessage());
 
-				$region->close(false); //Do not write anything to the file
+				$region->close(); //Do not write anything to the file
 
 				$backupPath = $path . ".bak." . time();
 				rename($path, $backupPath);
@@ -159,6 +159,13 @@ abstract class RegionLevelProvider extends BaseLevelProvider{
 			}
 
 			$this->regions[$index] = $region;
+		}
+	}
+
+	protected function unloadRegion(int $regionX, int $regionZ) : void{
+		if(isset($this->regions[$hash = Level::chunkHash($regionX, $regionZ)])){
+			$this->regions[$hash]->close();
+			unset($this->regions[$hash]);
 		}
 	}
 
@@ -222,29 +229,45 @@ abstract class RegionLevelProvider extends BaseLevelProvider{
 		);
 	}
 
-	public function getAllChunks() : \Generator{
+	public function getAllChunks(bool $skipCorrupted = false, ?\Logger $logger = null) : \Generator{
 		$iterator = $this->createRegionIterator();
 
 		foreach($iterator as $region){
-			$rX = ((int) $region[1]) << 5;
-			$rZ = ((int) $region[2]) << 5;
+			$regionX = ((int) $region[1]);
+			$regionZ = ((int) $region[2]);
+			$rX = $regionX << 5;
+			$rZ = $regionZ << 5;
 
 			for($chunkX = $rX; $chunkX < $rX + 32; ++$chunkX){
 				for($chunkZ = $rZ; $chunkZ < $rZ + 32; ++$chunkZ){
-					$chunk = $this->loadChunk($chunkX, $chunkZ);
-					if($chunk !== null){
-						yield $chunk;
+					try{
+						$chunk = $this->loadChunk($chunkX, $chunkZ);
+						if($chunk !== null){
+							yield $chunk;
+						}
+					}catch(CorruptedChunkException $e){
+						if(!$skipCorrupted){
+							throw $e;
+						}
+						if($logger !== null){
+							$logger->error("Skipped corrupted chunk $chunkX $chunkZ (" . $e->getMessage() . ")");
+						}
 					}
 				}
 			}
+
+			$this->unloadRegion($regionX, $regionZ);
 		}
 	}
 
 	public function calculateChunkCount() : int{
 		$count = 0;
 		foreach($this->createRegionIterator() as $region){
-			$this->loadRegion((int) $region[1], (int) $region[2]);
-			$count += $this->getRegion((int) $region[1], (int) $region[2])->calculateChunkCount();
+			$regionX = ((int) $region[1]);
+			$regionZ = ((int) $region[2]);
+			$this->loadRegion($regionX, $regionZ);
+			$count += $this->getRegion($regionX, $regionZ)->calculateChunkCount();
+			$this->unloadRegion($regionX, $regionZ);
 		}
 		return $count;
 	}

@@ -23,10 +23,9 @@ declare(strict_types=1);
 
 namespace pocketmine\level\format\io\region;
 
+use pocketmine\level\format\io\SubChunkConverter;
 use pocketmine\level\format\SubChunk;
-use pocketmine\nbt\tag\ByteArrayTag;
 use pocketmine\nbt\tag\CompoundTag;
-use function str_repeat;
 
 /**
  * This format is exactly the same as the PC Anvil format, with the only difference being that the stored data order
@@ -35,20 +34,8 @@ use function str_repeat;
 class PMAnvil extends RegionLevelProvider{
 	use LegacyAnvilChunkTrait;
 
-	protected function serializeSubChunk(SubChunk $subChunk) : CompoundTag{
-		return new CompoundTag("", [
-			new ByteArrayTag("Blocks",     $subChunk->getBlockIdArray()),
-			new ByteArrayTag("Data",       $subChunk->getBlockDataArray()),
-			new ByteArrayTag("SkyLight",   str_repeat("\x00", 2048)),
-			new ByteArrayTag("BlockLight", str_repeat("\x00", 2048))
-		]);
-	}
-
 	protected function deserializeSubChunk(CompoundTag $subChunk) : SubChunk{
-		return new SubChunk(
-			$subChunk->getByteArray("Blocks"),
-			$subChunk->getByteArray("Data")
-		);
+		return new SubChunk([SubChunkConverter::convertSubChunkXZY($subChunk->getByteArray("Blocks"), $subChunk->getByteArray("Data"))]);
 	}
 
 	protected static function getRegionFileExtension() : string{

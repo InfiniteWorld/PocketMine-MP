@@ -29,7 +29,7 @@ use pocketmine\utils\Binary;
 use function ceil;
 use function chr;
 use function fclose;
-use function fgetc;
+use function feof;
 use function file_exists;
 use function filesize;
 use function fopen;
@@ -40,7 +40,6 @@ use function fwrite;
 use function is_resource;
 use function max;
 use function ord;
-use function pack;
 use function str_pad;
 use function stream_set_read_buffer;
 use function stream_set_write_buffer;
@@ -102,7 +101,6 @@ class RegionLoader{
 
 	public function __destruct(){
 		if(is_resource($this->filePointer)){
-			$this->writeLocationTable();
 			fclose($this->filePointer);
 		}
 	}
@@ -216,6 +214,7 @@ class RegionLoader{
 	public function removeChunk(int $x, int $z) : void{
 		$index = self::getChunkOffset($x, $z);
 		$this->locationTable[$index] = new RegionLocationTableEntry(0, 0, 0);
+		$this->writeLocationIndex($index);
 	}
 
 	/**
@@ -243,16 +242,10 @@ class RegionLoader{
 	}
 
 	/**
-	 * Writes the region header and closes the file
-	 *
-	 * @param bool $writeHeader
+	 * Closes the file
 	 */
-	public function close(bool $writeHeader = true) : void{
+	public function close() : void{
 		if(is_resource($this->filePointer)){
-			if($writeHeader){
-				$this->writeLocationTable();
-			}
-
 			fclose($this->filePointer);
 		}
 	}
@@ -308,7 +301,7 @@ class RegionLoader{
 			//TODO: more validity checks
 
 			fseek($this->filePointer, $fileOffset);
-			if(fgetc($this->filePointer) === false){ //Try and read from the location
+			if(feof($this->filePointer)){
 				throw new CorruptedRegionException("Region file location offset x=$x,z=$z points to invalid file location $fileOffset");
 			}
 			if(isset($usedOffsets[$offset])){
@@ -317,19 +310,6 @@ class RegionLoader{
 			}
 			$usedOffsets[$offset] = $i;
 		}
-	}
-
-	private function writeLocationTable() : void{
-		$write = [];
-
-		for($i = 0; $i < 1024; ++$i){
-			$write[] = (($this->locationTable[$i]->getFirstSector() << 8) | $this->locationTable[$i]->getSectorCount());
-		}
-		for($i = 0; $i < 1024; ++$i){
-			$write[] = $this->locationTable[$i]->getTimestamp();
-		}
-		fseek($this->filePointer, 0);
-		fwrite($this->filePointer, pack("N*", ...$write), 4096 * 2);
 	}
 
 	protected function writeLocationIndex(int $index) : void{

@@ -23,17 +23,29 @@ declare(strict_types=1);
 
 namespace pocketmine\item;
 
+class ArmorTypeInfo{
 
-class IronBoots extends Armor{
-	public function __construct(){
-		parent::__construct(self::IRON_BOOTS, 0, "Iron Boots");
+	/** @var int */
+	private $defensePoints;
+	/** @var int */
+	private $maxDurability;
+
+	public function __construct(int $defensePoints, int $maxDurability){
+		$this->defensePoints = $defensePoints;
+		$this->maxDurability = $maxDurability;
 	}
 
+	/**
+	 * @return int
+	 */
 	public function getDefensePoints() : int{
-		return 2;
+		return $this->defensePoints;
 	}
 
+	/**
+	 * @return int
+	 */
 	public function getMaxDurability() : int{
-		return 196;
+		return $this->maxDurability;
 	}
 }

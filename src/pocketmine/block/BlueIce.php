@@ -21,19 +21,29 @@
 
 declare(strict_types=1);
 
-namespace pocketmine\item;
+namespace pocketmine\block;
 
+use pocketmine\item\Item;
 
-class IronHelmet extends Armor{
-	public function __construct(){
-		parent::__construct(self::IRON_HELMET, 0, "Iron Helmet");
+class BlueIce extends Solid{
+
+	public function getHardness() : float{
+		return 2.8;
 	}
 
-	public function getDefensePoints() : int{
-		return 2;
+	public function getToolType() : int{
+		return BlockToolType::TYPE_PICKAXE;
 	}
 
-	public function getMaxDurability() : int{
-		return 166;
+	public function getLightLevel() : int{
+		return 1;
+	}
+
+	public function getFrictionFactor() : float{
+		return 0.99;
+	}
+
+	public function getDropsForCompatibleTool(Item $item) : array{
+		return [];
 	}
 }

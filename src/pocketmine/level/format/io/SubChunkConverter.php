@@ -21,19 +21,17 @@
 
 declare(strict_types=1);
 
-namespace pocketmine\item;
+namespace pocketmine\level\format\io;
 
+use pocketmine\level\format\PalettedBlockArray;
 
-class LeatherBoots extends Armor{
-	public function __construct(){
-		parent::__construct(self::LEATHER_BOOTS, 0, "Leather Boots");
-	}
+die("This is a stub file for code completion purposes");
 
-	public function getDefensePoints() : int{
-		return 1;
-	}
+class SubChunkConverter{
+	public static function convertSubChunkXZY(string $idArray, string $metaArray) : PalettedBlockArray{}
 
-	public function getMaxDurability() : int{
-		return 66;
-	}
+	public static function convertSubChunkYZX(string $idArray, string $metaArray) : PalettedBlockArray{}
+
+	public static function convertSubChunkFromLegacyColumn(string $idArray, string $metaArray, int $yOffset) : PalettedBlockArray{}
+
 }

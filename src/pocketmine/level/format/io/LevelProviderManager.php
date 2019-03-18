@@ -35,7 +35,7 @@ abstract class LevelProviderManager{
 	protected static $providers = [];
 
 	/** @var string|LevelProvider */
-	private static $default = PMAnvil::class;
+	private static $default = LevelDB::class;
 
 	public static function init() : void{
 		self::addProvider(Anvil::class, "anvil");
@@ -47,7 +47,7 @@ abstract class LevelProviderManager{
 	/**
 	 * Returns the default format used to generate new levels.
 	 *
-	 * @return string
+	 * @return string|WritableLevelProvider
 	 */
 	public static function getDefault() : string{
 		return self::$default;
@@ -56,12 +56,12 @@ abstract class LevelProviderManager{
 	/**
 	 * Sets the default format.
 	 *
-	 * @param string $class Class extending LevelProvider
+	 * @param string $class Class implementing WritableLevelProvider
 	 *
 	 * @throws \InvalidArgumentException
 	 */
 	public static function setDefault(string $class) : void{
-		Utils::testValidInstance($class, LevelProvider::class);
+		Utils::testValidInstance($class, WritableLevelProvider::class);
 
 		self::$default = $class;
 	}

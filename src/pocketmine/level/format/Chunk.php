@@ -27,10 +27,12 @@ declare(strict_types=1);
 namespace pocketmine\level\format;
 
 use pocketmine\block\BlockFactory;
+use pocketmine\block\BlockIds;
 use pocketmine\entity\Entity;
 use pocketmine\entity\EntityFactory;
 use pocketmine\level\Level;
 use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\network\mcpe\NetworkBinaryStream;
 use pocketmine\Player;
 use pocketmine\tile\Spawnable;
 use pocketmine\tile\Tile;
@@ -174,7 +176,7 @@ class Chunk{
 	}
 
 	/**
-	 * Returns a bitmap of block ID and meta at the specified chunk block coordinates
+	 * Returns the internal ID of the blockstate at the given coordinates.
 	 *
 	 * @param int $x 0-15
 	 * @param int $y
@@ -187,48 +189,16 @@ class Chunk{
 	}
 
 	/**
-	 * Sets block ID and meta in one call at the specified chunk block coordinates
+	 * Sets the blockstate at the given coordinate by internal ID.
 	 *
-	 * @param int $x 0-15
+	 * @param int $x
 	 * @param int $y
-	 * @param int $z 0-15
-	 * @param int $blockId 0-255
-	 * @param int $meta 0-15
-	 *
-	 * @return bool
+	 * @param int $z
+	 * @param int $block
 	 */
-	public function setBlock(int $x, int $y, int $z, int $blockId, int $meta) : bool{
-		if($this->getSubChunk($y >> 4, true)->setBlock($x, $y & 0x0f, $z, $blockId & 0xff, $meta & 0x0f)){
-			$this->hasChanged = true;
-			return true;
-		}
-		return false;
-	}
-
-	/**
-	 * Returns the block ID at the specified chunk block coordinates
-	 *
-	 * @param int $x 0-15
-	 * @param int $y
-	 * @param int $z 0-15
-	 *
-	 * @return int 0-255
-	 */
-	public function getBlockId(int $x, int $y, int $z) : int{
-		return $this->getSubChunk($y >> 4)->getBlockId($x, $y & 0x0f, $z);
-	}
-
-	/**
-	 * Returns the block meta value at the specified chunk block coordinates
-	 *
-	 * @param int $x 0-15
-	 * @param int $y
-	 * @param int $z 0-15
-	 *
-	 * @return int 0-15
-	 */
-	public function getBlockData(int $x, int $y, int $z) : int{
-		return $this->getSubChunk($y >> 4)->getBlockData($x, $y & 0x0f, $z);
+	public function setFullBlock(int $x, int $y, int $z, int $block) : void{
+		$this->getSubChunk($y >> 4)->setFullBlock($x, $y & 0xf, $z, $block);
+		$this->hasChanged = true;
 	}
 
 	/**
@@ -253,9 +223,7 @@ class Chunk{
 	 * @param int $level 0-15
 	 */
 	public function setBlockSkyLight(int $x, int $y, int $z, int $level) : void{
-		if($this->getSubChunk($y >> 4, true)->setBlockSkyLight($x, $y & 0x0f, $z, $level)){
-			$this->hasChanged = true;
-		}
+		$this->getSubChunk($y >> 4, true)->setBlockSkyLight($x, $y & 0x0f, $z, $level);
 	}
 
 	/**
@@ -291,9 +259,7 @@ class Chunk{
 	 * @param int $level 0-15
 	 */
 	public function setBlockLight(int $x, int $y, int $z, int $level) : void{
-		if($this->getSubChunk($y >> 4, true)->setBlockLight($x, $y & 0x0f, $z, $level)){
-			$this->hasChanged = true;
-		}
+		$this->getSubChunk($y >> 4, true)->setBlockLight($x, $y & 0x0f, $z, $level);
 	}
 
 	/**
@@ -698,7 +664,7 @@ class Chunk{
 		if($y < 0 or $y >= $this->height){
 			return $this->emptySubChunk;
 		}elseif($generateNew and $this->subChunks[$y] instanceof EmptySubChunk){
-			$this->subChunks[$y] = new SubChunk();
+			$this->subChunks[$y] = new SubChunk([new PalettedBlockArray(BlockIds::AIR << 4)]);
 		}
 
 		return $this->subChunks[$y];
@@ -765,10 +731,9 @@ class Chunk{
 	public function collectGarbage() : void{
 		foreach($this->subChunks as $y => $subChunk){
 			if($subChunk instanceof SubChunk){
+				$subChunk->collectGarbage();
 				if($subChunk->isEmpty()){
 					$this->subChunks[$y] = $this->emptySubChunk;
-				}else{
-					$subChunk->collectGarbage();
 				}
 			}
 		}
@@ -780,24 +745,42 @@ class Chunk{
 	 * @return string
 	 */
 	public function networkSerialize() : string{
-		$result = "";
+		$stream = new NetworkBinaryStream();
 		$subChunkCount = $this->getSubChunkSendCount();
-		$result .= chr($subChunkCount);
-		for($y = 0; $y < $subChunkCount; ++$y){
-			$result .= $this->subChunks[$y]->networkSerialize();
+		$stream->putByte($subChunkCount);
+
+		if(empty(BlockFactory::$staticRuntimeIdMap)){
+			BlockFactory::registerStaticRuntimeIdMappings();
 		}
-		$result .= pack("v*", ...$this->heightMap)
-			. $this->biomeIds
-			. chr(0); //border block array count
+
+		for($y = 0; $y < $subChunkCount; ++$y){
+			$layers = $this->subChunks[$y]->getBlockLayers();
+			$stream->putByte(8); //version
+
+			$stream->putByte(count($layers));
+
+			foreach($layers as $blocks){
+				$stream->putByte(($blocks->getBitsPerBlock() << 1) | 1); //last 1-bit means "network format", but seems pointless
+				$stream->put($blocks->getWordArray());
+				$palette = $blocks->getPalette();
+				$stream->putVarInt(count($palette)); //yes, this is intentionally zigzag
+				foreach($palette as $p){
+					$stream->putVarInt(BlockFactory::toStaticRuntimeId($p >> 4, $p & 0xf));
+				}
+			}
+		}
+		$stream->put(pack("v*", ...$this->heightMap));
+		$stream->put($this->biomeIds);
+		$stream->putByte(0); //border block array count
 		//Border block entry format: 1 byte (4 bits X, 4 bits Z). These are however useless since they crash the regular client.
 
 		foreach($this->tiles as $tile){
 			if($tile instanceof Spawnable){
-				$result .= $tile->getSerializedSpawnCompound();
+				$stream->put($tile->getSerializedSpawnCompound());
 			}
 		}
 
-		return $result;
+		return $stream->getBuffer();
 	}
 
 	/**
@@ -814,19 +797,35 @@ class Chunk{
 		if($this->terrainGenerated){
 			//subchunks
 			$count = 0;
-			$subChunks = "";
+			$subStream = new BinaryStream();
 			foreach($this->subChunks as $y => $subChunk){
 				if($subChunk instanceof EmptySubChunk){
 					continue;
 				}
 				++$count;
-				$subChunks .= chr($y) . $subChunk->getBlockIdArray() . $subChunk->getBlockDataArray();
+
+				$subStream->putByte($y);
+				$layers = $subChunk->getBlockLayers();
+				$subStream->putByte(count($subChunk->getBlockLayers()));
+				foreach($layers as $blocks){
+					$wordArray = $blocks->getWordArray();
+					$palette = $blocks->getPalette();
+
+					$subStream->putByte($blocks->getBitsPerBlock());
+					$subStream->put($wordArray);
+					$subStream->putInt(count($palette));
+					foreach($palette as $p){
+						$subStream->putInt($p);
+					}
+				}
+
 				if($this->lightPopulated){
-					$subChunks .= $subChunk->getBlockSkyLightArray() . $subChunk->getBlockLightArray();
+					$subStream->put($subChunk->getBlockSkyLightArray());
+					$subStream->put($subChunk->getBlockLightArray());
 				}
 			}
 			$stream->putByte($count);
-			$stream->put($subChunks);
+			$stream->put($subStream->getBuffer());
 
 			//biomes
 			$stream->put($this->biomeIds);
@@ -860,12 +859,23 @@ class Chunk{
 		$heightMap = [];
 		if($terrainGenerated){
 			$count = $stream->getByte();
-			for($y = 0; $y < $count; ++$y){
-				$subChunks[$stream->getByte()] = new SubChunk(
-					$stream->get(4096), //blockids
-					$stream->get(2048), //blockdata
-					$lightPopulated ? $stream->get(2048) : "", //skylight
-					$lightPopulated ? $stream->get(2048) : "" //blocklight
+			for($subCount = 0; $subCount < $count; ++$subCount){
+				$y = $stream->getByte();
+
+				/** @var PalettedBlockArray[] $layers */
+				$layers = [];
+				for($i = 0, $layerCount = $stream->getByte(); $i < $layerCount; ++$i){
+					$bitsPerBlock = $stream->getByte();
+					$words = $stream->get(PalettedBlockArray::getExpectedWordArraySize($bitsPerBlock));
+					$palette = [];
+					for($k = 0, $paletteSize = $stream->getInt(); $k < $paletteSize; ++$k){
+						$palette[] = $stream->getInt();
+					}
+
+					$layers[] = PalettedBlockArray::fromData($bitsPerBlock, $words, $palette);
+				}
+				$subChunks[$y] = new SubChunk(
+					$layers, $lightPopulated ? $stream->get(2048) : "", $lightPopulated ? $stream->get(2048) : "" //blocklight
 				);
 			}
 
