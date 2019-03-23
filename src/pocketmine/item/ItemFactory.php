@@ -27,6 +27,7 @@ use pocketmine\block\Block;
 use pocketmine\block\BlockFactory;
 use pocketmine\block\utils\DyeColor;
 use pocketmine\block\utils\SkullType;
+use pocketmine\block\utils\TreeType;
 use pocketmine\entity\EntityFactory;
 use pocketmine\entity\Living;
 use pocketmine\nbt\tag\CompoundTag;
@@ -65,7 +66,6 @@ class ItemFactory{
 		self::register(new BeetrootSeeds());
 		self::register(new BeetrootSoup());
 		self::register(new BlazeRod());
-		self::register(new Boat());
 		self::register(new Book());
 		self::register(new Boots(Item::CHAIN_BOOTS, 0, "Chainmail Boots", new ArmorTypeInfo(1, 196)));
 		self::register(new Boots(Item::DIAMOND_BOOTS, 0, "Diamond Boots", new ArmorTypeInfo(3, 430)));
@@ -214,7 +214,12 @@ class ItemFactory{
 		self::register(new Shovel(Item::IRON_SHOVEL, "Iron Shovel", TieredTool::TIER_IRON));
 		self::register(new Shovel(Item::STONE_SHOVEL, "Stone Shovel", TieredTool::TIER_STONE));
 		self::register(new Shovel(Item::WOODEN_SHOVEL, "Wooden Shovel", TieredTool::TIER_WOODEN));
-		self::register(new Sign());
+		self::register(new Sign(Block::STANDING_SIGN, 0, Item::SIGN));
+		self::register(new Sign(Block::SPRUCE_STANDING_SIGN, 0, Item::SPRUCE_SIGN));
+		self::register(new Sign(Block::BIRCH_STANDING_SIGN, 0, Item::BIRCH_SIGN));
+		self::register(new Sign(Block::JUNGLE_STANDING_SIGN, 0, Item::JUNGLE_SIGN));
+		self::register(new Sign(Block::ACACIA_STANDING_SIGN, 0, Item::ACACIA_SIGN));
+		self::register(new Sign(Block::DARKOAK_STANDING_SIGN, 0, Item::DARKOAK_SIGN));
 		self::register(new Snowball());
 		self::register(new SpiderEye());
 		self::register(new Steak());
@@ -258,6 +263,10 @@ class ItemFactory{
 			if(is_a($className, Living::class, true) and $className::NETWORK_ID !== -1){
 				self::register(new SpawnEgg(Item::SPAWN_EGG, $className::NETWORK_ID, $className, "Spawn Egg"));
 			}
+		}
+
+		foreach(TreeType::getAll() as $type){
+			self::register(new Boat($type));
 		}
 
 		//TODO: minecraft:acacia_sign

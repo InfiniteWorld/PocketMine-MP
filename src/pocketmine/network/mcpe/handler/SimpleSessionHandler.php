@@ -78,6 +78,7 @@ use pocketmine\network\mcpe\protocol\types\UseItemOnEntityTransactionData;
 use pocketmine\network\mcpe\protocol\types\UseItemTransactionData;
 use pocketmine\Player;
 use function base64_encode;
+use function fmod;
 use function implode;
 use function json_decode;
 use function json_encode;
@@ -117,7 +118,16 @@ class SimpleSessionHandler extends SessionHandler{
 	}
 
 	public function handleMovePlayer(MovePlayerPacket $packet) : bool{
-		return $this->player->handleMovePlayer($packet);
+		$yaw = fmod($packet->yaw, 360);
+		$pitch = fmod($packet->pitch, 360);
+		if($yaw < 0){
+			$yaw += 360;
+		}
+
+		$this->player->setRotation($yaw, $pitch);
+		$this->player->updateNextPosition($packet->position->subtract(0, 1.62, 0));
+
+		return true;
 	}
 
 	public function handleLevelSoundEventPacketV1(LevelSoundEventPacketV1 $packet) : bool{
@@ -125,7 +135,21 @@ class SimpleSessionHandler extends SessionHandler{
 	}
 
 	public function handleEntityEvent(EntityEventPacket $packet) : bool{
-		return $this->player->handleEntityEvent($packet);
+		$this->player->doCloseInventory();
+
+		switch($packet->event){
+			case EntityEventPacket::EATING_ITEM: //TODO: ignore this and handle it server-side
+				if($packet->data === 0){
+					return false;
+				}
+
+				$this->player->broadcastEntityEvent(EntityEventPacket::EATING_ITEM, $packet->data);
+				break;
+			default:
+				return false;
+		}
+
+		return true;
 	}
 
 	public function handleInventoryTransaction(InventoryTransactionPacket $packet) : bool{
@@ -387,7 +411,21 @@ class SimpleSessionHandler extends SessionHandler{
 	}
 
 	public function handleAdventureSettings(AdventureSettingsPacket $packet) : bool{
-		return $this->player->handleAdventureSettings($packet);
+		if($packet->entityUniqueId !== $this->player->getId()){
+			return false; //TODO: operators can change other people's permissions using this
+		}
+
+		$handled = false;
+
+		$isFlying = $packet->getFlag(AdventureSettingsPacket::FLYING);
+		if($isFlying !== $this->player->isFlying()){
+			$this->player->toggleFlight($isFlying);
+			$handled = true;
+		}
+
+		//TODO: check for other changes
+
+		return $handled;
 	}
 
 	public function handleBlockEntityData(BlockEntityDataPacket $packet) : bool{
@@ -398,7 +436,7 @@ class SimpleSessionHandler extends SessionHandler{
 
 		$block = $this->player->getLevel()->getBlock($pos);
 		try{
-			$nbt = (new NetworkNbtSerializer())->read($packet->namedtag);
+			$nbt = (new NetworkNbtSerializer())->read($packet->namedtag)->getTag();
 		}catch(NbtDataException $e){
 			throw new BadPacketException($e->getMessage(), 0, $e);
 		}
@@ -531,7 +569,8 @@ class SimpleSessionHandler extends SessionHandler{
 	}
 
 	public function handleLevelSoundEvent(LevelSoundEventPacket $packet) : bool{
-		return $this->player->handleLevelSoundEvent($packet);
+		$this->player->getLevel()->broadcastPacketToViewers($this->player->asVector3(), $packet);
+		return true;
 	}
 
 	public function handleNetworkStackLatency(NetworkStackLatencyPacket $packet) : bool{

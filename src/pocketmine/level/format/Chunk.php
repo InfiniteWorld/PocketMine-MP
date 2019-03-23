@@ -197,7 +197,7 @@ class Chunk{
 	 * @param int $block
 	 */
 	public function setFullBlock(int $x, int $y, int $z, int $block) : void{
-		$this->getSubChunk($y >> 4)->setFullBlock($x, $y & 0xf, $z, $block);
+		$this->getSubChunk($y >> 4, true)->setFullBlock($x, $y & 0xf, $z, $block);
 		$this->hasChanged = true;
 	}
 
@@ -586,7 +586,7 @@ class Chunk{
 						try{
 							$entity = EntityFactory::createFromData($level, $nbt);
 							if(!($entity instanceof Entity)){
-								$level->getServer()->getLogger()->warning("Chunk $this->x $this->z: Deleted unknown entity type " . $nbt->getString("id", "<unknown>", true));
+								$level->getServer()->getLogger()->warning("Chunk $this->x $this->z: Deleted unknown entity type " . $nbt->getString("id", $nbt->getString("identifier", "<unknown>", true), true));
 								$changed = true;
 								continue;
 							}

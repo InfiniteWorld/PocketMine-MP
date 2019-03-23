@@ -61,6 +61,7 @@ use pocketmine\metadata\PlayerMetadataStore;
 use pocketmine\nbt\BigEndianNbtSerializer;
 use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\nbt\TreeRoot;
 use pocketmine\network\AdvancedNetworkInterface;
 use pocketmine\network\mcpe\CompressBatchPromise;
 use pocketmine\network\mcpe\CompressBatchTask;
@@ -108,7 +109,6 @@ use function bin2hex;
 use function count;
 use function define;
 use function explode;
-use function extension_loaded;
 use function file_exists;
 use function file_get_contents;
 use function file_put_contents;
@@ -645,7 +645,7 @@ class Server{
 
 		if(file_exists($path . "$name.dat")){
 			try{
-				return (new BigEndianNbtSerializer())->readCompressed(file_get_contents($path . "$name.dat"));
+				return (new BigEndianNbtSerializer())->readCompressed(file_get_contents($path . "$name.dat"))->getTag();
 			}catch(NbtDataException $e){ //zlib decode error / corrupt data
 				rename($path . "$name.dat", $path . "$name.dat.bak");
 				$this->logger->error($this->getLanguage()->translateString("pocketmine.data.playerCorrupted", [$name]));
@@ -667,7 +667,7 @@ class Server{
 		if(!$ev->isCancelled()){
 			$nbt = new BigEndianNbtSerializer();
 			try{
-				file_put_contents($this->getDataPath() . "players/" . strtolower($name) . ".dat", $nbt->writeCompressed($ev->getSaveData()));
+				file_put_contents($this->getDataPath() . "players/" . strtolower($name) . ".dat", $nbt->writeCompressed(new TreeRoot($ev->getSaveData())));
 			}catch(\ErrorException $e){
 				$this->logger->critical($this->getLanguage()->translateString("pocketmine.data.saveError", [$name, $e->getMessage()]));
 				$this->logger->logException($e);
@@ -1241,9 +1241,6 @@ class Server{
 			}elseif($formatName !== ""){
 				$this->logger->warning($this->language->translateString("pocketmine.level.badDefaultFormat", [$formatName]));
 			}
-			if(extension_loaded("leveldb")){
-				$this->logger->debug($this->getLanguage()->translateString("pocketmine.debug.enable"));
-			}
 
 			$this->levelManager = new LevelManager($this);
 
@@ -1314,7 +1311,37 @@ class Server{
 
 			$this->enablePlugins(PluginLoadOrder::POSTWORLD);
 
-			$this->start();
+			if($this->getConfigBool("enable-query", true)){
+				$this->queryHandler = new QueryHandler();
+			}
+
+			foreach($this->getIPBans()->getEntries() as $entry){
+				$this->network->blockAddress($entry->getName(), -1);
+			}
+
+			if($this->getProperty("settings.send-usage", true)){
+				$this->sendUsageTicker = 6000;
+				$this->sendUsage(SendUsageTask::TYPE_OPEN);
+			}
+
+
+			if($this->getProperty("network.upnp-forwarding", false)){
+				$this->logger->info("[UPnP] Trying to port forward...");
+				try{
+					UPnP::PortForward($this->getPort());
+				}catch(\RuntimeException $e){
+					$this->logger->alert("UPnP portforward failed: " . $e->getMessage());
+				}
+			}
+
+			$this->tickCounter = 0;
+
+			$this->logger->info($this->getLanguage()->translateString("pocketmine.server.defaultGameMode", [GameMode::toTranslation($this->getGamemode())]));
+
+			$this->logger->info($this->getLanguage()->translateString("pocketmine.server.startFinished", [round(microtime(true) - \pocketmine\START_TIME, 3)]));
+
+			$this->tickProcessor();
+			$this->forceShutdown();
 		}catch(\Throwable $e){
 			$this->exceptionHandler($e);
 		}
@@ -1452,22 +1479,23 @@ class Server{
 			throw new \InvalidArgumentException("Cannot broadcast empty list of packets");
 		}
 
-		$ev = new DataPacketBroadcastEvent($players, $packets);
+		/** @var NetworkSession[] $recipients */
+		$recipients = [];
+		foreach($players as $player){
+			if($player->isConnected()){
+				$recipients[] = $player->getNetworkSession();
+			}
+		}
+		if(empty($recipients)){
+			return false;
+		}
+
+		$ev = new DataPacketBroadcastEvent($recipients, $packets);
 		$ev->call();
 		if($ev->isCancelled()){
 			return false;
 		}
-
-		/** @var NetworkSession[] $targets */
-		$targets = [];
-		foreach($ev->getPlayers() as $player){
-			if($player->isConnected()){
-				$targets[] = $player->getNetworkSession();
-			}
-		}
-		if(empty($targets)){
-			return false;
-		}
+		$recipients = $ev->getTargets();
 
 		$stream = new PacketStream();
 		foreach($ev->getPackets() as $packet){
@@ -1475,14 +1503,14 @@ class Server{
 		}
 
 		if(NetworkCompression::$THRESHOLD < 0 or strlen($stream->getBuffer()) < NetworkCompression::$THRESHOLD){
-			foreach($targets as $target){
+			foreach($recipients as $target){
 				foreach($ev->getPackets() as $pk){
 					$target->addToSendBuffer($pk);
 				}
 			}
 		}else{
 			$promise = $this->prepareBatch($stream);
-			foreach($targets as $target){
+			foreach($recipients as $target){
 				$target->queueCompressed($promise);
 			}
 		}
@@ -1567,43 +1595,6 @@ class Server{
 		$sender->sendMessage($this->getLanguage()->translateString(TextFormat::RED . "%commands.generic.notFound"));
 
 		return false;
-	}
-
-	public function reload() : void{
-		$this->logger->info("Saving worlds...");
-
-		foreach($this->levelManager->getLevels() as $level){
-			$level->save();
-		}
-
-		$this->pluginManager->disablePlugins();
-		$this->pluginManager->clearPlugins();
-		PermissionManager::getInstance()->clearPermissions();
-		$this->commandMap->clearCommands();
-
-		$this->logger->info("Reloading properties...");
-		$this->properties->reload();
-		$this->maxPlayers = $this->getConfigInt("max-players", 20);
-
-		if($this->getConfigBool("hardcore", false) and $this->getDifficulty() < Level::DIFFICULTY_HARD){
-			$this->setConfigInt("difficulty", Level::DIFFICULTY_HARD);
-		}
-
-		$this->banByIP->load();
-		$this->banByName->load();
-		$this->reloadWhitelist();
-		$this->operators->reload();
-
-		foreach($this->getIPBans()->getEntries() as $entry){
-			$this->getNetwork()->blockAddress($entry->getName(), -1);
-		}
-
-		$this->pluginManager->registerInterface(new PharPluginLoader($this->autoloader));
-		$this->pluginManager->registerInterface(new ScriptPluginLoader());
-		$this->pluginManager->loadPlugins($this->pluginPath);
-		$this->enablePlugins(PluginLoadOrder::STARTUP);
-		$this->enablePlugins(PluginLoadOrder::POSTWORLD);
-		TimingsHandler::reload();
 	}
 
 	/**
@@ -1691,43 +1682,6 @@ class Server{
 	 */
 	public function getQueryInformation(){
 		return $this->queryRegenerateTask;
-	}
-
-	/**
-	 * Starts the PocketMine-MP server and starts processing ticks and packets
-	 */
-	private function start() : void{
-		if($this->getConfigBool("enable-query", true)){
-			$this->queryHandler = new QueryHandler();
-		}
-
-		foreach($this->getIPBans()->getEntries() as $entry){
-			$this->network->blockAddress($entry->getName(), -1);
-		}
-
-		if($this->getProperty("settings.send-usage", true)){
-			$this->sendUsageTicker = 6000;
-			$this->sendUsage(SendUsageTask::TYPE_OPEN);
-		}
-
-
-		if($this->getProperty("network.upnp-forwarding", false)){
-			$this->logger->info("[UPnP] Trying to port forward...");
-			try{
-				UPnP::PortForward($this->getPort());
-			}catch(\RuntimeException $e){
-				$this->logger->alert("UPnP portforward failed: " . $e->getMessage());
-			}
-		}
-
-		$this->tickCounter = 0;
-
-		$this->logger->info($this->getLanguage()->translateString("pocketmine.server.defaultGameMode", [GameMode::toTranslation($this->getGamemode())]));
-
-		$this->logger->info($this->getLanguage()->translateString("pocketmine.server.startFinished", [round(microtime(true) - \pocketmine\START_TIME, 3)]));
-
-		$this->tickProcessor();
-		$this->forceShutdown();
 	}
 
 	/**

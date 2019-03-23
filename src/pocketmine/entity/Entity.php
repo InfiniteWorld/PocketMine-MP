@@ -378,12 +378,7 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	/** @var TimingsHandler */
 	protected $timings;
 
-	/** @var bool */
-	protected $constructed = false;
-
-
 	public function __construct(Level $level, CompoundTag $nbt){
-		$this->constructed = true;
 		$this->timings = Timings::getEntityTimings($this);
 
 		$this->temporalVector = new Vector3();
@@ -715,7 +710,7 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	}
 
 	public function saveNBT() : CompoundTag{
-		$nbt = new CompoundTag("");
+		$nbt = new CompoundTag();
 		if(!($this instanceof Player)){
 			$nbt->setString("id", EntityFactory::getSaveId(get_class($this)));
 
@@ -725,21 +720,21 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 			}
 		}
 
-		$nbt->setTag(new ListTag("Pos", [
-			new DoubleTag("", $this->x),
-			new DoubleTag("", $this->y),
-			new DoubleTag("", $this->z)
+		$nbt->setTag("Pos", new ListTag([
+			new DoubleTag($this->x),
+			new DoubleTag($this->y),
+			new DoubleTag($this->z)
 		]));
 
-		$nbt->setTag(new ListTag("Motion", [
-			new DoubleTag("", $this->motion->x),
-			new DoubleTag("", $this->motion->y),
-			new DoubleTag("", $this->motion->z)
+		$nbt->setTag("Motion", new ListTag([
+			new DoubleTag($this->motion->x),
+			new DoubleTag($this->motion->y),
+			new DoubleTag($this->motion->z)
 		]));
 
-		$nbt->setTag(new ListTag("Rotation", [
-			new FloatTag("", $this->yaw),
-			new FloatTag("", $this->pitch)
+		$nbt->setTag("Rotation", new ListTag([
+			new FloatTag($this->yaw),
+			new FloatTag($this->pitch)
 		]));
 
 		$nbt->setFloat("FallDistance", $this->fallDistance);
@@ -806,8 +801,18 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	}
 
 	public function kill() : void{
-		$this->health = 0;
-		$this->scheduleUpdate();
+		if($this->isAlive()){
+			$this->health = 0;
+			$this->onDeath();
+			$this->scheduleUpdate();
+		}
+	}
+
+	/**
+	 * Override this to do actions on death.
+	 */
+	protected function onDeath() : void{
+
 	}
 
 	/**
@@ -844,7 +849,6 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 
 		if($amount <= 0){
 			if($this->isAlive()){
-				$this->health = 0;
 				$this->kill();
 			}
 		}elseif($amount <= $this->getMaxHealth() or $amount < $this->health){

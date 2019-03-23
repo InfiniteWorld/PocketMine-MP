@@ -227,7 +227,6 @@ class BlockFactory{
 		self::register(new SandstoneStairs(new BID(Block::RED_SANDSTONE_STAIRS), "Red Sandstone Stairs"));
 		self::register(new SandstoneStairs(new BID(Block::SANDSTONE_STAIRS), "Sandstone Stairs"));
 		self::register(new SeaLantern(new BID(Block::SEALANTERN), "Sea Lantern"));
-		self::register(new Sign(new BlockIdentifierFlattened(Block::STANDING_SIGN, Block::WALL_SIGN, 0, ItemIds::SIGN, \pocketmine\tile\Sign::class), "Sign"));
 		self::register(new Skull(new BID(Block::MOB_HEAD_BLOCK, 0, null, \pocketmine\tile\Skull::class), "Mob Head"));
 		self::register(new SmoothStone(new BID(Block::STONE, Stone::NORMAL), "Stone"));
 		self::register(new Snow(new BID(Block::SNOW), "Snow Block"));
@@ -340,6 +339,15 @@ class BlockFactory{
 		$woodenTrapdoorIds[TreeType::ACACIA()] = Block::ACACIA_TRAPDOOR;
 		$woodenTrapdoorIds[TreeType::DARK_OAK()] = Block::DARK_OAK_TRAPDOOR;
 
+		/** @var BlockIdentifierFlattened[]|\SplObjectStorage $woodenSignIds */
+		$woodenSignIds = new \SplObjectStorage();
+		$woodenSignIds[TreeType::OAK()] = new BlockIdentifierFlattened(Block::SIGN_POST, Block::WALL_SIGN, 0, ItemIds::SIGN, \pocketmine\tile\Sign::class);
+		$woodenSignIds[TreeType::SPRUCE()] = new BlockIdentifierFlattened(Block::SPRUCE_STANDING_SIGN, Block::SPRUCE_WALL_SIGN, 0, ItemIds::SPRUCE_SIGN, \pocketmine\tile\Sign::class);
+		$woodenSignIds[TreeType::BIRCH()] = new BlockIdentifierFlattened(Block::BIRCH_STANDING_SIGN, Block::BIRCH_WALL_SIGN, 0, ItemIds::BIRCH_SIGN, \pocketmine\tile\Sign::class);
+		$woodenSignIds[TreeType::JUNGLE()] = new BlockIdentifierFlattened(Block::JUNGLE_STANDING_SIGN, Block::JUNGLE_WALL_SIGN, 0, ItemIds::JUNGLE_SIGN, \pocketmine\tile\Sign::class);
+		$woodenSignIds[TreeType::ACACIA()] = new BlockIdentifierFlattened(Block::ACACIA_STANDING_SIGN, Block::ACACIA_WALL_SIGN, 0, ItemIds::ACACIA_SIGN, \pocketmine\tile\Sign::class);
+		$woodenSignIds[TreeType::DARK_OAK()] = new BlockIdentifierFlattened(Block::DARKOAK_STANDING_SIGN, Block::DARKOAK_WALL_SIGN, 0, ItemIds::DARKOAK_SIGN, \pocketmine\tile\Sign::class);
+
 		foreach(TreeType::getAll() as $treeType){
 			$magicNumber = $treeType->getMagicNumber();
 			$name = $treeType->getDisplayName();
@@ -360,6 +368,8 @@ class BlockFactory{
 			self::register(new WoodenButton(new BID($woodenButtonIds[$treeType]), $treeType->getDisplayName() . " Button"));
 			self::register(new WoodenPressurePlate(new BID($woodenPressurePlateIds[$treeType]), $treeType->getDisplayName() . " Pressure Plate"));
 			self::register(new Trapdoor(new BID($woodenTrapdoorIds[$treeType]), $treeType->getDisplayName() . " Trapdoor"));
+
+			self::register(new Sign($woodenSignIds[$treeType], $treeType->getDisplayName() . " Sign"));
 		}
 
 		static $sandstoneTypes = [
@@ -436,8 +446,8 @@ class BlockFactory{
 		//TODO: minecraft:birch_standing_sign
 		//TODO: minecraft:birch_wall_sign
 		//TODO: minecraft:blast_furnace
-		//TODO: minecraft:blue_ice
 		//TODO: minecraft:bubble_column
+		//TODO: minecraft:campfire
 		//TODO: minecraft:cartography_table
 		//TODO: minecraft:carved_pumpkin
 		//TODO: minecraft:cauldron
@@ -447,6 +457,7 @@ class BlockFactory{
 		//TODO: minecraft:chorus_flower
 		//TODO: minecraft:chorus_plant
 		//TODO: minecraft:command_block
+		//TODO: minecraft:composter
 		//TODO: minecraft:conduit
 		//TODO: minecraft:coral
 		//TODO: minecraft:coral_block
@@ -464,7 +475,6 @@ class BlockFactory{
 		//TODO: minecraft:double_stone_slab4
 		//TODO: minecraft:dried_kelp_block
 		//TODO: minecraft:dropper
-		//TODO: minecraft:element_0
 		//TODO: minecraft:end_brick_stairs
 		//TODO: minecraft:end_gateway
 		//TODO: minecraft:end_portal
@@ -472,12 +482,15 @@ class BlockFactory{
 		//TODO: minecraft:granite_stairs
 		//TODO: minecraft:grindstone
 		//TODO: minecraft:hopper
+		//TODO: minecraft:jigsaw
 		//TODO: minecraft:jukebox
 		//TODO: minecraft:jungle_standing_sign
 		//TODO: minecraft:jungle_wall_sign
 		//TODO: minecraft:kelp
 		//TODO: minecraft:lantern
 		//TODO: minecraft:lava_cauldron
+		//TODO: minecraft:lectern
+		//TODO: minecraft:loom
 		//TODO: minecraft:monster_egg
 		//TODO: minecraft:mossy_cobblestone_stairs
 		//TODO: minecraft:mossy_stone_brick_stairs
@@ -510,6 +523,7 @@ class BlockFactory{
 		//TODO: minecraft:sticky_piston
 		//TODO: minecraft:stone_slab3
 		//TODO: minecraft:stone_slab4
+		//TODO: minecraft:stonecutter_block
 		//TODO: minecraft:stripped_acacia_log
 		//TODO: minecraft:stripped_birch_log
 		//TODO: minecraft:stripped_dark_oak_log
@@ -517,8 +531,10 @@ class BlockFactory{
 		//TODO: minecraft:stripped_oak_log
 		//TODO: minecraft:stripped_spruce_log
 		//TODO: minecraft:structure_block
+		//TODO: minecraft:sweet_berry_bush
 		//TODO: minecraft:turtle_egg
 		//TODO: minecraft:undyed_shulker_box
+		//TODO: minecraft:wood
 	}
 
 	public static function isInit() : bool{

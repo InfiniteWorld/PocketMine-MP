@@ -62,7 +62,6 @@ use pocketmine\event\player\PlayerJumpEvent;
 use pocketmine\event\player\PlayerKickEvent;
 use pocketmine\event\player\PlayerLoginEvent;
 use pocketmine\event\player\PlayerMoveEvent;
-use pocketmine\event\player\PlayerPreLoginEvent;
 use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\event\player\PlayerRespawnEvent;
 use pocketmine\event\player\PlayerToggleFlightEvent;
@@ -96,19 +95,14 @@ use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\DoubleTag;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\network\mcpe\CompressBatchPromise;
-use pocketmine\network\mcpe\NetworkCipher;
 use pocketmine\network\mcpe\NetworkSession;
-use pocketmine\network\mcpe\ProcessLoginTask;
 use pocketmine\network\mcpe\protocol\AdventureSettingsPacket;
 use pocketmine\network\mcpe\protocol\AnimatePacket;
 use pocketmine\network\mcpe\protocol\AvailableCommandsPacket;
 use pocketmine\network\mcpe\protocol\BookEditPacket;
 use pocketmine\network\mcpe\protocol\ChunkRadiusUpdatedPacket;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
-use pocketmine\network\mcpe\protocol\EntityEventPacket;
 use pocketmine\network\mcpe\protocol\LevelEventPacket;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
-use pocketmine\network\mcpe\protocol\LoginPacket;
 use pocketmine\network\mcpe\protocol\MobEffectPacket;
 use pocketmine\network\mcpe\protocol\ModalFormRequestPacket;
 use pocketmine\network\mcpe\protocol\MovePlayerPacket;
@@ -140,7 +134,6 @@ use function ceil;
 use function count;
 use function explode;
 use function floor;
-use function fmod;
 use function get_class;
 use function in_array;
 use function is_int;
@@ -190,25 +183,22 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	protected $networkSession;
 
 	/** @var bool */
-	protected $loggedIn = false;
-
-	/** @var bool */
 	public $spawned = false;
 
 	/** @var string */
-	protected $username = "";
+	protected $username;
 	/** @var string */
-	protected $iusername = "";
+	protected $iusername;
 	/** @var string */
-	protected $displayName = "";
+	protected $displayName;
 	/** @var int|string */
 	protected $randomClientId;
 	/** @var string */
 	protected $xuid = "";
 	/** @var bool */
-	protected $authenticated = false;
-	/** @var PlayerInfo|null */
-	protected $playerInfo = null;
+	protected $authenticated;
+	/** @var PlayerInfo */
+	protected $playerInfo;
 
 	protected $windowCnt = 2;
 	/** @var int[] */
@@ -296,6 +286,135 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	protected $formIdCounter = 0;
 	/** @var Form[] */
 	protected $forms = [];
+
+	/**
+	 * @param Server         $server
+	 * @param NetworkSession $session
+	 * @param PlayerInfo     $playerInfo
+	 * @param bool           $authenticated
+	 */
+	public function __construct(Server $server, NetworkSession $session, PlayerInfo $playerInfo, bool $authenticated){
+		$this->server = $server;
+		$this->networkSession = $session;
+		$this->playerInfo = $playerInfo;
+		$this->authenticated = $authenticated;
+		$this->skin = $this->playerInfo->getSkin();
+
+		$this->username = TextFormat::clean($this->playerInfo->getUsername());
+		$this->displayName = $this->username;
+		$this->iusername = strtolower($this->username);
+		$this->locale = $this->playerInfo->getLocale();
+		$this->randomClientId = $this->playerInfo->getClientId();
+
+		$this->uuid = $this->playerInfo->getUuid();
+		$this->rawUUID = $this->uuid->toBinary();
+		$this->xuid = $authenticated ? $this->playerInfo->getXuid() : "";
+
+		$this->perm = new PermissibleBase($this);
+		$this->chunksPerTick = (int) $this->server->getProperty("chunk-sending.per-tick", 4);
+		$this->spawnThreshold = (int) (($this->server->getProperty("chunk-sending.spawn-radius", 4) ** 2) * M_PI);
+
+		$this->allowMovementCheats = (bool) $this->server->getProperty("player.anti-cheat.allow-movement-cheats", false);
+
+		$namedtag = $this->server->getOfflinePlayerData($this->username); //TODO: make this async
+
+		$spawnReset = false;
+
+		if($namedtag !== null and ($level = $this->server->getLevelManager()->getLevelByName($namedtag->getString("Level", "", true))) !== null){
+			/** @var float[] $pos */
+			$pos = $namedtag->getListTag("Pos")->getAllValues();
+			$spawn = new Vector3($pos[0], $pos[1], $pos[2]);
+		}else{
+			$level = $this->server->getLevelManager()->getDefaultLevel(); //TODO: default level might be null
+			$spawn = $level->getSpawnLocation();
+			$spawnReset = true;
+		}
+
+		//load the spawn chunk so we can see the terrain
+		$level->registerChunkLoader($this, $spawn->getFloorX() >> 4, $spawn->getFloorZ() >> 4, true);
+		$level->registerChunkListener($this, $spawn->getFloorX() >> 4, $spawn->getFloorZ() >> 4);
+		if($spawnReset){
+			$spawn = $level->getSafeSpawn($spawn);
+		}
+
+		if($namedtag === null){
+			$namedtag = EntityFactory::createBaseNBT($spawn);
+
+			$namedtag->setByte("OnGround", 1); //TODO: this hack is needed for new players in-air ticks - they don't get detected as on-ground until they move
+			//TODO: old code had a TODO for SpawnForced
+
+		}elseif($spawnReset){
+			$namedtag->setTag("Pos", new ListTag([
+				new DoubleTag($spawn->x),
+				new DoubleTag($spawn->y),
+				new DoubleTag($spawn->z)
+			]));
+		}
+
+		parent::__construct($level, $namedtag);
+
+		$ev = new PlayerLoginEvent($this, "Plugin reason");
+		$ev->call();
+		if($ev->isCancelled()){
+			$this->close($this->getLeaveMessage(), $ev->getKickMessage());
+
+			return;
+		}
+
+		$this->server->getLogger()->info($this->getServer()->getLanguage()->translateString("pocketmine.player.logIn", [
+			TextFormat::AQUA . $this->username . TextFormat::WHITE,
+			$this->networkSession->getIp(),
+			$this->networkSession->getPort(),
+			$this->id,
+			$this->level->getDisplayName(),
+			round($this->x, 4),
+			round($this->y, 4),
+			round($this->z, 4)
+		]));
+
+		$this->server->addOnlinePlayer($this);
+	}
+
+	protected function initHumanData(CompoundTag $nbt) : void{
+		$this->setNameTag($this->username);
+	}
+
+	protected function initEntity(CompoundTag $nbt) : void{
+		parent::initEntity($nbt);
+		$this->addDefaultWindows();
+
+		$this->firstPlayed = $nbt->getLong("firstPlayed", $now = (int) (microtime(true) * 1000));
+		$this->lastPlayed = $nbt->getLong("lastPlayed", $now);
+
+		$this->gamemode = $this->server->getForceGamemode() ? $this->server->getGamemode() : $nbt->getInt("playerGameType", $this->server->getGamemode()) & 0x03;
+
+		$this->allowFlight = $this->isCreative();
+		$this->keepMovement = $this->isSpectator() || $this->allowMovementCheats();
+		if($this->isOp()){
+			$this->setRemoveFormat(false);
+		}
+
+		$this->setNameTagVisible();
+		$this->setNameTagAlwaysVisible();
+		$this->setCanClimb();
+
+		$this->achievements = [];
+		$achievements = $nbt->getCompoundTag("Achievements");
+		if($achievements !== null){
+			/** @var ByteTag $tag */
+			foreach($achievements as $name => $tag){
+				$this->achievements[$name] = $tag->getValue() !== 0;
+			}
+		}
+
+		if(!$this->hasValidSpawnPosition()){
+			if(($level = $this->server->getLevelManager()->getLevelByName($nbt->getString("SpawnLevel", ""))) instanceof Level){
+				$this->spawnPosition = new Position($nbt->getInt("SpawnX"), $nbt->getInt("SpawnY"), $nbt->getInt("SpawnZ"), $level);
+			}else{
+				$this->spawnPosition = $this->level->getSafeSpawn();
+			}
+		}
+	}
 
 	/**
 	 * @return TranslationContainer|string
@@ -551,7 +670,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	 * @return bool
 	 */
 	public function isOnline() : bool{
-		return $this->isConnected() and $this->loggedIn;
+		return $this->isConnected();
 	}
 
 	/**
@@ -688,21 +807,6 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	}
 
 	/**
-	 * @param Server         $server
-	 * @param NetworkSession $session
-	 */
-	public function __construct(Server $server, NetworkSession $session){
-		$this->server = $server;
-		$this->networkSession = $session;
-
-		$this->perm = new PermissibleBase($this);
-		$this->chunksPerTick = (int) $this->server->getProperty("chunk-sending.per-tick", 4);
-		$this->spawnThreshold = (int) (($this->server->getProperty("chunk-sending.spawn-radius", 4) ** 2) * M_PI);
-
-		$this->allowMovementCheats = (bool) $this->server->getProperty("player.anti-cheat.allow-movement-cheats", false);
-	}
-
-	/**
 	 * @return bool
 	 */
 	public function isConnected() : bool{
@@ -819,17 +923,6 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	 */
 	public function getPing() : int{
 		return $this->networkSession->getPing();
-	}
-
-	/**
-	 * @return Position
-	 */
-	public function getNextPosition() : Position{
-		return $this->newPosition !== null ? Position::fromObject($this->newPosition, $this->level) : $this->getPosition();
-	}
-
-	public function getInAirTicks() : int{
-		return $this->inAirTicks;
 	}
 
 	/**
@@ -1459,6 +1552,48 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		}
 	}
 
+	/**
+	 * Returns the location that the player wants to be in at the end of this tick. Note that this may not be their
+	 * actual result position at the end due to plugin interference or a range of other things.
+	 *
+	 * @return Vector3
+	 */
+	public function getNextPosition() : Vector3{
+		return $this->newPosition !== null ? clone $this->newPosition : $this->asVector3();
+	}
+
+	/**
+	 * Sets the coordinates the player will move to next. This is processed at the end of each tick. Unless you have
+	 * some particularly specialized logic, you probably want to use teleport() instead of this.
+	 *
+	 * This is used for processing movements sent by the player over network.
+	 *
+	 * @param Vector3 $newPos Coordinates of the player's feet, centered horizontally at the base of their bounding box.
+	 *
+	 * @return bool if the
+	 */
+	public function updateNextPosition(Vector3 $newPos) : bool{
+		$newPos = $newPos->asVector3();
+		if($this->isTeleporting and $newPos->distanceSquared($this) > 1){  //Tolerate up to 1 block to avoid problems with client-sided physics when spawning in blocks
+			$this->sendPosition($this, null, null, MovePlayerPacket::MODE_RESET);
+			$this->server->getLogger()->debug("Got outdated pre-teleport movement from " . $this->getName() . ", received " . $newPos . ", expected " . $this->asVector3());
+			//Still getting movements from before teleport, ignore them
+			return false;
+		}
+
+		// Once we get a movement within a reasonable distance, treat it as a teleport ACK and remove position lock
+		if($this->isTeleporting){
+			$this->isTeleporting = false;
+		}
+
+		$this->newPosition = $newPos;
+		return true;
+	}
+
+	public function getInAirTicks() : int{
+		return $this->inAirTicks;
+	}
+
 	protected function processMovement(int $tickDiff){
 		if($this->newPosition === null or $this->isSleeping()){
 			return;
@@ -1712,191 +1847,6 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		return ($targetDot - $eyeDot) >= -$maxDiff;
 	}
 
-	public function handleLogin(LoginPacket $packet) : bool{
-		$this->playerInfo = $packet->playerInfo;
-		$this->username = TextFormat::clean($this->playerInfo->getUsername());
-		$this->displayName = $this->username;
-		$this->iusername = strtolower($this->username);
-		$this->locale = $this->playerInfo->getLocale();
-		$this->randomClientId = $this->playerInfo->getClientId();
-
-		$this->uuid = $this->playerInfo->getUuid();
-		$this->rawUUID = $this->uuid->toBinary();
-		$this->xuid = $this->playerInfo->getXuid();
-
-		$this->setSkin($this->playerInfo->getSkin());
-
-		$ev = new PlayerPreLoginEvent(
-			$this->playerInfo,
-			$this->networkSession->getIp(),
-			$this->networkSession->getPort(),
-			$this->server->requiresAuthentication()
-		);
-		if($this->server->getNetwork()->getConnectionCount() > $this->server->getMaxPlayers()){
-			$ev->setKickReason(PlayerPreLoginEvent::KICK_REASON_SERVER_FULL, "disconnectionScreen.serverFull");
-		}
-		if(!$this->server->isWhitelisted($this->username)){
-			$ev->setKickReason(PlayerPreLoginEvent::KICK_REASON_SERVER_WHITELISTED, "Server is whitelisted");
-		}
-		if($this->isBanned() or $this->server->getIPBans()->isBanned($this->getAddress())){
-			$ev->setKickReason(PlayerPreLoginEvent::KICK_REASON_BANNED, "You are banned");
-		}
-
-		$ev->call();
-		if(!$ev->isAllowed()){
-			$this->close("", $ev->getFinalKickMessage());
-			return true;
-		}
-
-		if(!$packet->skipVerification){
-			$this->server->getAsyncPool()->submitTask(new ProcessLoginTask($this, $packet, $ev->isAuthRequired(), NetworkCipher::$ENABLED));
-		}else{
-			$this->setAuthenticationStatus(false, false, null);
-			$this->networkSession->onLoginSuccess();
-		}
-
-		return true;
-	}
-
-	public function setAuthenticationStatus(bool $authenticated, bool $authRequired, ?string $error) : bool{
-		if($this->networkSession === null){
-			return false;
-		}
-
-		if($authenticated and $this->xuid === ""){
-			$error = "Expected XUID but none found";
-		}
-
-		if($error !== null){
-			$this->close("", $this->server->getLanguage()->translateString("pocketmine.disconnect.invalidSession", [$error]));
-
-			return false;
-		}
-
-		$this->authenticated = $authenticated;
-
-		if(!$this->authenticated){
-			if($authRequired){
-				$this->close("", "disconnectionScreen.notAuthenticated");
-				return false;
-			}
-
-			$this->server->getLogger()->debug($this->getName() . " is NOT logged into Xbox Live");
-			if($this->xuid !== ""){
-				$this->server->getLogger()->warning($this->getName() . " has an XUID, but their login keychain is not signed by Mojang");
-				$this->xuid = "";
-			}
-		}else{
-			$this->server->getLogger()->debug($this->getName() . " is logged into Xbox Live");
-		}
-
-		return $this->server->getNetwork()->getSessionManager()->kickDuplicates($this->networkSession);
-	}
-
-	public function onLoginSuccess() : void{
-		$this->loggedIn = true;
-	}
-
-	public function _actuallyConstruct(){
-		$namedtag = $this->server->getOfflinePlayerData($this->username); //TODO: make this async
-
-		$spawnReset = false;
-
-		if($namedtag !== null and ($level = $this->server->getLevelManager()->getLevelByName($namedtag->getString("Level", "", true))) !== null){
-			/** @var float[] $pos */
-			$pos = $namedtag->getListTag("Pos")->getAllValues();
-			$spawn = new Vector3($pos[0], $pos[1], $pos[2]);
-		}else{
-			$level = $this->server->getLevelManager()->getDefaultLevel(); //TODO: default level might be null
-			$spawn = $level->getSpawnLocation();
-			$spawnReset = true;
-		}
-
-		//load the spawn chunk so we can see the terrain
-		$level->registerChunkLoader($this, $spawn->getFloorX() >> 4, $spawn->getFloorZ() >> 4, true);
-		$level->registerChunkListener($this, $spawn->getFloorX() >> 4, $spawn->getFloorZ() >> 4);
-		if($spawnReset){
-			$spawn = $level->getSafeSpawn($spawn);
-		}
-
-		if($namedtag === null){
-			$namedtag = EntityFactory::createBaseNBT($spawn);
-
-			$namedtag->setByte("OnGround", 1); //TODO: this hack is needed for new players in-air ticks - they don't get detected as on-ground until they move
-			//TODO: old code had a TODO for SpawnForced
-
-		}elseif($spawnReset){
-			$namedtag->setTag(new ListTag("Pos", [
-				new DoubleTag("", $spawn->x),
-				new DoubleTag("", $spawn->y),
-				new DoubleTag("", $spawn->z)
-			]));
-		}
-
-		parent::__construct($level, $namedtag);
-		$ev = new PlayerLoginEvent($this, "Plugin reason");
-		$ev->call();
-		if($ev->isCancelled()){
-			$this->close($this->getLeaveMessage(), $ev->getKickMessage());
-
-			return;
-		}
-
-		$this->server->getLogger()->info($this->getServer()->getLanguage()->translateString("pocketmine.player.logIn", [
-			TextFormat::AQUA . $this->username . TextFormat::WHITE,
-			$this->networkSession->getIp(),
-			$this->networkSession->getPort(),
-			$this->id,
-			$this->level->getDisplayName(),
-			round($this->x, 4),
-			round($this->y, 4),
-			round($this->z, 4)
-		]));
-
-		$this->server->addOnlinePlayer($this);
-	}
-
-	protected function initHumanData(CompoundTag $nbt) : void{
-		$this->setNameTag($this->username);
-	}
-
-	protected function initEntity(CompoundTag $nbt) : void{
-		parent::initEntity($nbt);
-		$this->addDefaultWindows();
-
-		$this->firstPlayed = $nbt->getLong("firstPlayed", $now = (int) (microtime(true) * 1000));
-		$this->lastPlayed = $nbt->getLong("lastPlayed", $now);
-
-		$this->gamemode = $this->server->getForceGamemode() ? $this->server->getGamemode() : $nbt->getInt("playerGameType", $this->server->getGamemode()) & 0x03;
-
-		$this->allowFlight = $this->isCreative();
-		$this->keepMovement = $this->isSpectator() || $this->allowMovementCheats();
-		if($this->isOp()){
-			$this->setRemoveFormat(false);
-		}
-
-		$this->setNameTagVisible();
-		$this->setNameTagAlwaysVisible();
-		$this->setCanClimb();
-
-		$this->achievements = [];
-		$achievements = $nbt->getCompoundTag("Achievements");
-		if($achievements !== null){
-			/** @var ByteTag $achievement */
-			foreach($achievements as $achievement){
-				$this->achievements[$achievement->getName()] = $achievement->getValue() !== 0;
-			}
-		}
-
-		if(!$this->hasValidSpawnPosition()){
-			if(($level = $this->server->getLevelManager()->getLevelByName($nbt->getString("SpawnLevel", ""))) instanceof Level){
-				$this->spawnPosition = new Position($nbt->getInt("SpawnX"), $nbt->getInt("SpawnY"), $nbt->getInt("SpawnZ"), $level);
-			}else{
-				$this->spawnPosition = $this->level->getSafeSpawn();
-			}
-		}
-	}
-
 	/**
 	 * Sends a chat message as this player. If the message begins with a / (forward-slash) it will be treated
 	 * as a command.
@@ -1934,58 +1884,6 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 					}
 				}
 			}
-		}
-
-		return true;
-	}
-
-	public function handleMovePlayer(MovePlayerPacket $packet) : bool{
-		$newPos = $packet->position->subtract(0, $this->baseOffset, 0);
-
-		if($this->isTeleporting and $newPos->distanceSquared($this) > 1){  //Tolerate up to 1 block to avoid problems with client-sided physics when spawning in blocks
-			$this->sendPosition($this, null, null, MovePlayerPacket::MODE_RESET);
-			$this->server->getLogger()->debug("Got outdated pre-teleport movement from " . $this->getName() . ", received " . $newPos . ", expected " . $this->asVector3());
-			//Still getting movements from before teleport, ignore them
-		}else{
-			// Once we get a movement within a reasonable distance, treat it as a teleport ACK and remove position lock
-			if($this->isTeleporting){
-				$this->isTeleporting = false;
-			}
-
-			$packet->yaw = fmod($packet->yaw, 360);
-			$packet->pitch = fmod($packet->pitch, 360);
-
-			if($packet->yaw < 0){
-				$packet->yaw += 360;
-			}
-
-			$this->setRotation($packet->yaw, $packet->pitch);
-			$this->newPosition = $newPos;
-		}
-
-		return true;
-	}
-
-	public function handleLevelSoundEvent(LevelSoundEventPacket $packet) : bool{
-		//TODO: add events so plugins can change this
-		$this->getLevel()->broadcastPacketToViewers($this, $packet);
-		return true;
-	}
-
-	public function handleEntityEvent(EntityEventPacket $packet) : bool{
-		$this->doCloseInventory();
-
-		switch($packet->event){
-			case EntityEventPacket::EATING_ITEM:
-				if($packet->data === 0){
-					return false;
-				}
-
-				$this->sendDataPacket($packet);
-				$this->server->broadcastPacket($this->getViewers(), $packet);
-				break;
-			default:
-				return false;
 		}
 
 		return true;
@@ -2130,14 +2028,28 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		}
 
 		$ev = new PlayerBlockPickEvent($this, $block, $item);
-		if(!$this->isCreative(true)){
-			$this->server->getLogger()->debug("Got block-pick request from " . $this->getName() . " when not in creative mode (gamemode " . $this->getGamemode() . ")");
-			$ev->setCancelled();
-		}
-
 		$ev->call();
+
 		if(!$ev->isCancelled()){
-			$this->inventory->setItemInHand($item);
+			$existing = $this->inventory->first($item);
+			if($existing !== -1){
+				if($existing < $this->inventory->getHotbarSize()){
+					$this->inventory->setHeldItemIndex($existing);
+				}else{
+					$this->inventory->swap($this->inventory->getHeldItemIndex(), $existing);
+				}
+			}elseif($this->isCreative(true)){ //TODO: plugins won't know this isn't going to execute
+				$firstEmpty = $this->inventory->firstEmpty();
+				if($firstEmpty === -1){ //full inventory
+					$this->inventory->setItemInHand($item);
+				}elseif($firstEmpty < $this->inventory->getHotbarSize()){
+					$this->inventory->setItem($firstEmpty, $item);
+					$this->inventory->setHeldItemIndex($firstEmpty);
+				}else{
+					$this->inventory->swap($this->inventory->getHeldItemIndex(), $firstEmpty);
+					$this->inventory->setItemInHand($item);
+				}
+			}
 		}
 
 		return true;
@@ -2386,6 +2298,9 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 
 	public function toggleFlight(bool $fly) : void{
 		$ev = new PlayerToggleFlightEvent($this, $fly);
+		if(!$this->allowFlight){
+			$ev->setCancelled();
+		}
 		$ev->call();
 		if($ev->isCancelled()){
 			$this->sendSettings();
@@ -2415,36 +2330,10 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		$this->level->dropItem($this->add(0, 1.3, 0), $item, $this->getDirectionVector()->multiply(0.4), 40);
 	}
 
-	public function handleAdventureSettings(AdventureSettingsPacket $packet) : bool{
-		if($packet->entityUniqueId !== $this->getId()){
-			return false; //TODO
-		}
-
-		$handled = false;
-
-		$isFlying = $packet->getFlag(AdventureSettingsPacket::FLYING);
-		if($isFlying and !$this->allowFlight){
-			$this->kick($this->server->getLanguage()->translateString("kick.reason.cheat", ["%ability.flight"]));
-			return true;
-		}elseif($isFlying !== $this->isFlying()){
-			$this->toggleFlight($isFlying);
-			$handled = true;
-		}
-
-		if($packet->getFlag(AdventureSettingsPacket::NO_CLIP) and !$this->allowMovementCheats and !$this->isSpectator()){
-			$this->kick($this->server->getLanguage()->translateString("kick.reason.cheat", ["%ability.noclip"]));
-			return true;
-		}
-
-		//TODO: check other changes
-
-		return $handled;
-	}
-
 	public function handleBookEdit(BookEditPacket $packet) : bool{
 		/** @var WritableBook $oldBook */
 		$oldBook = $this->inventory->getItem($packet->inventorySlot);
-		if($oldBook->getId() !== Item::WRITABLE_BOOK){
+		if(!($oldBook instanceof WritableBook)){
 			return false;
 		}
 
@@ -2818,14 +2707,12 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 			$this->usedChunks = [];
 			$this->loadQueue = [];
 
-			if($this->loggedIn){
-				foreach($this->server->getOnlinePlayers() as $player){
-					if(!$player->canSee($this)){
-						$player->showPlayer($this);
-					}
+			foreach($this->server->getOnlinePlayers() as $player){
+				if(!$player->canSee($this)){
+					$player->showPlayer($this);
 				}
-				$this->hiddenPlayers = [];
 			}
+			$this->hiddenPlayers = [];
 
 			$this->removeAllWindows(true);
 			$this->windows = [];
@@ -2833,17 +2720,11 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 			$this->cursorInventory = null;
 			$this->craftingGrid = null;
 
-			if($this->constructed){
-				parent::close();
-			}else{
-				$this->closed = true;
-			}
+			parent::close();
+
 			$this->spawned = false;
 
-			if($this->loggedIn){
-				$this->loggedIn = false;
-				$this->server->removeOnlinePlayer($this);
-			}
+			$this->server->removeOnlinePlayer($this);
 
 			$this->server->getLogger()->info($this->getServer()->getLanguage()->translateString("pocketmine.player.logOut", [
 				TextFormat::AQUA . $this->getName() . TextFormat::WHITE,
@@ -2897,19 +2778,19 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 
 			if(!$this->isAlive()){
 				//hack for respawn after quit
-				$nbt->setTag(new ListTag("Pos", [
-					new DoubleTag("", $this->spawnPosition->x),
-					new DoubleTag("", $this->spawnPosition->y),
-					new DoubleTag("", $this->spawnPosition->z)
+				$nbt->setTag("Pos", new ListTag([
+					new DoubleTag($this->spawnPosition->x),
+					new DoubleTag($this->spawnPosition->y),
+					new DoubleTag($this->spawnPosition->z)
 				]));
 			}
 		}
 
-		$achievements = new CompoundTag("Achievements");
+		$achievements = new CompoundTag();
 		foreach($this->achievements as $achievement => $status){
 			$achievements->setByte($achievement, $status ? 1 : 0);
 		}
-		$nbt->setTag($achievements);
+		$nbt->setTag("Achievements", $achievements);
 
 		$nbt->setInt("playerGameType", $this->gamemode);
 		$nbt->setLong("firstPlayed", $this->firstPlayed);
@@ -2918,22 +2799,15 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		$this->server->saveOfflinePlayerData($this->username, $nbt);
 	}
 
-	public function kill() : void{
-		if(!$this->spawned){
+	protected function onDeath() : void{
+		if(!$this->spawned){ //TODO: drop this hack
 			return;
 		}
-
-		parent::kill();
-
-		$this->networkSession->onDeath();
-	}
-
-	protected function onDeath() : void{
 		//Crafting grid must always be evacuated even if keep-inventory is true. This dumps the contents into the
 		//main inventory and drops the rest on the ground.
 		$this->doCloseInventory();
 
-		$ev = new PlayerDeathEvent($this, $this->getDrops());
+		$ev = new PlayerDeathEvent($this, $this->getDrops(), $this->getXpDropAmount());
 		$ev->call();
 
 		if(!$ev->getKeepInventory()){
@@ -2950,13 +2824,16 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 			}
 		}
 
-		//TODO: allow this number to be manipulated during PlayerDeathEvent
-		$this->level->dropExperience($this, $this->getXpDropAmount());
+		$this->level->dropExperience($this, $ev->getXpDropAmount());
 		$this->setXpAndProgress(0, 0);
 
 		if($ev->getDeathMessage() != ""){
 			$this->server->broadcastMessage($ev->getDeathMessage());
 		}
+
+		$this->startDeathAnimation();
+
+		$this->networkSession->onDeath();
 	}
 
 	protected function onDeathUpdate(int $tickDiff) : bool{

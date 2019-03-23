@@ -21,18 +21,27 @@
 
 declare(strict_types=1);
 
-namespace pocketmine\tile;
+namespace pocketmine\network\mcpe\protocol;
 
-class EnchantTable extends Spawnable implements Nameable{
-	use NameableTrait {
-		loadName as public readSaveData;
-		saveName as writeSaveData;
+#include <rules/DataPacket.h>
+
+use pocketmine\network\mcpe\handler\SessionHandler;
+
+class AutomationClientConnectPacket extends DataPacket implements ClientboundPacket{
+	public const NETWORK_ID = ProtocolInfo::AUTOMATION_CLIENT_CONNECT_PACKET;
+
+	/** @var string */
+	public $serverUri;
+
+	protected function decodePayload() : void{
+		$this->serverUri = $this->getString();
 	}
 
-	/**
-	 * @return string
-	 */
-	public function getDefaultName() : string{
-		return "Enchanting Table";
+	protected function encodePayload() : void{
+		$this->putString($this->serverUri);
+	}
+
+	public function handle(SessionHandler $handler) : bool{
+		return $handler->handleAutomationClientConnect($this);
 	}
 }

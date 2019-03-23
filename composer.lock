@@ -234,12 +234,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/NBT_MoreSupport.git",
-                "reference": "9add666cda7e9782b900d8fa2c517b194e76808d"
+                "reference": "4ea5186b50b9a3a7757f2d240b884f28f0ff7110"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/NBT_MoreSupport/zipball/9add666cda7e9782b900d8fa2c517b194e76808d",
-                "reference": "9add666cda7e9782b900d8fa2c517b194e76808d",
+                "url": "https://api.github.com/repos/InfiniteWorld/NBT_MoreSupport/zipball/4ea5186b50b9a3a7757f2d240b884f28f0ff7110",
+                "reference": "4ea5186b50b9a3a7757f2d240b884f28f0ff7110",
                 "shasum": ""
             },
             "require": {
@@ -265,7 +265,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/NBT_MoreSupport/tree/master_32-bit"
             },
-            "time": "2019-03-18T04:51:53+00:00"
+            "time": "2019-03-23T16:07:09+00:00"
         },
         {
             "name": "infiniteworld/raklib",
@@ -273,12 +273,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/RakLib_MoreSupport.git",
-                "reference": "bb9a3e49324e91fdae984457578e94efecd1e207"
+                "reference": "d121aa7952def6a9e1d099c83f3c959f530ff51b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/RakLib_MoreSupport/zipball/bb9a3e49324e91fdae984457578e94efecd1e207",
-                "reference": "bb9a3e49324e91fdae984457578e94efecd1e207",
+                "url": "https://api.github.com/repos/InfiniteWorld/RakLib_MoreSupport/zipball/d121aa7952def6a9e1d099c83f3c959f530ff51b",
+                "reference": "d121aa7952def6a9e1d099c83f3c959f530ff51b",
                 "shasum": ""
             },
             "require": {
@@ -304,7 +304,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/RakLib_MoreSupport/tree/master_32-bit"
             },
-            "time": "2019-02-24T12:34:41+00:00"
+            "time": "2019-03-23T16:08:02+00:00"
         },
         {
             "name": "infiniteworld/snooze",
