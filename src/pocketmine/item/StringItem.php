@@ -25,6 +25,7 @@ namespace pocketmine\item;
 
 use pocketmine\block\Block;
 use pocketmine\block\BlockFactory;
+use pocketmine\block\BlockLegacyIds;
 
 class StringItem extends Item{
 	public function __construct(){
@@ -32,6 +33,6 @@ class StringItem extends Item{
 	}
 
 	public function getBlock() : Block{
-		return BlockFactory::get(Block::TRIPWIRE);
+		return BlockFactory::get(BlockLegacyIds::TRIPWIRE);
 	}
 }

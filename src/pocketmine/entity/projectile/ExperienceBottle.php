@@ -24,9 +24,8 @@ declare(strict_types=1);
 namespace pocketmine\entity\projectile;
 
 use pocketmine\event\entity\ProjectileHitEvent;
-use pocketmine\network\mcpe\protocol\LevelEventPacket;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
-use pocketmine\utils\Color;
+use pocketmine\level\particle\PotionSplashParticle;
+use pocketmine\level\sound\PotionSplashSound;
 use function mt_rand;
 
 class ExperienceBottle extends Throwable{
@@ -39,8 +38,8 @@ class ExperienceBottle extends Throwable{
 	}
 
 	public function onHit(ProjectileHitEvent $event) : void{
-		$this->level->broadcastLevelEvent($this, LevelEventPacket::EVENT_PARTICLE_SPLASH, (new Color(0x38, 0x5d, 0xc6))->toARGB());
-		$this->level->broadcastLevelSoundEvent($this, LevelSoundEventPacket::SOUND_GLASS);
+		$this->level->addParticle($this, new PotionSplashParticle(PotionSplashParticle::DEFAULT_COLOR()));
+		$this->level->addSound($this, new PotionSplashSound());
 
 		$this->level->dropExperience($this, mt_rand(3, 11));
 	}

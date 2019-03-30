@@ -28,7 +28,7 @@ namespace pocketmine\level;
 
 use pocketmine\block\Block;
 use pocketmine\block\BlockFactory;
-use pocketmine\block\BlockIds;
+use pocketmine\block\BlockLegacyIds;
 use pocketmine\block\UnknownBlock;
 use pocketmine\entity\Entity;
 use pocketmine\entity\EntityFactory;
@@ -63,6 +63,7 @@ use pocketmine\level\light\LightPopulationTask;
 use pocketmine\level\light\SkyLightUpdate;
 use pocketmine\level\particle\DestroyBlockParticle;
 use pocketmine\level\particle\Particle;
+use pocketmine\level\sound\BlockPlaceSound;
 use pocketmine\level\sound\Sound;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Vector3;
@@ -73,13 +74,12 @@ use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\network\mcpe\ChunkRequestTask;
 use pocketmine\network\mcpe\CompressBatchPromise;
-use pocketmine\network\mcpe\protocol\AddEntityPacket;
 use pocketmine\network\mcpe\protocol\BlockEntityDataPacket;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\LevelEventPacket;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use pocketmine\network\mcpe\protocol\SetDifficultyPacket;
 use pocketmine\network\mcpe\protocol\SetTimePacket;
+use pocketmine\network\mcpe\protocol\types\RuntimeBlockMapping;
 use pocketmine\network\mcpe\protocol\UpdateBlockPacket;
 use pocketmine\Player;
 use pocketmine\plugin\Plugin;
@@ -520,37 +520,12 @@ class Level implements ChunkManager, Metadatable{
 	 * @param int          $data
 	 */
 	public function broadcastLevelEvent(?Vector3 $pos, int $evid, int $data = 0){
-		$pk = new LevelEventPacket();
-		$pk->evid = $evid;
-		$pk->data = $data;
+		$pk = LevelEventPacket::create($evid, $data, $pos);
 		if($pos !== null){
-			$pk->position = $pos->asVector3();
 			$this->broadcastPacketToViewers($pos, $pk);
 		}else{
-			$pk->position = null;
 			$this->broadcastGlobalPacket($pk);
 		}
-	}
-
-	/**
-	 * Broadcasts a LevelSoundEvent to players in the area.
-	 *
-	 * @param Vector3 $pos
-	 * @param int     $soundId
-	 * @param int     $extraData
-	 * @param int     $entityTypeId
-	 * @param bool    $isBabyMob
-	 * @param bool    $disableRelativeVolume If true, all players receiving this sound-event will hear the sound at full volume regardless of distance
-	 */
-	public function broadcastLevelSoundEvent(Vector3 $pos, int $soundId, int $extraData = -1, int $entityTypeId = -1, bool $isBabyMob = false, bool $disableRelativeVolume = false){
-		$pk = new LevelSoundEventPacket();
-		$pk->sound = $soundId;
-		$pk->extraData = $extraData;
-		$pk->entityType = AddEntityPacket::LEGACY_ID_MAP_BC[$entityTypeId] ?? ":";
-		$pk->isBabyMob = $isBabyMob;
-		$pk->disableRelativeVolume = $disableRelativeVolume;
-		$pk->position = $pos->asVector3();
-		$this->broadcastPacketToViewers($pos, $pk);
 	}
 
 	public function getAutoSave() : bool{
@@ -978,7 +953,7 @@ class Level implements ChunkManager, Metadatable{
 				$pk->blockRuntimeId = $b->getRuntimeId();
 			}else{
 				$fullBlock = $this->getFullBlock($b->x, $b->y, $b->z);
-				$pk->blockRuntimeId = BlockFactory::toStaticRuntimeId($fullBlock >> 4, $fullBlock & 0xf);
+				$pk->blockRuntimeId = RuntimeBlockMapping::toStaticRuntimeId($fullBlock >> 4, $fullBlock & 0xf);
 			}
 			$packets[] = $pk;
 
@@ -1815,7 +1790,7 @@ class Level implements ChunkManager, Metadatable{
 			return false;
 		}
 
-		if($blockClicked->getId() === Block::AIR){
+		if($blockClicked->getId() === BlockLegacyIds::AIR){
 			return false;
 		}
 
@@ -1908,7 +1883,7 @@ class Level implements ChunkManager, Metadatable{
 		}
 
 		if($playSound){
-			$this->broadcastLevelSoundEvent($hand, LevelSoundEventPacket::SOUND_PLACE, $hand->getRuntimeId());
+			$this->addSound($hand, new BlockPlaceSound($hand));
 		}
 
 		$item->pop();
@@ -2795,7 +2770,7 @@ class Level implements ChunkManager, Metadatable{
 		$z = (int) $v->z;
 		if($chunk !== null and $chunk->isGenerated()){
 			$y = (int) min($max - 2, $v->y);
-			$wasAir = $this->getBlockAt($x, $y - 1, $z)->getId() === BlockIds::AIR; //TODO: bad hack, clean up
+			$wasAir = $this->getBlockAt($x, $y - 1, $z)->getId() === BlockLegacyIds::AIR; //TODO: bad hack, clean up
 			for(; $y > 0; --$y){
 				if($this->isFullBlock($this->getBlockAt($x, $y, $z))){
 					if($wasAir){

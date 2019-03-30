@@ -25,10 +25,11 @@ namespace pocketmine\item;
 
 use pocketmine\block\Block;
 use pocketmine\block\BlockFactory;
+use pocketmine\block\BlockLegacyIds;
 
 class CocoaBeans extends Item{
 
 	public function getBlock() : Block{
-		return BlockFactory::get(Block::COCOA);
+		return BlockFactory::get(BlockLegacyIds::COCOA);
 	}
 }

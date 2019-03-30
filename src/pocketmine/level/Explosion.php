@@ -25,6 +25,7 @@ namespace pocketmine\level;
 
 use pocketmine\block\Block;
 use pocketmine\block\BlockFactory;
+use pocketmine\block\BlockLegacyIds;
 use pocketmine\block\TNT;
 use pocketmine\entity\Entity;
 use pocketmine\event\block\BlockUpdateEvent;
@@ -34,12 +35,12 @@ use pocketmine\event\entity\EntityDamageEvent;
 use pocketmine\event\entity\EntityExplodeEvent;
 use pocketmine\item\ItemFactory;
 use pocketmine\level\particle\HugeExplodeSeedParticle;
+use pocketmine\level\sound\ExplodeSound;
 use pocketmine\level\utils\SubChunkIteratorManager;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\ExplodePacket;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 use function ceil;
 use function floor;
 use function mt_rand;
@@ -199,7 +200,7 @@ class Explosion{
 
 
 		$air = ItemFactory::air();
-		$airBlock = BlockFactory::get(Block::AIR);
+		$airBlock = BlockFactory::get(BlockLegacyIds::AIR);
 
 		foreach($this->affectedBlocks as $block){
 			if($block instanceof TNT){
@@ -246,7 +247,7 @@ class Explosion{
 		$this->level->broadcastPacketToViewers($source, $pk);
 
 		$this->level->addParticle($source, new HugeExplodeSeedParticle());
-		$this->level->broadcastLevelSoundEvent($source, LevelSoundEventPacket::SOUND_EXPLODE);
+		$this->level->addSound($source, new ExplodeSound());
 
 		return true;
 	}

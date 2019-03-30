@@ -29,8 +29,12 @@ namespace pocketmine\network;
 use pocketmine\event\server\NetworkInterfaceRegisterEvent;
 use pocketmine\event\server\NetworkInterfaceUnregisterEvent;
 use pocketmine\network\mcpe\protocol\PacketPool;
+use function bin2hex;
 use function get_class;
+use function preg_match;
 use function spl_object_id;
+use function time;
+use const PHP_INT_MAX;
 
 class Network{
 	/** @var NetworkInterface[] */
@@ -38,6 +42,12 @@ class Network{
 
 	/** @var AdvancedNetworkInterface[] */
 	private $advancedInterfaces = [];
+
+	/** @var RawPacketHandler[] */
+	private $rawPacketHandlers = [];
+
+	/** @var int[] */
+	private $bannedIps = [];
 
 	private $upload = 0;
 	private $download = 0;
@@ -48,9 +58,13 @@ class Network{
 	/** @var NetworkSessionManager */
 	private $sessionManager;
 
-	public function __construct(){
+	/** @var \Logger */
+	private $logger;
+
+	public function __construct(\Logger $logger){
 		PacketPool::init();
 		$this->sessionManager = new NetworkSessionManager();
+		$this->logger = $logger;
 	}
 
 	public function addStatistics(float $upload, float $download) : void{
@@ -109,6 +123,9 @@ class Network{
 			if($interface instanceof AdvancedNetworkInterface){
 				$this->advancedInterfaces[$hash] = $interface;
 				$interface->setNetwork($this);
+				foreach($this->bannedIps as $ip => $until){
+					$interface->blockAddress($ip);
+				}
 			}
 			$interface->setName($this->name);
 		}
@@ -170,20 +187,68 @@ class Network{
 	 * @param int    $timeout
 	 */
 	public function blockAddress(string $address, int $timeout = 300) : void{
+		$this->bannedIps[$address] = $timeout > 0 ? time() + $timeout : PHP_INT_MAX;
 		foreach($this->advancedInterfaces as $interface){
 			$interface->blockAddress($address, $timeout);
 		}
 	}
 
 	public function unblockAddress(string $address) : void{
+		unset($this->bannedIps[$address]);
 		foreach($this->advancedInterfaces as $interface){
 			$interface->unblockAddress($address);
 		}
 	}
 
-	public function addRawPacketFilter(string $regex) : void{
+	/**
+	 * Registers a raw packet handler on the network.
+	 *
+	 * @param RawPacketHandler $handler
+	 */
+	public function registerRawPacketHandler(RawPacketHandler $handler) : void{
+		$this->rawPacketHandlers[spl_object_id($handler)] = $handler;
+
+		$regex = $handler->getPattern();
 		foreach($this->advancedInterfaces as $interface){
 			$interface->addRawPacketFilter($regex);
+		}
+	}
+
+	/**
+	 * Unregisters a previously-registered raw packet handler.
+	 *
+	 * @param RawPacketHandler $handler
+	 */
+	public function unregisterRawPacketHandler(RawPacketHandler $handler) : void{
+		unset($this->rawPacketHandlers[spl_object_id($handler)]);
+	}
+
+	/**
+	 * @param AdvancedNetworkInterface $interface
+	 * @param string                   $address
+	 * @param int                      $port
+	 * @param string                   $packet
+	 */
+	public function processRawPacket(AdvancedNetworkInterface $interface, string $address, int $port, string $packet) : void{
+		if(isset($this->bannedIps[$address]) and time() < $this->bannedIps[$address]){
+			$this->logger->debug("Dropped raw packet from banned address $address $port");
+			return;
+		}
+		$handled = false;
+		foreach($this->rawPacketHandlers as $handler){
+			if(preg_match($handler->getPattern(), $packet) === 1){
+				try{
+					$handled = $handler->handle($interface, $address, $port, $packet);
+				}catch(BadPacketException $e){
+					$handled = true;
+					$this->logger->error("Bad raw packet from /$address:$port: " . $e->getMessage());
+					$this->blockAddress($address, 600);
+					break;
+				}
+			}
+		}
+		if(!$handled){
+			$this->logger->debug("Unhandled raw packet from /$address:$port: " . bin2hex($packet));
 		}
 	}
 }

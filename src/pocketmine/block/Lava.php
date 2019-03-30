@@ -27,8 +27,10 @@ use pocketmine\entity\Entity;
 use pocketmine\event\entity\EntityCombustByBlockEvent;
 use pocketmine\event\entity\EntityDamageByBlockEvent;
 use pocketmine\event\entity\EntityDamageEvent;
+use pocketmine\level\sound\BucketEmptyLavaSound;
+use pocketmine\level\sound\BucketFillLavaSound;
+use pocketmine\level\sound\Sound;
 use pocketmine\math\Facing;
-use pocketmine\network\mcpe\protocol\LevelSoundEventPacket;
 
 class Lava extends Liquid{
 
@@ -36,12 +38,12 @@ class Lava extends Liquid{
 		return 15;
 	}
 
-	public function getBucketFillSound() : int{
-		return LevelSoundEventPacket::SOUND_BUCKET_FILL_LAVA;
+	public function getBucketFillSound() : Sound{
+		return new BucketFillLavaSound();
 	}
 
-	public function getBucketEmptySound() : int{
-		return LevelSoundEventPacket::SOUND_BUCKET_EMPTY_LAVA;
+	public function getBucketEmptySound() : Sound{
+		return new BucketEmptyLavaSound();
 	}
 
 	public function tickRate() : int{
@@ -67,16 +69,16 @@ class Lava extends Liquid{
 
 		if($colliding !== null){
 			if($this->decay === 0){
-				$this->liquidCollide($colliding, BlockFactory::get(Block::OBSIDIAN));
+				$this->liquidCollide($colliding, BlockFactory::get(BlockLegacyIds::OBSIDIAN));
 			}elseif($this->decay <= 4){
-				$this->liquidCollide($colliding, BlockFactory::get(Block::COBBLESTONE));
+				$this->liquidCollide($colliding, BlockFactory::get(BlockLegacyIds::COBBLESTONE));
 			}
 		}
 	}
 
 	protected function flowIntoBlock(Block $block, int $newFlowDecay, bool $falling) : void{
 		if($block instanceof Water){
-			$block->liquidCollide($this, BlockFactory::get(Block::STONE));
+			$block->liquidCollide($this, BlockFactory::get(BlockLegacyIds::STONE));
 		}else{
 			parent::flowIntoBlock($block, $newFlowDecay, $falling);
 		}
