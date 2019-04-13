@@ -35,6 +35,7 @@ use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\StringTag;
 use pocketmine\network\BadPacketException;
 use pocketmine\network\mcpe\NetworkNbtSerializer;
+use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\AdventureSettingsPacket;
 use pocketmine\network\mcpe\protocol\AnimatePacket;
 use pocketmine\network\mcpe\protocol\BlockEntityDataPacket;
@@ -96,6 +97,8 @@ class SimpleSessionHandler extends SessionHandler{
 
 	/** @var Player */
 	private $player;
+	/** @var NetworkSession */
+	private $session;
 
 	/** @var CraftingTransaction|null */
 	protected $craftingTransaction = null;
@@ -105,8 +108,9 @@ class SimpleSessionHandler extends SessionHandler{
 	/** @var Vector3|null */
 	protected $lastRightClickPos = null;
 
-	public function __construct(Player $player){
+	public function __construct(Player $player, NetworkSession $session){
 		$this->player = $player;
+		$this->session = $session;
 	}
 
 	public function handleText(TextPacket $packet) : bool{
@@ -358,16 +362,24 @@ class SimpleSessionHandler extends SessionHandler{
 				$this->player->jump();
 				return true;
 			case PlayerActionPacket::ACTION_START_SPRINT:
-				$this->player->toggleSprint(true);
+				if(!$this->player->toggleSprint(true)){
+					$this->player->sendData($this->player);
+				}
 				return true;
 			case PlayerActionPacket::ACTION_STOP_SPRINT:
-				$this->player->toggleSprint(false);
+				if(!$this->player->toggleSprint(false)){
+					$this->player->sendData($this->player);
+				}
 				return true;
 			case PlayerActionPacket::ACTION_START_SNEAK:
-				$this->player->toggleSneak(true);
+				if(!$this->player->toggleSneak(true)){
+					$this->player->sendData($this->player);
+				}
 				return true;
 			case PlayerActionPacket::ACTION_STOP_SNEAK:
-				$this->player->toggleSneak(false);
+				if(!$this->player->toggleSneak(false)){
+					$this->player->sendData($this->player);
+				}
 				return true;
 			case PlayerActionPacket::ACTION_START_GLIDE:
 			case PlayerActionPacket::ACTION_STOP_GLIDE:
@@ -419,7 +431,9 @@ class SimpleSessionHandler extends SessionHandler{
 
 		$isFlying = $packet->getFlag(AdventureSettingsPacket::FLYING);
 		if($isFlying !== $this->player->isFlying()){
-			$this->player->toggleFlight($isFlying);
+			if(!$this->player->toggleFlight($isFlying)){
+				$this->session->syncAdventureSettings($this->player);
+			}
 			$handled = true;
 		}
 
@@ -436,7 +450,8 @@ class SimpleSessionHandler extends SessionHandler{
 
 		$block = $this->player->getLevel()->getBlock($pos);
 		try{
-			$nbt = (new NetworkNbtSerializer())->read($packet->namedtag)->getTag();
+			$offset = 0;
+			$nbt = (new NetworkNbtSerializer())->read($packet->namedtag, $offset, 512)->getTag();
 		}catch(NbtDataException $e){
 			throw new BadPacketException($e->getMessage(), 0, $e);
 		}
@@ -467,10 +482,10 @@ class SimpleSessionHandler extends SessionHandler{
 	}
 
 	public function handleSetPlayerGameType(SetPlayerGameTypePacket $packet) : bool{
-		if($packet->gamemode !== $this->player->getGamemode()){
+		if($packet->gamemode !== $this->player->getGamemode()->getMagicNumber()){
 			//Set this back to default. TODO: handle this properly
-			$this->player->sendGamemode();
-			$this->player->sendSettings();
+			$this->session->syncGameMode($this->player->getGamemode());
+			$this->session->syncAdventureSettings($this->player);
 		}
 		return true;
 	}

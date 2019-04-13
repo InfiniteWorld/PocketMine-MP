@@ -376,7 +376,7 @@ class Level implements ChunkManager, Metadatable{
 		$this->worldHeight = $this->provider->getWorldHeight();
 
 		$this->server->getLogger()->info($this->server->getLanguage()->translateString("pocketmine.level.preparing", [$this->displayName]));
-		$this->generator = GeneratorManager::getGenerator($this->provider->getLevelData()->getGenerator());
+		$this->generator = GeneratorManager::getGenerator($this->provider->getLevelData()->getGenerator(), true);
 		//TODO: validate generator options
 
 		$this->folderName = $name;
@@ -1684,12 +1684,12 @@ class Level implements ChunkManager, Metadatable{
 		}
 
 		$drops = [];
-		if($player === null or !$player->isCreative()){
+		if($player === null or $player->hasFiniteResources()){
 			$drops = array_merge(...array_map(function(Block $block) use ($item) : array{ return $block->getDrops($item); }, $affectedBlocks));
 		}
 
 		$xpDrop = 0;
-		if($player !== null and !$player->isCreative()){
+		if($player !== null and $player->hasFiniteResources()){
 			$xpDrop = array_sum(array_map(function(Block $block) use ($item) : int{ return $block->getXpDropForTool($item); }, $affectedBlocks));
 		}
 

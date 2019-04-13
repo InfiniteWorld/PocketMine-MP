@@ -251,10 +251,18 @@ class PluginManager{
 					continue;
 				}
 
-				if(!$this->isCompatibleApi(...$description->getCompatibleApis())){
+				if(!ApiVersion::isCompatible($this->server->getApiVersion(), $description->getCompatibleApis())){
 					$this->server->getLogger()->error($this->server->getLanguage()->translateString("pocketmine.plugin.loadError", [
 						$name,
 						$this->server->getLanguage()->translateString("%pocketmine.plugin.incompatibleAPI", [implode(", ", $description->getCompatibleApis())])
+					]));
+					continue;
+				}
+				$ambiguousVersions = ApiVersion::checkAmbiguousVersions($description->getCompatibleApis());
+				if(!empty($ambiguousVersions)){
+					$this->server->getLogger()->error($this->server->getLanguage()->translateString("pocketmine.plugin.loadError", [
+						$name,
+						$this->server->getLanguage()->translateString("pocketmine.plugin.ambiguousMinAPI", [implode(", ", $ambiguousVersions)])
 					]));
 					continue;
 				}
