@@ -33,6 +33,8 @@ class LecternUpdatePacket extends DataPacket implements ServerboundPacket{
 	/** @var int */
 	public $page;
 	/** @var int */
+	public $totalPages;
+	/** @var int */
 	public $x;
 	/** @var int */
 	public $y;
@@ -43,12 +45,14 @@ class LecternUpdatePacket extends DataPacket implements ServerboundPacket{
 
 	protected function decodePayload() : void{
 		$this->page = $this->getByte();
+		$this->totalPages = $this->getByte();
 		$this->getBlockPosition($this->x, $this->y, $this->z);
 		$this->dropBook = $this->getBool();
 	}
 
 	protected function encodePayload() : void{
 		$this->putByte($this->page);
+		$this->putByte($this->totalPages);
 		$this->putBlockPosition($this->x, $this->y, $this->z);
 		$this->putBool($this->dropBook);
 	}

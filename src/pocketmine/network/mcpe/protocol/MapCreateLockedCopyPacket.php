@@ -21,23 +21,31 @@
 
 declare(strict_types=1);
 
-namespace pocketmine\entity;
+namespace pocketmine\network\mcpe\protocol;
 
-use pocketmine\event\entity\EntityDamageEvent;
-use pocketmine\network\mcpe\protocol\types\EntityMetadataFlags;
+#include <rules/DataPacket.h>
 
-abstract class WaterAnimal extends Creature implements Ageable{
+use pocketmine\network\mcpe\handler\SessionHandler;
 
-	public function isBaby() : bool{
-		return $this->getGenericFlag(EntityMetadataFlags::BABY);
+class MapCreateLockedCopyPacket extends DataPacket{
+	public const NETWORK_ID = ProtocolInfo::MAP_CREATE_LOCKED_COPY_PACKET;
+
+	/** @var int */
+	public $originalMapId;
+	/** @var int */
+	public $newMapId;
+
+	protected function decodePayload() : void{
+		$this->originalMapId = $this->getEntityUniqueId();
+		$this->newMapId = $this->getEntityUniqueId();
 	}
 
-	public function canBreathe() : bool{
-		return $this->isUnderwater();
+	protected function encodePayload() : void{
+		$this->putEntityUniqueId($this->originalMapId);
+		$this->putEntityUniqueId($this->newMapId);
 	}
 
-	public function onAirExpired() : void{
-		$ev = new EntityDamageEvent($this, EntityDamageEvent::CAUSE_SUFFOCATION, 2);
-		$this->attack($ev);
+	public function handle(SessionHandler $handler) : bool{
+		return $handler->handleMapCreateLockedCopy($this);
 	}
 }

@@ -19,25 +19,9 @@
  *
 */
 
-declare(strict_types=1);
+namespace pocketmine;
 
-namespace pocketmine\entity;
-
-use pocketmine\event\entity\EntityDamageEvent;
-use pocketmine\network\mcpe\protocol\types\EntityMetadataFlags;
-
-abstract class WaterAnimal extends Creature implements Ageable{
-
-	public function isBaby() : bool{
-		return $this->getGenericFlag(EntityMetadataFlags::BABY);
-	}
-
-	public function canBreathe() : bool{
-		return $this->isUnderwater();
-	}
-
-	public function onAirExpired() : void{
-		$ev = new EntityDamageEvent($this, EntityDamageEvent::CAUSE_SUFFOCATION, 2);
-		$this->attack($ev);
-	}
-}
+const NAME = "PocketMine-MP";
+const BASE_VERSION = "4.0.0";
+const IS_DEVELOPMENT_BUILD = true;
+const BUILD_NUMBER = 0;

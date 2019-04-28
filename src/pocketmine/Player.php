@@ -96,7 +96,6 @@ use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\DoubleTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\ListTag;
-use pocketmine\network\mcpe\CompressBatchPromise;
 use pocketmine\network\mcpe\NetworkSession;
 use pocketmine\network\mcpe\protocol\AnimatePacket;
 use pocketmine\network\mcpe\protocol\BookEditPacket;
@@ -105,6 +104,9 @@ use pocketmine\network\mcpe\protocol\LevelEventPacket;
 use pocketmine\network\mcpe\protocol\MovePlayerPacket;
 use pocketmine\network\mcpe\protocol\SetTitlePacket;
 use pocketmine\network\mcpe\protocol\types\ContainerIds;
+use pocketmine\network\mcpe\protocol\types\EntityMetadataFlags;
+use pocketmine\network\mcpe\protocol\types\EntityMetadataProperties;
+use pocketmine\network\mcpe\protocol\types\PlayerMetadataFlags;
 use pocketmine\permission\PermissibleBase;
 use pocketmine\permission\PermissionAttachment;
 use pocketmine\permission\PermissionAttachmentInfo;
@@ -210,7 +212,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	protected $gamemode;
 
 	/** @var bool[] chunkHash => bool (true = sent, false = needs sending) */
-	public $usedChunks = [];
+	protected $usedChunks = [];
 	/** @var bool[] chunkHash => dummy */
 	protected $loadQueue = [];
 	/** @var int */
@@ -878,12 +880,12 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	 * @return bool
 	 */
 	public function isUsingItem() : bool{
-		return $this->getGenericFlag(self::DATA_FLAG_ACTION) and $this->startAction > -1;
+		return $this->getGenericFlag(EntityMetadataFlags::ACTION) and $this->startAction > -1;
 	}
 
 	public function setUsingItem(bool $value){
 		$this->startAction = $value ? $this->server->getTick() : -1;
-		$this->setGenericFlag(self::DATA_FLAG_ACTION, $value);
+		$this->setGenericFlag(EntityMetadataFlags::ACTION, $value);
 	}
 
 	/**
@@ -954,12 +956,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		$level = $level ?? $this->level;
 		$index = Level::chunkHash($x, $z);
 		if(isset($this->usedChunks[$index])){
-			foreach($level->getChunkEntities($x, $z) as $entity){
-				if($entity !== $this){
-					$entity->despawnFrom($this);
-				}
-			}
-
+			$this->networkSession->stopUsingChunk($x, $z);
 			unset($this->usedChunks[$index]);
 		}
 		$level->unregisterChunkLoader($this, $x, $z);
@@ -967,39 +964,24 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		unset($this->loadQueue[$index]);
 	}
 
-	public function sendChunk(int $x, int $z, CompressBatchPromise $promise){
+	public function onChunkReady(int $x, int $z){
 		if(!$this->isConnected()){
 			return;
 		}
 
+		assert(isset($this->usedChunks[Level::chunkHash($x, $z)]));
 		$this->usedChunks[Level::chunkHash($x, $z)] = true;
 
-		$this->networkSession->queueCompressed($promise);
+		$spawn = $this->spawnChunkLoadCount++ === $this->spawnThreshold;
+		$this->networkSession->startUsingChunk($x, $z, $spawn);
 
-		if($this->spawned){
-			foreach($this->level->getChunkEntities($x, $z) as $entity){
-				if($entity !== $this and !$entity->isClosed() and $entity->isAlive()){
-					$entity->spawnTo($this);
-				}
-			}
-		}elseif(++$this->spawnChunkLoadCount >= $this->spawnThreshold){
-			$this->spawnChunkLoadCount = -1;
+		if($spawn){
+			//TODO: not sure this should be here
 			$this->spawned = true;
-
-			foreach($this->usedChunks as $index => $c){
-				Level::getXZ($index, $chunkX, $chunkZ);
-				foreach($this->level->getChunkEntities($chunkX, $chunkZ) as $entity){
-					if($entity !== $this and !$entity->isClosed() and $entity->isAlive() and !$entity->isFlaggedForDespawn()){
-						$entity->spawnTo($this);
-					}
-				}
-			}
-
-			$this->networkSession->onTerrainReady();
 		}
 	}
 
-	protected function sendNextChunk(){
+	protected function requestChunks(){
 		if(!$this->isConnected()){
 			return;
 		}
@@ -1146,7 +1128,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		}
 
 		if(count($this->loadQueue) > 0){
-			$this->sendNextChunk();
+			$this->requestChunks();
 		}
 	}
 
@@ -1218,8 +1200,8 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 
 		$this->sleeping = clone $pos;
 
-		$this->propertyManager->setBlockPos(self::DATA_PLAYER_BED_POSITION, $pos);
-		$this->setPlayerFlag(self::DATA_PLAYER_FLAG_SLEEP, true);
+		$this->propertyManager->setBlockPos(EntityMetadataProperties::PLAYER_BED_POSITION, $pos);
+		$this->setPlayerFlag(PlayerMetadataFlags::SLEEP, true);
 
 		$this->setSpawn($pos);
 
@@ -1237,8 +1219,8 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 			(new PlayerBedLeaveEvent($this, $b))->call();
 
 			$this->sleeping = null;
-			$this->propertyManager->setBlockPos(self::DATA_PLAYER_BED_POSITION, null);
-			$this->setPlayerFlag(self::DATA_PLAYER_FLAG_SLEEP, false);
+			$this->propertyManager->setBlockPos(EntityMetadataProperties::PLAYER_BED_POSITION, null);
+			$this->setPlayerFlag(PlayerMetadataFlags::SLEEP, false);
 
 			$this->level->setSleepTicks(0);
 
@@ -2301,6 +2283,15 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	}
 
 	/**
+	 * Adds small text to the user's screen.
+	 *
+	 * @param string $message
+	 */
+	public function addActionBarMessage(string $message){
+		$this->sendTitleText($message, SetTitlePacket::TYPE_SET_ACTIONBAR_MESSAGE);
+	}
+
+	/**
 	 * Removes the title from the client's screen.
 	 */
 	public function removeTitles(){
@@ -2560,21 +2551,20 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		$this->flagForDespawn();
 	}
 
-	final public function close() : void{
-		if(!$this->closed){
-			$this->disconnect("Player destroyed");
-			$this->networkSession = null;
+	protected function onDispose() : void{
+		$this->disconnect("Player destroyed");
+		$this->cursorInventory->removeAllViewers(true);
+		$this->craftingGrid->removeAllViewers(true);
+		parent::onDispose();
+	}
 
-			$this->cursorInventory = null;
-			$this->craftingGrid = null;
-
-			$this->spawned = false;
-
-			$this->spawnPosition = null;
-			$this->perm = null;
-
-			parent::close();
-		}
+	protected function destroyCycles() : void{
+		$this->networkSession = null;
+		$this->cursorInventory = null;
+		$this->craftingGrid = null;
+		$this->spawnPosition = null;
+		$this->perm = null;
+		parent::destroyCycles();
 	}
 
 	public function __debugInfo(){

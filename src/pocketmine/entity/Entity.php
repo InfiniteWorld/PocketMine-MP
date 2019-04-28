@@ -58,6 +58,10 @@ use pocketmine\network\mcpe\protocol\MoveEntityAbsolutePacket;
 use pocketmine\network\mcpe\protocol\RemoveEntityPacket;
 use pocketmine\network\mcpe\protocol\SetEntityDataPacket;
 use pocketmine\network\mcpe\protocol\SetEntityMotionPacket;
+use pocketmine\network\mcpe\protocol\types\DataPropertyManager;
+use pocketmine\network\mcpe\protocol\types\EntityMetadataFlags;
+use pocketmine\network\mcpe\protocol\types\EntityMetadataProperties;
+use pocketmine\network\mcpe\protocol\types\EntityMetadataTypes;
 use pocketmine\Player;
 use pocketmine\plugin\Plugin;
 use pocketmine\Server;
@@ -83,211 +87,6 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	public const MOTION_THRESHOLD = 0.00001;
 
 	public const NETWORK_ID = -1;
-
-	public const DATA_TYPE_BYTE = 0;
-	public const DATA_TYPE_SHORT = 1;
-	public const DATA_TYPE_INT = 2;
-	public const DATA_TYPE_FLOAT = 3;
-	public const DATA_TYPE_STRING = 4;
-	public const DATA_TYPE_SLOT = 5;
-	public const DATA_TYPE_POS = 6;
-	public const DATA_TYPE_LONG = 7;
-	public const DATA_TYPE_VECTOR3F = 8;
-
-	/*
-	 * Readers beware: this isn't a nice list. Some of the properties have different types for different entities, and
-	 * are used for entirely different things.
-	 */
-	public const DATA_FLAGS = 0;
-	public const DATA_HEALTH = 1; //int (minecart/boat)
-	public const DATA_VARIANT = 2; //int
-	public const DATA_COLOR = 3, DATA_COLOUR = 3; //byte
-	public const DATA_NAMETAG = 4; //string
-	public const DATA_OWNER_EID = 5; //long
-	public const DATA_TARGET_EID = 6; //long
-	public const DATA_AIR = 7; //short
-	public const DATA_POTION_COLOR = 8; //int (ARGB!)
-	public const DATA_POTION_AMBIENT = 9; //byte
-	/* 10 (byte) */
-	public const DATA_HURT_TIME = 11; //int (minecart/boat)
-	public const DATA_HURT_DIRECTION = 12; //int (minecart/boat)
-	public const DATA_PADDLE_TIME_LEFT = 13; //float
-	public const DATA_PADDLE_TIME_RIGHT = 14; //float
-	public const DATA_EXPERIENCE_VALUE = 15; //int (xp orb)
-	public const DATA_MINECART_DISPLAY_BLOCK = 16; //int (id | (data << 16))
-	public const DATA_HORSE_FLAGS = 16; //int
-	/* 16 (byte) used by wither skull */
-	public const DATA_MINECART_DISPLAY_OFFSET = 17; //int
-	public const DATA_SHOOTER_ID = 17; //long (used by arrows)
-	public const DATA_MINECART_HAS_DISPLAY = 18; //byte (must be 1 for minecart to show block inside)
-	public const DATA_HORSE_TYPE = 19; //byte
-	/* 20 (unknown)
-	 * 21 (unknown) */
-	public const DATA_CHARGE_AMOUNT = 22; //int8, used for ghasts and also crossbow charging
-	public const DATA_ENDERMAN_HELD_ITEM_ID = 23; //short
-	public const DATA_ENTITY_AGE = 24; //short
-	/* 25 (int) used by horse, (byte) used by witch */
-	public const DATA_PLAYER_FLAGS = 26; //byte
-	public const DATA_PLAYER_INDEX = 27; //int, used for marker colours and agent nametag colours
-	public const DATA_PLAYER_BED_POSITION = 28; //blockpos
-	public const DATA_FIREBALL_POWER_X = 29; //float
-	public const DATA_FIREBALL_POWER_Y = 30;
-	public const DATA_FIREBALL_POWER_Z = 31;
-	/* 32 (unknown)
-	 * 33 (float) fishing bobber
-	 * 34 (float) fishing bobber
-	 * 35 (float) fishing bobber */
-	public const DATA_POTION_AUX_VALUE = 36; //short
-	public const DATA_LEAD_HOLDER_EID = 37; //long
-	public const DATA_SCALE = 38; //float
-	public const DATA_HAS_NPC_COMPONENT = 39; //byte (???)
-	public const DATA_NPC_SKIN_ID = 40; //string
-	public const DATA_URL_TAG = 41; //string
-	public const DATA_MAX_AIR = 42; //short
-	public const DATA_MARK_VARIANT = 43; //int
-	public const DATA_CONTAINER_TYPE = 44; //byte (ContainerComponent)
-	public const DATA_CONTAINER_BASE_SIZE = 45; //int (ContainerComponent)
-	public const DATA_CONTAINER_EXTRA_SLOTS_PER_STRENGTH = 46; //int (used for llamas, inventory size is baseSize + thisProp * strength)
-	public const DATA_BLOCK_TARGET = 47; //block coords (ender crystal)
-	public const DATA_WITHER_INVULNERABLE_TICKS = 48; //int
-	public const DATA_WITHER_TARGET_1 = 49; //long
-	public const DATA_WITHER_TARGET_2 = 50; //long
-	public const DATA_WITHER_TARGET_3 = 51; //long
-	/* 52 (short) */
-	public const DATA_BOUNDING_BOX_WIDTH = 53; //float
-	public const DATA_BOUNDING_BOX_HEIGHT = 54; //float
-	public const DATA_FUSE_LENGTH = 55; //int
-	public const DATA_RIDER_SEAT_POSITION = 56; //vector3f
-	public const DATA_RIDER_ROTATION_LOCKED = 57; //byte
-	public const DATA_RIDER_MAX_ROTATION = 58; //float
-	public const DATA_RIDER_MIN_ROTATION = 59; //float
-	public const DATA_AREA_EFFECT_CLOUD_RADIUS = 60; //float
-	public const DATA_AREA_EFFECT_CLOUD_WAITING = 61; //int
-	public const DATA_AREA_EFFECT_CLOUD_PARTICLE_ID = 62; //int
-	/* 63 (int) shulker-related */
-	public const DATA_SHULKER_ATTACH_FACE = 64; //byte
-	/* 65 (short) shulker-related */
-	public const DATA_SHULKER_ATTACH_POS = 66; //block coords
-	public const DATA_TRADING_PLAYER_EID = 67; //long
-
-	/* 69 (byte) command-block */
-	public const DATA_COMMAND_BLOCK_COMMAND = 70; //string
-	public const DATA_COMMAND_BLOCK_LAST_OUTPUT = 71; //string
-	public const DATA_COMMAND_BLOCK_TRACK_OUTPUT = 72; //byte
-	public const DATA_CONTROLLING_RIDER_SEAT_NUMBER = 73; //byte
-	public const DATA_STRENGTH = 74; //int
-	public const DATA_MAX_STRENGTH = 75; //int
-	/* 76 (int) */
-	public const DATA_LIMITED_LIFE = 77;
-	public const DATA_ARMOR_STAND_POSE_INDEX = 78; //int
-	public const DATA_ENDER_CRYSTAL_TIME_OFFSET = 79; //int
-	public const DATA_ALWAYS_SHOW_NAMETAG = 80; //byte: -1 = default, 0 = only when looked at, 1 = always
-	public const DATA_COLOR_2 = 81; //byte
-	/* 82 (unknown) */
-	public const DATA_SCORE_TAG = 83; //string
-	public const DATA_BALLOON_ATTACHED_ENTITY = 84; //int64, entity unique ID of owner
-	public const DATA_PUFFERFISH_SIZE = 85; //byte
-	public const DATA_BOAT_BUBBLE_TIME = 86; //int (time in bubble column)
-	public const DATA_PLAYER_AGENT_EID = 87; //long
-	/* 88 (float) related to panda sitting
-	 * 89 (float) related to panda sitting */
-	public const DATA_EAT_COUNTER = 90; //int (used by pandas)
-	public const DATA_FLAGS2 = 91; //long (extended data flags)
-	/* 92 (float) related to panda lying down
-	 * 93 (float) related to panda lying down */
-	public const DATA_AREA_EFFECT_CLOUD_DURATION = 94; //int
-	public const DATA_AREA_EFFECT_CLOUD_SPAWN_TIME = 95; //int
-	public const DATA_AREA_EFFECT_CLOUD_RADIUS_PER_TICK = 96; //float, usually negative
-	public const DATA_AREA_EFFECT_CLOUD_RADIUS_CHANGE_ON_PICKUP = 97; //float
-	public const DATA_AREA_EFFECT_CLOUD_PICKUP_COUNT = 98; //int
-	public const DATA_INTERACTIVE_TAG = 99; //string (button text)
-	public const DATA_TRADE_TIER = 100; //int
-	public const DATA_MAX_TRADE_TIER = 101; //int
-
-	public const DATA_FLAG_ONFIRE = 0;
-	public const DATA_FLAG_SNEAKING = 1;
-	public const DATA_FLAG_RIDING = 2;
-	public const DATA_FLAG_SPRINTING = 3;
-	public const DATA_FLAG_ACTION = 4;
-	public const DATA_FLAG_INVISIBLE = 5;
-	public const DATA_FLAG_TEMPTED = 6;
-	public const DATA_FLAG_INLOVE = 7;
-	public const DATA_FLAG_SADDLED = 8;
-	public const DATA_FLAG_POWERED = 9;
-	public const DATA_FLAG_IGNITED = 10;
-	public const DATA_FLAG_BABY = 11;
-	public const DATA_FLAG_CONVERTING = 12;
-	public const DATA_FLAG_CRITICAL = 13;
-	public const DATA_FLAG_CAN_SHOW_NAMETAG = 14;
-	public const DATA_FLAG_ALWAYS_SHOW_NAMETAG = 15;
-	public const DATA_FLAG_IMMOBILE = 16, DATA_FLAG_NO_AI = 16;
-	public const DATA_FLAG_SILENT = 17;
-	public const DATA_FLAG_WALLCLIMBING = 18;
-	public const DATA_FLAG_CAN_CLIMB = 19;
-	public const DATA_FLAG_SWIMMER = 20;
-	public const DATA_FLAG_CAN_FLY = 21;
-	public const DATA_FLAG_WALKER = 22;
-	public const DATA_FLAG_RESTING = 23;
-	public const DATA_FLAG_SITTING = 24;
-	public const DATA_FLAG_ANGRY = 25;
-	public const DATA_FLAG_INTERESTED = 26;
-	public const DATA_FLAG_CHARGED = 27;
-	public const DATA_FLAG_TAMED = 28;
-	public const DATA_FLAG_ORPHANED = 29;
-	public const DATA_FLAG_LEASHED = 30;
-	public const DATA_FLAG_SHEARED = 31;
-	public const DATA_FLAG_GLIDING = 32;
-	public const DATA_FLAG_ELDER = 33;
-	public const DATA_FLAG_MOVING = 34;
-	public const DATA_FLAG_BREATHING = 35;
-	public const DATA_FLAG_CHESTED = 36;
-	public const DATA_FLAG_STACKABLE = 37;
-	public const DATA_FLAG_SHOWBASE = 38;
-	public const DATA_FLAG_REARING = 39;
-	public const DATA_FLAG_VIBRATING = 40;
-	public const DATA_FLAG_IDLING = 41;
-	public const DATA_FLAG_EVOKER_SPELL = 42;
-	public const DATA_FLAG_CHARGE_ATTACK = 43;
-	public const DATA_FLAG_WASD_CONTROLLED = 44;
-	public const DATA_FLAG_CAN_POWER_JUMP = 45;
-	public const DATA_FLAG_LINGER = 46;
-	public const DATA_FLAG_HAS_COLLISION = 47;
-	public const DATA_FLAG_AFFECTED_BY_GRAVITY = 48;
-	public const DATA_FLAG_FIRE_IMMUNE = 49;
-	public const DATA_FLAG_DANCING = 50;
-	public const DATA_FLAG_ENCHANTED = 51;
-	public const DATA_FLAG_SHOW_TRIDENT_ROPE = 52; // tridents show an animated rope when enchanted with loyalty after they are thrown and return to their owner. To be combined with DATA_OWNER_EID
-	public const DATA_FLAG_CONTAINER_PRIVATE = 53; //inventory is private, doesn't drop contents when killed if true
-	public const DATA_FLAG_TRANSFORMING = 54;
-	public const DATA_FLAG_SPIN_ATTACK = 55;
-	public const DATA_FLAG_SWIMMING = 56;
-	public const DATA_FLAG_BRIBED = 57; //dolphins have this set when they go to find treasure for the player
-	public const DATA_FLAG_PREGNANT = 58;
-	public const DATA_FLAG_LAYING_EGG = 59;
-	public const DATA_FLAG_RIDER_CAN_PICK = 60; //???
-	public const DATA_FLAG_TRANSITION_SITTING = 61;
-	public const DATA_FLAG_EATING = 62;
-	public const DATA_FLAG_LAYING_DOWN = 63;
-	public const DATA_FLAG_SNEEZING = 64;
-	public const DATA_FLAG_TRUSTING = 65;
-	public const DATA_FLAG_ROLLING = 66;
-	public const DATA_FLAG_SCARED = 67;
-	public const DATA_FLAG_IN_SCAFFOLDING = 68;
-	public const DATA_FLAG_OVER_SCAFFOLDING = 69;
-	public const DATA_FLAG_FALL_THROUGH_SCAFFOLDING = 70;
-	public const DATA_FLAG_BLOCKING = 71; //shield
-	public const DATA_FLAG_DISABLE_BLOCKING = 72;
-	//73 is set when a player is attacked while using shield, unclear on purpose
-	public const DATA_FLAG_SLEEPING = 74;
-	//75 related to sleeping, unclear usage
-	public const DATA_FLAG_TRADE_INTEREST = 76;
-	public const DATA_FLAG_DOOR_BREAKER = 77; //...
-	public const DATA_FLAG_BREAKING_OBSTRUCTION = 78;
-	public const DATA_FLAG_DOOR_OPENER = 79; //...
-
-	public const DATA_PLAYER_FLAG_SLEEP = 1;
-	public const DATA_PLAYER_FLAG_DEAD = 2; //TODO: CHECK
-
 
 	/**
 	 * @var Player[]
@@ -438,19 +237,19 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 
 		$this->propertyManager = new DataPropertyManager();
 
-		$this->propertyManager->setLong(self::DATA_FLAGS, 0);
-		$this->propertyManager->setShort(self::DATA_MAX_AIR, 400);
-		$this->propertyManager->setString(self::DATA_NAMETAG, "");
-		$this->propertyManager->setLong(self::DATA_LEAD_HOLDER_EID, -1);
-		$this->propertyManager->setFloat(self::DATA_SCALE, 1);
-		$this->propertyManager->setFloat(self::DATA_BOUNDING_BOX_WIDTH, $this->width);
-		$this->propertyManager->setFloat(self::DATA_BOUNDING_BOX_HEIGHT, $this->height);
+		$this->propertyManager->setLong(EntityMetadataProperties::FLAGS, 0);
+		$this->propertyManager->setShort(EntityMetadataProperties::MAX_AIR, 400);
+		$this->propertyManager->setString(EntityMetadataProperties::NAMETAG, "");
+		$this->propertyManager->setLong(EntityMetadataProperties::LEAD_HOLDER_EID, -1);
+		$this->propertyManager->setFloat(EntityMetadataProperties::SCALE, 1);
+		$this->propertyManager->setFloat(EntityMetadataProperties::BOUNDING_BOX_WIDTH, $this->width);
+		$this->propertyManager->setFloat(EntityMetadataProperties::BOUNDING_BOX_HEIGHT, $this->height);
 
 		$this->attributeMap = new AttributeMap();
 		$this->addAttributes();
 
-		$this->setGenericFlag(self::DATA_FLAG_AFFECTED_BY_GRAVITY, true);
-		$this->setGenericFlag(self::DATA_FLAG_HAS_COLLISION, true);
+		$this->setGenericFlag(EntityMetadataFlags::AFFECTED_BY_GRAVITY, true);
+		$this->setGenericFlag(EntityMetadataFlags::HAS_COLLISION, true);
 
 		$this->initEntity($nbt);
 		$this->propertyManager->clearDirtyProperties(); //Prevents resending properties that were set during construction
@@ -469,21 +268,21 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	 * @return string
 	 */
 	public function getNameTag() : string{
-		return $this->propertyManager->getString(self::DATA_NAMETAG);
+		return $this->propertyManager->getString(EntityMetadataProperties::NAMETAG);
 	}
 
 	/**
 	 * @return bool
 	 */
 	public function isNameTagVisible() : bool{
-		return $this->getGenericFlag(self::DATA_FLAG_CAN_SHOW_NAMETAG);
+		return $this->getGenericFlag(EntityMetadataFlags::CAN_SHOW_NAMETAG);
 	}
 
 	/**
 	 * @return bool
 	 */
 	public function isNameTagAlwaysVisible() : bool{
-		return $this->getGenericFlag(self::DATA_FLAG_ALWAYS_SHOW_NAMETAG);
+		return $this->getGenericFlag(EntityMetadataFlags::ALWAYS_SHOW_NAMETAG);
 	}
 
 
@@ -491,42 +290,42 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	 * @param string $name
 	 */
 	public function setNameTag(string $name) : void{
-		$this->propertyManager->setString(self::DATA_NAMETAG, $name);
+		$this->propertyManager->setString(EntityMetadataProperties::NAMETAG, $name);
 	}
 
 	/**
 	 * @param bool $value
 	 */
 	public function setNameTagVisible(bool $value = true) : void{
-		$this->setGenericFlag(self::DATA_FLAG_CAN_SHOW_NAMETAG, $value);
+		$this->setGenericFlag(EntityMetadataFlags::CAN_SHOW_NAMETAG, $value);
 	}
 
 	/**
 	 * @param bool $value
 	 */
 	public function setNameTagAlwaysVisible(bool $value = true) : void{
-		$this->propertyManager->setByte(self::DATA_ALWAYS_SHOW_NAMETAG, $value ? 1 : 0);
+		$this->propertyManager->setByte(EntityMetadataProperties::ALWAYS_SHOW_NAMETAG, $value ? 1 : 0);
 	}
 
 	/**
 	 * @return string|null
 	 */
 	public function getScoreTag() : ?string{
-		return $this->propertyManager->getString(self::DATA_SCORE_TAG);
+		return $this->propertyManager->getString(EntityMetadataProperties::SCORE_TAG);
 	}
 
 	/**
 	 * @param string $score
 	 */
 	public function setScoreTag(string $score) : void{
-		$this->propertyManager->setString(self::DATA_SCORE_TAG, $score);
+		$this->propertyManager->setString(EntityMetadataProperties::SCORE_TAG, $score);
 	}
 
 	/**
 	 * @return float
 	 */
 	public function getScale() : float{
-		return $this->propertyManager->getFloat(self::DATA_SCALE);
+		return $this->propertyManager->getFloat(EntityMetadataProperties::SCALE);
 	}
 
 	/**
@@ -544,7 +343,7 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 
 		$this->recalculateBoundingBox();
 
-		$this->propertyManager->setFloat(self::DATA_SCALE, $value);
+		$this->propertyManager->setFloat(EntityMetadataProperties::SCALE, $value);
 	}
 
 	public function getBoundingBox() : AxisAlignedBB{
@@ -565,39 +364,39 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	}
 
 	public function isSneaking() : bool{
-		return $this->getGenericFlag(self::DATA_FLAG_SNEAKING);
+		return $this->getGenericFlag(EntityMetadataFlags::SNEAKING);
 	}
 
 	public function setSneaking(bool $value = true) : void{
-		$this->setGenericFlag(self::DATA_FLAG_SNEAKING, $value);
+		$this->setGenericFlag(EntityMetadataFlags::SNEAKING, $value);
 	}
 
 	public function isSprinting() : bool{
-		return $this->getGenericFlag(self::DATA_FLAG_SPRINTING);
+		return $this->getGenericFlag(EntityMetadataFlags::SPRINTING);
 	}
 
 	public function setSprinting(bool $value = true) : void{
 		if($value !== $this->isSprinting()){
-			$this->setGenericFlag(self::DATA_FLAG_SPRINTING, $value);
+			$this->setGenericFlag(EntityMetadataFlags::SPRINTING, $value);
 			$attr = $this->attributeMap->getAttribute(Attribute::MOVEMENT_SPEED);
 			$attr->setValue($value ? ($attr->getValue() * 1.3) : ($attr->getValue() / 1.3), false, true);
 		}
 	}
 
 	public function isImmobile() : bool{
-		return $this->getGenericFlag(self::DATA_FLAG_IMMOBILE);
+		return $this->getGenericFlag(EntityMetadataFlags::IMMOBILE);
 	}
 
 	public function setImmobile(bool $value = true) : void{
-		$this->setGenericFlag(self::DATA_FLAG_IMMOBILE, $value);
+		$this->setGenericFlag(EntityMetadataFlags::IMMOBILE, $value);
 	}
 
 	public function isInvisible() : bool{
-		return $this->getGenericFlag(self::DATA_FLAG_INVISIBLE);
+		return $this->getGenericFlag(EntityMetadataFlags::INVISIBLE);
 	}
 
 	public function setInvisible(bool $value = true) : void{
-		$this->setGenericFlag(self::DATA_FLAG_INVISIBLE, $value);
+		$this->setGenericFlag(EntityMetadataFlags::INVISIBLE, $value);
 	}
 
 	/**
@@ -605,7 +404,7 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	 * @return bool
 	 */
 	public function canClimb() : bool{
-		return $this->getGenericFlag(self::DATA_FLAG_CAN_CLIMB);
+		return $this->getGenericFlag(EntityMetadataFlags::CAN_CLIMB);
 	}
 
 	/**
@@ -614,7 +413,7 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	 * @param bool $value
 	 */
 	public function setCanClimb(bool $value = true) : void{
-		$this->setGenericFlag(self::DATA_FLAG_CAN_CLIMB, $value);
+		$this->setGenericFlag(EntityMetadataFlags::CAN_CLIMB, $value);
 	}
 
 	/**
@@ -623,7 +422,7 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	 * @return bool
 	 */
 	public function canClimbWalls() : bool{
-		return $this->getGenericFlag(self::DATA_FLAG_WALLCLIMBING);
+		return $this->getGenericFlag(EntityMetadataFlags::WALLCLIMBING);
 	}
 
 	/**
@@ -632,7 +431,7 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	 * @param bool $value
 	 */
 	public function setCanClimbWalls(bool $value = true) : void{
-		$this->setGenericFlag(self::DATA_FLAG_WALLCLIMBING, $value);
+		$this->setGenericFlag(EntityMetadataFlags::WALLCLIMBING, $value);
 	}
 
 	/**
@@ -640,7 +439,7 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	 * @return int|null
 	 */
 	public function getOwningEntityId() : ?int{
-		return $this->propertyManager->getLong(self::DATA_OWNER_EID);
+		return $this->propertyManager->getLong(EntityMetadataProperties::OWNER_EID);
 	}
 
 	/**
@@ -665,11 +464,11 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	 */
 	public function setOwningEntity(?Entity $owner) : void{
 		if($owner === null){
-			$this->propertyManager->removeProperty(self::DATA_OWNER_EID);
+			$this->propertyManager->removeProperty(EntityMetadataProperties::OWNER_EID);
 		}elseif($owner->closed){
 			throw new \InvalidArgumentException("Supplied owning entity is garbage and cannot be used");
 		}else{
-			$this->propertyManager->setLong(self::DATA_OWNER_EID, $owner->getId());
+			$this->propertyManager->setLong(EntityMetadataProperties::OWNER_EID, $owner->getId());
 		}
 	}
 
@@ -678,7 +477,7 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	 * @return int|null
 	 */
 	public function getTargetEntityId() : ?int{
-		return $this->propertyManager->getLong(self::DATA_TARGET_EID);
+		return $this->propertyManager->getLong(EntityMetadataProperties::TARGET_EID);
 	}
 
 	/**
@@ -705,11 +504,11 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	 */
 	public function setTargetEntity(?Entity $target) : void{
 		if($target === null){
-			$this->propertyManager->removeProperty(self::DATA_TARGET_EID);
+			$this->propertyManager->removeProperty(EntityMetadataProperties::TARGET_EID);
 		}elseif($target->closed){
 			throw new \InvalidArgumentException("Supplied target entity is garbage and cannot be used");
 		}else{
-			$this->propertyManager->setLong(self::DATA_TARGET_EID, $target->getId());
+			$this->propertyManager->setLong(EntityMetadataProperties::TARGET_EID, $target->getId());
 		}
 	}
 
@@ -761,7 +560,7 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 
 		$nbt->setFloat("FallDistance", $this->fallDistance);
 		$nbt->setShort("Fire", $this->fireTicks);
-		$nbt->setShort("Air", $this->propertyManager->getShort(self::DATA_AIR));
+		$nbt->setShort("Air", $this->propertyManager->getShort(EntityMetadataProperties::AIR));
 		$nbt->setByte("OnGround", $this->onGround ? 1 : 0);
 		$nbt->setByte("Invulnerable", $this->invulnerable ? 1 : 0);
 
@@ -771,10 +570,10 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	protected function initEntity(CompoundTag $nbt) : void{
 		$this->fireTicks = $nbt->getShort("Fire", 0);
 		if($this->isOnFire()){
-			$this->setGenericFlag(self::DATA_FLAG_ONFIRE);
+			$this->setGenericFlag(EntityMetadataFlags::ONFIRE);
 		}
 
-		$this->propertyManager->setShort(self::DATA_AIR, $nbt->getShort("Air", 300));
+		$this->propertyManager->setShort(EntityMetadataProperties::AIR, $nbt->getShort("Air", 300));
 		$this->onGround = $nbt->getByte("OnGround", 0) !== 0;
 		$this->invulnerable = $nbt->getByte("Invulnerable", 0) !== 0;
 
@@ -963,7 +762,7 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 			$this->setFireTicks($ticks);
 		}
 
-		$this->setGenericFlag(self::DATA_FLAG_ONFIRE, true);
+		$this->setGenericFlag(EntityMetadataFlags::ONFIRE, true);
 	}
 
 	/**
@@ -986,7 +785,7 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 
 	public function extinguish() : void{
 		$this->fireTicks = 0;
-		$this->setGenericFlag(self::DATA_FLAG_ONFIRE, false);
+		$this->setGenericFlag(EntityMetadataFlags::ONFIRE, false);
 	}
 
 	public function isFireProof() : bool{
@@ -1897,26 +1696,40 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	 *
 	 * WARNING: Entities are unusable after this has been executed!
 	 */
-	public function close() : void{
+	final public function close() : void{
 		if(!$this->closed){
-			(new EntityDespawnEvent($this))->call();
 			$this->closed = true;
+			(new EntityDespawnEvent($this))->call();
 
-			$this->despawnFromAll();
-			$this->hasSpawned = [];
-
-			if($this->chunk !== null){
-				$this->chunk->removeEntity($this);
-				$this->chunk = null;
-			}
-
-			if($this->isValid()){
-				$this->level->removeEntity($this);
-				$this->setLevel(null);
-			}
-
-			$this->lastDamageCause = null;
+			$this->onDispose();
+			$this->destroyCycles();
 		}
+	}
+
+	/**
+	 * Called when the entity is disposed to clean up things like viewers. This SHOULD NOT destroy internal state,
+	 * because it may be needed by descendent classes.
+	 */
+	protected function onDispose() : void{
+		$this->despawnFromAll();
+		if($this->chunk !== null){
+			$this->chunk->removeEntity($this);
+		}
+		if($this->isValid()){
+			$this->level->removeEntity($this);
+		}
+	}
+
+	/**
+	 * Called when the entity is disposed, after all events have been fired. This should be used to perform destructive
+	 * circular object references and things which could impact memory usage.
+	 *
+	 * It is expected that the object is unusable after this is called.
+	 */
+	protected function destroyCycles() : void{
+		$this->chunk = null;
+		$this->setLevel(null);
+		$this->lastDamageCause = null;
 	}
 
 	/**
@@ -1925,7 +1738,7 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	 * @param bool $value
 	 * @param int  $propertyType
 	 */
-	public function setDataFlag(int $propertyId, int $flagId, bool $value = true, int $propertyType = self::DATA_TYPE_LONG) : void{
+	public function setDataFlag(int $propertyId, int $flagId, bool $value = true, int $propertyType = EntityMetadataTypes::LONG) : void{
 		if($this->getDataFlag($propertyId, $flagId) !== $value){
 			$flags = (int) $this->propertyManager->getPropertyValue($propertyId, $propertyType);
 			$flags ^= 1 << $flagId;
@@ -1951,7 +1764,7 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	 * @return bool
 	 */
 	public function getGenericFlag(int $flagId) : bool{
-		return $this->getDataFlag($flagId >= 64 ? self::DATA_FLAGS2 : self::DATA_FLAGS, $flagId % 64);
+		return $this->getDataFlag($flagId >= 64 ? EntityMetadataProperties::FLAGS2 : EntityMetadataProperties::FLAGS, $flagId % 64);
 	}
 
 	/**
@@ -1961,7 +1774,7 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	 * @param bool $value
 	 */
 	public function setGenericFlag(int $flagId, bool $value = true) : void{
-		$this->setDataFlag($flagId >= 64 ? self::DATA_FLAGS2 : self::DATA_FLAGS, $flagId % 64, $value, self::DATA_TYPE_LONG);
+		$this->setDataFlag($flagId >= 64 ? EntityMetadataProperties::FLAGS2 : EntityMetadataProperties::FLAGS, $flagId % 64, $value, EntityMetadataTypes::LONG);
 	}
 
 	/**

@@ -260,7 +260,11 @@ class NetworkSession{
 			Timings::$playerNetworkReceiveDecompressTimer->stopTiming();
 		}
 
+		$count = 0;
 		while(!$stream->feof() and $this->connected){
+			if($count++ >= 500){
+				throw new BadPacketException("Too many packets in a single batch");
+			}
 			try{
 				$pk = PacketPool::getPacket($stream->getString());
 			}catch(BinaryDataException $e){
@@ -742,6 +746,43 @@ class NetworkSession{
 			throw new \InvalidArgumentException("Failed to encode form JSON: " . json_last_error_msg());
 		}
 		return $this->sendDataPacket($pk);
+	}
+
+	public function startUsingChunk(int $chunkX, int $chunkZ, bool $spawn = false) : void{
+		ChunkCache::getInstance($this->player->getLevel())->request($chunkX, $chunkZ)->onResolve(
+
+			//this callback may be called synchronously or asynchronously, depending on whether the promise is resolved yet
+			function(CompressBatchPromise $promise) use($chunkX, $chunkZ, $spawn){
+				if(!$this->isConnected()){
+					return;
+				}
+				$this->player->level->timings->syncChunkSendTimer->startTiming();
+				try{
+					$this->queueCompressed($promise);
+
+					foreach($this->player->getLevel()->getChunkEntities($chunkX, $chunkZ) as $entity){
+						if($entity !== $this->player and !$entity->isClosed() and !$entity->isFlaggedForDespawn()){
+							$entity->spawnTo($this->player);
+						}
+					}
+
+					if($spawn){
+						//TODO: potential race condition during chunk sending could cause this to be called too early
+						$this->onTerrainReady();
+					}
+				}finally{
+					$this->player->level->timings->syncChunkSendTimer->stopTiming();
+				}
+			}
+		);
+	}
+
+	public function stopUsingChunk(int $chunkX, int $chunkZ) : void{
+		foreach($this->player->getLevel()->getChunkEntities($chunkX, $chunkZ) as $entity){
+			if($entity !== $this->player){
+				$entity->despawnFrom($this->player);
+			}
+		}
 	}
 
 	public function tick() : bool{

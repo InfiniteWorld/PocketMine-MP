@@ -28,6 +28,9 @@ use pocketmine\network\mcpe\protocol\FullChunkDataPacket;
 use pocketmine\scheduler\AsyncTask;
 
 class ChunkRequestTask extends AsyncTask{
+	private const TLS_KEY_PROMISE = "promise";
+	private const TLS_KEY_ERROR_HOOK = "errorHook";
+
 	/** @var string */
 	protected $chunk;
 	/** @var int */
@@ -37,14 +40,15 @@ class ChunkRequestTask extends AsyncTask{
 
 	protected $compressionLevel;
 
-	public function __construct(int $chunkX, int $chunkZ, Chunk $chunk, CompressBatchPromise $promise){
+	public function __construct(int $chunkX, int $chunkZ, Chunk $chunk, CompressBatchPromise $promise, ?\Closure $onError = null){
 		$this->compressionLevel = NetworkCompression::$LEVEL;
 
 		$this->chunk = $chunk->networkSerialize();
 		$this->chunkX = $chunkX;
 		$this->chunkZ = $chunkZ;
 
-		$this->storeLocal($promise);
+		$this->storeLocal(self::TLS_KEY_PROMISE, $promise);
+		$this->storeLocal(self::TLS_KEY_ERROR_HOOK, $onError);
 	}
 
 	public function onRun() : void{
@@ -59,9 +63,17 @@ class ChunkRequestTask extends AsyncTask{
 		$this->setResult(NetworkCompression::compress($stream->getBuffer(), $this->compressionLevel));
 	}
 
+	public function onError() : void{
+		/** @var \Closure $hook */
+		$hook = $this->fetchLocal(self::TLS_KEY_ERROR_HOOK);
+		if($hook !== null){
+			$hook();
+		}
+	}
+
 	public function onCompletion() : void{
 		/** @var CompressBatchPromise $promise */
-		$promise = $this->fetchLocal();
+		$promise = $this->fetchLocal(self::TLS_KEY_PROMISE);
 		$promise->resolve($this->getResult());
 	}
 }

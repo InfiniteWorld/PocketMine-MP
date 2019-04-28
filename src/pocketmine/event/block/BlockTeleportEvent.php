@@ -21,23 +21,39 @@
 
 declare(strict_types=1);
 
-namespace pocketmine\entity;
+namespace pocketmine\event\block;
 
-use pocketmine\event\entity\EntityDamageEvent;
-use pocketmine\network\mcpe\protocol\types\EntityMetadataFlags;
+use pocketmine\block\Block;
+use pocketmine\event\Cancellable;
+use pocketmine\event\CancellableTrait;
+use pocketmine\math\Vector3;
 
-abstract class WaterAnimal extends Creature implements Ageable{
+class BlockTeleportEvent extends BlockEvent implements Cancellable{
+	use CancellableTrait;
 
-	public function isBaby() : bool{
-		return $this->getGenericFlag(EntityMetadataFlags::BABY);
+	/** @var Vector3 */
+	private $to;
+
+	/**
+	 * @param Block   $block
+	 * @param Vector3 $to
+	 */
+	public function __construct(Block $block, Vector3 $to){
+		parent::__construct($block);
+		$this->to = $to;
 	}
 
-	public function canBreathe() : bool{
-		return $this->isUnderwater();
+	/**
+	 * @return Vector3
+	 */
+	public function getTo() : Vector3{
+		return $this->to;
 	}
 
-	public function onAirExpired() : void{
-		$ev = new EntityDamageEvent($this, EntityDamageEvent::CAUSE_SUFFOCATION, 2);
-		$this->attack($ev);
+	/**
+	 * @param Vector3 $to
+	 */
+	public function setTo(Vector3 $to) : void{
+		$this->to = $to;
 	}
 }

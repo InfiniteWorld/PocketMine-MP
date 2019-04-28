@@ -72,8 +72,6 @@ use pocketmine\metadata\Metadatable;
 use pocketmine\metadata\MetadataValue;
 use pocketmine\nbt\tag\ListTag;
 use pocketmine\nbt\tag\StringTag;
-use pocketmine\network\mcpe\ChunkRequestTask;
-use pocketmine\network\mcpe\CompressBatchPromise;
 use pocketmine\network\mcpe\protocol\BlockEntityDataPacket;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\LevelEventPacket;
@@ -148,9 +146,6 @@ class Level implements ChunkManager, Metadatable{
 	/** @var Block[][] */
 	private $blockCache = [];
 
-	/** @var CompressBatchPromise[] */
-	private $chunkCache = [];
-
 	/** @var int */
 	private $sendTimeTicker = 0;
 
@@ -221,8 +216,6 @@ class Level implements ChunkManager, Metadatable{
 
 	/** @var Player[][] */
 	private $chunkSendQueue = [];
-	/** @var ChunkRequestTask[] */
-	private $chunkSendTasks = [];
 
 	/** @var bool[] */
 	private $chunkPopulationQueue = [];
@@ -856,7 +849,6 @@ class Level implements ChunkManager, Metadatable{
 					if(empty($blocks)){ //blocks can be set normally and then later re-set with direct send
 						continue;
 					}
-					unset($this->chunkCache[$index]);
 					Level::getXZ($index, $chunkX, $chunkZ);
 					if(count($blocks) > 512){
 						$chunk = $this->getChunk($chunkX, $chunkZ);
@@ -867,8 +859,6 @@ class Level implements ChunkManager, Metadatable{
 						$this->sendBlocks($this->getChunkPlayers($chunkX, $chunkZ), $blocks);
 					}
 				}
-			}else{
-				$this->chunkCache = [];
 			}
 
 			$this->changedBlocks = [];
@@ -973,7 +963,6 @@ class Level implements ChunkManager, Metadatable{
 
 	public function clearCache(bool $force = false){
 		if($force){
-			$this->chunkCache = [];
 			$this->blockCache = [];
 		}else{
 			$count = 0;
@@ -985,10 +974,6 @@ class Level implements ChunkManager, Metadatable{
 				}
 			}
 		}
-	}
-
-	public function clearChunkCache(int $chunkX, int $chunkZ){
-		unset($this->chunkCache[Level::chunkHash($chunkX, $chunkZ)]);
 	}
 
 	public function getRandomTickedBlocks() : \SplFixedArray{
@@ -1100,11 +1085,16 @@ class Level implements ChunkManager, Metadatable{
 	}
 
 	public function saveChunks(){
-		foreach($this->chunks as $chunk){
-			if(($chunk->hasChanged() or count($chunk->getTiles()) > 0 or count($chunk->getSavableEntities()) > 0) and $chunk->isGenerated()){
-				$this->provider->saveChunk($chunk);
-				$chunk->setChanged(false);
+		$this->timings->syncChunkSaveTimer->startTiming();
+		try{
+			foreach($this->chunks as $chunk){
+				if(($chunk->hasChanged() or count($chunk->getTiles()) > 0 or count($chunk->getSavableEntities()) > 0) and $chunk->isGenerated()){
+					$this->provider->saveChunk($chunk);
+					$chunk->setChanged(false);
+				}
 			}
+		}finally{
+			$this->timings->syncChunkSaveTimer->stopTiming();
 		}
 	}
 
@@ -2331,20 +2321,15 @@ class Level implements ChunkManager, Metadatable{
 		$this->chunks[$chunkHash] = $chunk;
 
 		unset($this->blockCache[$chunkHash]);
-		unset($this->chunkCache[$chunkHash]);
 		unset($this->changedBlocks[$chunkHash]);
-		if(isset($this->chunkSendTasks[$chunkHash])){ //invalidate pending caches
-			$this->chunkSendTasks[$chunkHash]->cancelRun();
-			unset($this->chunkSendTasks[$chunkHash]);
-		}
 		$chunk->setChanged();
 
 		if(!$this->isChunkInUse($chunkX, $chunkZ)){
 			$this->unloadChunkRequest($chunkX, $chunkZ);
-		}else{
-			foreach($this->getChunkListeners($chunkX, $chunkZ) as $listener){
-				$listener->onChunkChanged($chunk);
-			}
+		}
+
+		foreach($this->getChunkListeners($chunkX, $chunkZ) as $listener){
+			$listener->onChunkChanged($chunk);
 		}
 	}
 
@@ -2432,13 +2417,11 @@ class Level implements ChunkManager, Metadatable{
 		$this->chunkSendQueue[$index][spl_object_id($player)] = $player;
 	}
 
-	private function sendCachedChunk(int $x, int $z){
+	private function onChunkReady(int $x, int $z){
 		if(isset($this->chunkSendQueue[$index = Level::chunkHash($x, $z)])){
 			foreach($this->chunkSendQueue[$index] as $player){
 				/** @var Player $player */
-				if($player->isConnected() and isset($player->usedChunks[$index])){
-					$player->sendChunk($x, $z, $this->chunkCache[$index]);
-				}
+				$player->onChunkReady($x, $z);
 			}
 			unset($this->chunkSendQueue[$index]);
 		}
@@ -2451,55 +2434,13 @@ class Level implements ChunkManager, Metadatable{
 			foreach($this->chunkSendQueue as $index => $players){
 				Level::getXZ($index, $x, $z);
 
-				if(isset($this->chunkSendTasks[$index])){
-					if($this->chunkSendTasks[$index]->isCrashed()){
-						unset($this->chunkSendTasks[$index]);
-						$this->server->getLogger()->error("Failed to prepare chunk $x $z for sending, retrying");
-					}else{
-						//Not ready for sending yet
-						continue;
-					}
-				}
-
-				if(isset($this->chunkCache[$index])){
-					$this->sendCachedChunk($x, $z);
-					continue;
-				}
-
 				$this->timings->syncChunkSendPrepareTimer->startTiming();
 
 				$chunk = $this->chunks[$index] ?? null;
-				if(!($chunk instanceof Chunk)){
+				if($chunk === null or !$chunk->isGenerated() or !$chunk->isPopulated()){
 					throw new ChunkException("Invalid Chunk sent");
 				}
-				assert($chunk->getX() === $x and $chunk->getZ() === $z, "Chunk coordinate mismatch: expected $x $z, but chunk has coordinates " . $chunk->getX() . " " . $chunk->getZ() . ", did you forget to clone a chunk before setting?");
-
-				/*
-				 * we don't send promises directly to the players here because unresolved promises of chunk sending
-				 * would slow down the sending of other packets, especially if a chunk takes a long time to prepare.
-				 */
-
-				$promise = new CompressBatchPromise();
-				$promise->onResolve(function(CompressBatchPromise $promise) use ($x, $z, $index): void{
-					if(!$this->closed){
-						$this->timings->syncChunkSendTimer->startTiming();
-
-						unset($this->chunkSendTasks[$index]);
-
-						$this->chunkCache[$index] = $promise;
-						$this->sendCachedChunk($x, $z);
-						if(!$this->server->getMemoryManager()->canUseChunkCache()){
-							unset($this->chunkCache[$index]);
-						}
-
-						$this->timings->syncChunkSendTimer->stopTiming();
-					}else{
-						$this->server->getLogger()->debug("Dropped prepared chunk $x $z due to world not loaded");
-					}
-				});
-				$this->server->getAsyncPool()->submitTask($task = new ChunkRequestTask($x, $z, $chunk, $promise));
-				$this->chunkSendTasks[$index] = $task;
-
+				$this->onChunkReady($x, $z);
 				$this->timings->syncChunkSendPrepareTimer->stopTiming();
 			}
 
@@ -2590,7 +2531,9 @@ class Level implements ChunkManager, Metadatable{
 		if(isset($this->chunks[$hash = Level::chunkHash($chunkX, $chunkZ)])){
 			$this->chunks[$hash]->removeTile($tile);
 		}
-		$this->clearChunkCache($chunkX, $chunkZ);
+		foreach($this->getChunkListeners($chunkX, $chunkZ) as $listener){
+			$listener->onBlockChanged($tile);
+		}
 	}
 
 	/**
@@ -2656,13 +2599,12 @@ class Level implements ChunkManager, Metadatable{
 			$this->getServer()->getAsyncPool()->submitTask(new LightPopulationTask($this, $chunk));
 		}
 
-		if($this->isChunkInUse($x, $z)){
-			foreach($this->getChunkListeners($x, $z) as $listener){
-				$listener->onChunkLoaded($chunk);
-			}
-		}else{
+		if(!$this->isChunkInUse($x, $z)){
 			$this->server->getLogger()->debug("Newly loaded chunk $x $z has no loaders registered, will be unloaded at next available opportunity");
 			$this->unloadChunkRequest($x, $z);
+		}
+		foreach($this->getChunkListeners($x, $z) as $listener){
+			$listener->onChunkLoaded($chunk);
 		}
 
 		$this->timings->syncChunkLoadTimer->stopTiming();
@@ -2714,7 +2656,12 @@ class Level implements ChunkManager, Metadatable{
 
 			if($trySave and $this->getAutoSave() and $chunk->isGenerated()){
 				if($chunk->hasChanged() or count($chunk->getTiles()) > 0 or count($chunk->getSavableEntities()) > 0){
-					$this->provider->saveChunk($chunk);
+					$this->timings->syncChunkSaveTimer->startTiming();
+					try{
+						$this->provider->saveChunk($chunk);
+					}finally{
+						$this->timings->syncChunkSaveTimer->stopTiming();
+					}
 				}
 			}
 
@@ -2726,11 +2673,9 @@ class Level implements ChunkManager, Metadatable{
 		}
 
 		unset($this->chunks[$chunkHash]);
-		unset($this->chunkCache[$chunkHash]);
 		unset($this->blockCache[$chunkHash]);
 		unset($this->changedBlocks[$chunkHash]);
 		unset($this->chunkSendQueue[$chunkHash]);
-		unset($this->chunkSendTasks[$chunkHash]);
 
 		$this->timings->doChunkUnload->stopTiming();
 

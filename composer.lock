@@ -197,12 +197,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/Math_MoreSupport.git",
-                "reference": "00ff678cca143a7f71cce4211651142d9a0b3f78"
+                "reference": "adcee33d30d2ff998c6f05b02bba6b8a681509f4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/Math_MoreSupport/zipball/00ff678cca143a7f71cce4211651142d9a0b3f78",
-                "reference": "00ff678cca143a7f71cce4211651142d9a0b3f78",
+                "url": "https://api.github.com/repos/InfiniteWorld/Math_MoreSupport/zipball/adcee33d30d2ff998c6f05b02bba6b8a681509f4",
+                "reference": "adcee33d30d2ff998c6f05b02bba6b8a681509f4",
                 "shasum": ""
             },
             "require": {
@@ -226,7 +226,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/Math_MoreSupport/tree/master_32-bit"
             },
-            "time": "2019-02-12T15:31:54+00:00"
+            "time": "2019-04-28T02:47:10+00:00"
         },
         {
             "name": "infiniteworld/nbt",
@@ -234,12 +234,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/NBT_MoreSupport.git",
-                "reference": "a3253aad0a9308fef581a2beb42d027c1af7db09"
+                "reference": "c54d5469a50af93a3c898e3e9504f9f285ec7e3e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/NBT_MoreSupport/zipball/a3253aad0a9308fef581a2beb42d027c1af7db09",
-                "reference": "a3253aad0a9308fef581a2beb42d027c1af7db09",
+                "url": "https://api.github.com/repos/InfiniteWorld/NBT_MoreSupport/zipball/c54d5469a50af93a3c898e3e9504f9f285ec7e3e",
+                "reference": "c54d5469a50af93a3c898e3e9504f9f285ec7e3e",
                 "shasum": ""
             },
             "require": {
@@ -265,7 +265,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/NBT_MoreSupport/tree/master_32-bit"
             },
-            "time": "2019-04-13T01:59:35+00:00"
+            "time": "2019-04-28T02:53:20+00:00"
         },
         {
             "name": "infiniteworld/raklib",
@@ -273,12 +273,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/RakLib_MoreSupport.git",
-                "reference": "d1fb15870d9712bcb4dcae8e2df1f08f178dae59"
+                "reference": "5e4285c6b817c985d7eb00f718b7d482c69ddcd5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/RakLib_MoreSupport/zipball/d1fb15870d9712bcb4dcae8e2df1f08f178dae59",
-                "reference": "d1fb15870d9712bcb4dcae8e2df1f08f178dae59",
+                "url": "https://api.github.com/repos/InfiniteWorld/RakLib_MoreSupport/zipball/5e4285c6b817c985d7eb00f718b7d482c69ddcd5",
+                "reference": "5e4285c6b817c985d7eb00f718b7d482c69ddcd5",
                 "shasum": ""
             },
             "require": {
@@ -304,7 +304,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/RakLib_MoreSupport/tree/master_32-bit"
             },
-            "time": "2019-03-30T01:10:14+00:00"
+            "time": "2019-04-28T02:52:34+00:00"
         },
         {
             "name": "infiniteworld/snooze",
