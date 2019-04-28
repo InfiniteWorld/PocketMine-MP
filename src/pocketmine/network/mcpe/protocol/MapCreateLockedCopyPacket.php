@@ -30,9 +30,9 @@ use pocketmine\network\mcpe\handler\SessionHandler;
 class MapCreateLockedCopyPacket extends DataPacket{
 	public const NETWORK_ID = ProtocolInfo::MAP_CREATE_LOCKED_COPY_PACKET;
 
-	/** @var int */
+	/** @var int|string */
 	public $originalMapId;
-	/** @var int */
+	/** @var int|string */
 	public $newMapId;
 
 	protected function decodePayload() : void{
