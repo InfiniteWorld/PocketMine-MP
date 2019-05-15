@@ -273,12 +273,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/RakLib_MoreSupport.git",
-                "reference": "5e4285c6b817c985d7eb00f718b7d482c69ddcd5"
+                "reference": "a99e0d090ae081b5251aa2f8902e96ef0637e33d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/RakLib_MoreSupport/zipball/5e4285c6b817c985d7eb00f718b7d482c69ddcd5",
-                "reference": "5e4285c6b817c985d7eb00f718b7d482c69ddcd5",
+                "url": "https://api.github.com/repos/InfiniteWorld/RakLib_MoreSupport/zipball/a99e0d090ae081b5251aa2f8902e96ef0637e33d",
+                "reference": "a99e0d090ae081b5251aa2f8902e96ef0637e33d",
                 "shasum": ""
             },
             "require": {
@@ -304,7 +304,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/RakLib_MoreSupport/tree/master_32-bit"
             },
-            "time": "2019-04-28T02:52:34+00:00"
+            "time": "2019-05-15T12:03:59+00:00"
         },
         {
             "name": "infiniteworld/snooze",
@@ -312,12 +312,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/InfiniteWorld/Snooze_MoreSupport.git",
-                "reference": "6383956e0bc8e1fdd1d43ca29d51393c63efd43a"
+                "reference": "113398e8ead4edcd356a524205d70cf61aefc30d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/InfiniteWorld/Snooze_MoreSupport/zipball/6383956e0bc8e1fdd1d43ca29d51393c63efd43a",
-                "reference": "6383956e0bc8e1fdd1d43ca29d51393c63efd43a",
+                "url": "https://api.github.com/repos/InfiniteWorld/Snooze_MoreSupport/zipball/113398e8ead4edcd356a524205d70cf61aefc30d",
+                "reference": "113398e8ead4edcd356a524205d70cf61aefc30d",
                 "shasum": ""
             },
             "require": {
@@ -337,7 +337,7 @@
             "support": {
                 "source": "https://github.com/InfiniteWorld/Snooze_MoreSupport/tree/master_32-bit"
             },
-            "time": "2019-02-12T15:22:19+00:00"
+            "time": "2019-05-15T11:58:16+00:00"
         },
         {
             "name": "mdanter/ecc",

@@ -36,6 +36,10 @@ abstract class Crops extends Flowable{
 	/** @var int */
 	protected $age = 0;
 
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? BlockBreakInfo::instant());
+	}
+
 	protected function writeStateToMeta() : int{
 		return $this->age;
 	}
@@ -68,7 +72,7 @@ abstract class Crops extends Flowable{
 			$ev = new BlockGrowEvent($this, $block);
 			$ev->call();
 			if(!$ev->isCancelled()){
-				$this->getLevel()->setBlock($this, $ev->getNewState());
+				$this->getWorld()->setBlock($this, $ev->getNewState());
 			}
 
 			$item->pop();
@@ -81,7 +85,7 @@ abstract class Crops extends Flowable{
 
 	public function onNearbyBlockChange() : void{
 		if($this->getSide(Facing::DOWN)->getId() !== BlockLegacyIds::FARMLAND){
-			$this->getLevel()->useBreakOn($this);
+			$this->getWorld()->useBreakOn($this);
 		}
 	}
 
@@ -96,7 +100,7 @@ abstract class Crops extends Flowable{
 			$ev = new BlockGrowEvent($this, $block);
 			$ev->call();
 			if(!$ev->isCancelled()){
-				$this->getLevel()->setBlock($this, $ev->getNewState());
+				$this->getWorld()->setBlock($this, $ev->getNewState());
 			}
 		}
 	}

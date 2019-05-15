@@ -30,13 +30,17 @@ use pocketmine\Player;
 
 class RedMushroom extends Flowable{
 
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? BlockBreakInfo::instant());
+	}
+
 	public function ticksRandomly() : bool{
 		return true;
 	}
 
 	public function onNearbyBlockChange() : void{
 		if($this->getSide(Facing::DOWN)->isTransparent()){
-			$this->getLevel()->useBreakOn($this);
+			$this->getWorld()->useBreakOn($this);
 		}
 	}
 

@@ -45,6 +45,10 @@ class Anvil extends Transparent implements Fallable{
 	/** @var int */
 	protected $facing = Facing::NORTH;
 
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(5.0, BlockToolType::TYPE_PICKAXE, TieredTool::TIER_WOODEN, 6000.0));
+	}
+
 	protected function writeStateToMeta() : int{
 		return Bearing::fromFacing($this->facing);
 	}
@@ -57,23 +61,7 @@ class Anvil extends Transparent implements Fallable{
 		return 0b11;
 	}
 
-	public function getHardness() : float{
-		return 5;
-	}
-
-	public function getBlastResistance() : float{
-		return 6000;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_PICKAXE;
-	}
-
-	public function getToolHarvestLevel() : int{
-		return TieredTool::TIER_WOODEN;
-	}
-
-	public function recalculateBoundingBox() : ?AxisAlignedBB{
+	protected function recalculateBoundingBox() : ?AxisAlignedBB{
 		return AxisAlignedBB::one()->squash(Facing::axis(Facing::rotateY($this->facing, false)), 1 / 8);
 	}
 

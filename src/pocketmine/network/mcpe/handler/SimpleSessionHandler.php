@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\handler;
 
+use pocketmine\block\Block;
 use pocketmine\block\ItemFrame;
 use pocketmine\block\Sign;
 use pocketmine\block\utils\SignText;
@@ -78,6 +79,7 @@ use pocketmine\network\mcpe\protocol\types\ReleaseItemTransactionData;
 use pocketmine\network\mcpe\protocol\types\UseItemOnEntityTransactionData;
 use pocketmine\network\mcpe\protocol\types\UseItemTransactionData;
 use pocketmine\Player;
+use function array_push;
 use function base64_encode;
 use function fmod;
 use function implode;
@@ -199,7 +201,7 @@ class SimpleSessionHandler extends SessionHandler{
 					$actions[] = $action;
 				}
 			}catch(\UnexpectedValueException $e){
-				$this->player->getServer()->getLogger()->debug("Unhandled inventory action from " . $this->player->getName() . ": " . $e->getMessage());
+				$this->session->getLogger()->debug("Unhandled inventory action: " . $e->getMessage());
 				return false;
 			}
 		}
@@ -220,7 +222,7 @@ class SimpleSessionHandler extends SessionHandler{
 				try{
 					$this->craftingTransaction->execute();
 				}catch(TransactionValidationException $e){
-					$this->player->getServer()->getLogger()->debug("Failed to execute crafting transaction for " . $this->player->getName() . ": " . $e->getMessage());
+					$this->session->getLogger()->debug("Failed to execute crafting transaction: " . $e->getMessage());
 					return false;
 				}finally{
 					$this->craftingTransaction = null;
@@ -229,7 +231,7 @@ class SimpleSessionHandler extends SessionHandler{
 		}else{
 			//normal transaction fallthru
 			if($this->craftingTransaction !== null){
-				$this->player->getServer()->getLogger()->debug("Got unexpected normal inventory action with incomplete crafting transaction from " . $this->player->getName() . ", refusing to execute crafting");
+				$this->session->getLogger()->debug("Got unexpected normal inventory action with incomplete crafting transaction, refusing to execute crafting");
 				$this->craftingTransaction = null;
 				return false;
 			}
@@ -238,8 +240,8 @@ class SimpleSessionHandler extends SessionHandler{
 			try{
 				$transaction->execute();
 			}catch(TransactionValidationException $e){
-				$logger = $this->player->getServer()->getLogger();
-				$logger->debug("Failed to execute inventory transaction from " . $this->player->getName() . ": " . $e->getMessage());
+				$logger = $this->session->getLogger();
+				$logger->debug("Failed to execute inventory transaction: " . $e->getMessage());
 				$logger->debug("Actions: " . json_encode($data->getActions()));
 
 				return false;
@@ -267,10 +269,17 @@ class SimpleSessionHandler extends SessionHandler{
 					return true;
 				}
 				//TODO: end hack for client spam bug
-				$this->player->interactBlock($data->getBlockPos(), $data->getFace(), $clickPos);
+
+				$blockPos = $data->getBlockPos();
+				if(!$this->player->interactBlock($blockPos, $data->getFace(), $clickPos)){
+					$this->onFailedBlockAction($blockPos, $data->getFace());
+				}
 				return true;
 			case UseItemTransactionData::ACTION_BREAK_BLOCK:
-				$this->player->breakBlock($data->getBlockPos());
+				$blockPos = $data->getBlockPos();
+				if(!$this->player->breakBlock($blockPos)){
+					$this->onFailedBlockAction($blockPos, null);
+				}
 				return true;
 			case UseItemTransactionData::ACTION_CLICK_AIR:
 				$this->player->useHeldItem();
@@ -280,8 +289,32 @@ class SimpleSessionHandler extends SessionHandler{
 		return false;
 	}
 
+	/**
+	 * Internal function used to execute rollbacks when an action fails on a block.
+	 *
+	 * @param Vector3  $blockPos
+	 * @param int|null $face
+	 */
+	private function onFailedBlockAction(Vector3 $blockPos, ?int $face) : void{
+		$this->player->getInventory()->sendHeldItem($this->player);
+		if($blockPos->distanceSquared($this->player) < 10000){
+			$target = $this->player->getWorld()->getBlock($blockPos);
+
+			$blocks = $target->getAllSides();
+			if($face !== null){
+				$sideBlock = $target->getSide($face);
+
+				/** @var Block[] $blocks */
+				array_push($blocks, ...$sideBlock->getAllSides()); //getAllSides() on each of these will include $target and $sideBlock because they are next to each other
+			}else{
+				$blocks[] = $target;
+			}
+			$this->player->getWorld()->sendBlocks([$this->player], $blocks);
+		}
+	}
+
 	private function handleUseItemOnEntityTransaction(UseItemOnEntityTransactionData $data) : bool{
-		$target = $this->player->getLevel()->getEntity($data->getEntityRuntimeId());
+		$target = $this->player->getWorld()->getEntity($data->getEntityRuntimeId());
 		if($target === null){
 			return false;
 		}
@@ -393,7 +426,7 @@ class SimpleSessionHandler extends SessionHandler{
 				//TODO: handle this when it doesn't spam every damn tick (yet another spam bug!!)
 				break;
 			default:
-				$this->player->getServer()->getLogger()->debug("Unhandled/unknown player action type " . $packet->action . " from " . $this->player->getName());
+				$this->session->getLogger()->debug("Unhandled/unknown player action type " . $packet->action);
 				return false;
 		}
 
@@ -448,7 +481,7 @@ class SimpleSessionHandler extends SessionHandler{
 			return false;
 		}
 
-		$block = $this->player->getLevel()->getBlock($pos);
+		$block = $this->player->getWorld()->getBlock($pos);
 		try{
 			$offset = 0;
 			$nbt = (new NetworkNbtSerializer())->read($packet->namedtag, $offset, 512)->getTag();
@@ -466,7 +499,7 @@ class SimpleSessionHandler extends SessionHandler{
 
 				try{
 					if(!$block->updateText($this->player, $text)){
-						$this->player->getLevel()->sendBlocks([$this->player], [$block]);
+						$this->player->getWorld()->sendBlocks([$this->player], [$block]);
 					}
 				}catch(\UnexpectedValueException $e){
 					throw new BadPacketException($e->getMessage(), 0, $e);
@@ -475,7 +508,7 @@ class SimpleSessionHandler extends SessionHandler{
 				return true;
 			}
 
-			$this->player->getServer()->getLogger()->debug("Invalid sign update data from " . $this->player->getName() . ": " . base64_encode($packet->namedtag));
+			$this->session->getLogger()->debug("Invalid sign update data: " . base64_encode($packet->namedtag));
 		}
 
 		return false;
@@ -509,7 +542,7 @@ class SimpleSessionHandler extends SessionHandler{
 	}
 
 	public function handleItemFrameDropItem(ItemFrameDropItemPacket $packet) : bool{
-		$block = $this->player->getLevel()->getBlockAt($packet->x, $packet->y, $packet->z);
+		$block = $this->player->getWorld()->getBlockAt($packet->x, $packet->y, $packet->z);
 		if($block instanceof ItemFrame and $block->getFramedItem() !== null){
 			return $this->player->attackBlock(new Vector3($packet->x, $packet->y, $packet->z), $block->getFacing());
 		}
@@ -588,7 +621,7 @@ class SimpleSessionHandler extends SessionHandler{
 	}
 
 	public function handleLevelSoundEvent(LevelSoundEventPacket $packet) : bool{
-		$this->player->getLevel()->broadcastPacketToViewers($this->player->asVector3(), $packet);
+		$this->player->getWorld()->broadcastPacketToViewers($this->player->asVector3(), $packet);
 		return true;
 	}
 

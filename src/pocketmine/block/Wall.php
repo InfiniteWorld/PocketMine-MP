@@ -48,16 +48,8 @@ class Wall extends Transparent{
 	/** @var bool */
 	protected $up = false;
 
-	public function getToolType() : int{
-		return BlockToolType::TYPE_PICKAXE;
-	}
-
-	public function getToolHarvestLevel() : int{
-		return TieredTool::TIER_WOODEN;
-	}
-
-	public function getHardness() : float{
-		return 2;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(2.0, BlockToolType::TYPE_PICKAXE, TieredTool::TIER_WOODEN, 30.0));
 	}
 
 	public function readStateFromWorld() : void{
@@ -95,13 +87,11 @@ class Wall extends Transparent{
 			$inset = 0.3125;
 		}
 
-		return new AxisAlignedBB(
-			($west ? 0 : $inset),
-			0,
-			($north ? 0 : $inset),
-			1 - ($east ? 0 : $inset),
-			1.5,
-			1 - ($south ? 0 : $inset)
-		);
+		return AxisAlignedBB::one()
+			->extend(Facing::UP, 0.5)
+			->trim(Facing::NORTH, $north ? 0 : $inset)
+			->trim(Facing::SOUTH, $south ? 0 : $inset)
+			->trim(Facing::WEST, $west ? 0 : $inset)
+			->trim(Facing::EAST, $east ? 0 : $inset);
 	}
 }

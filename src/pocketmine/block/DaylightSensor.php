@@ -40,8 +40,8 @@ class DaylightSensor extends Transparent{
 	/** @var bool */
 	protected $inverted = false;
 
-	public function __construct(BlockIdentifierFlattened $idInfo, string $name){
-		parent::__construct($idInfo, $name);
+	public function __construct(BlockIdentifierFlattened $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.2, BlockToolType::TYPE_AXE));
 	}
 
 	public function getId() : int{
@@ -75,16 +75,8 @@ class DaylightSensor extends Transparent{
 		return $this;
 	}
 
-	public function getHardness() : float{
-		return 0.2;
-	}
-
 	public function getFuelTime() : int{
 		return 300;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_AXE;
 	}
 
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
@@ -93,7 +85,7 @@ class DaylightSensor extends Transparent{
 
 	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$this->inverted = !$this->inverted;
-		$this->level->setBlock($this, $this);
+		$this->world->setBlock($this, $this);
 		return true;
 	}
 

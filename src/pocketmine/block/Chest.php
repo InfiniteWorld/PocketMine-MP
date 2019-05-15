@@ -36,6 +36,10 @@ class Chest extends Transparent{
 	/** @var int */
 	protected $facing = Facing::NORTH;
 
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(2.5, BlockToolType::TYPE_AXE));
+	}
+
 	protected function writeStateToMeta() : int{
 		return $this->facing;
 	}
@@ -46,14 +50,6 @@ class Chest extends Transparent{
 
 	public function getStateBitmask() : int{
 		return 0b111;
-	}
-
-	public function getHardness() : float{
-		return 2.5;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_AXE;
 	}
 
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
@@ -67,7 +63,7 @@ class Chest extends Transparent{
 		}
 
 		if(parent::place($item, $blockReplace, $blockClicked, $face, $clickVector, $player)){
-			$tile = $this->level->getTile($this);
+			$tile = $this->world->getTile($this);
 			if($tile instanceof TileChest){
 				foreach([
 					Facing::rotateY($this->facing, true),
@@ -75,7 +71,7 @@ class Chest extends Transparent{
 				] as $side){
 					$c = $this->getSide($side);
 					if($c instanceof Chest and $c->isSameType($this) and $c->facing === $this->facing){
-						$pair = $this->level->getTile($c);
+						$pair = $this->world->getTile($c);
 						if($pair instanceof TileChest and !$pair->isPaired()){
 							$pair->pairWith($tile);
 							$tile->pairWith($pair);
@@ -94,7 +90,7 @@ class Chest extends Transparent{
 	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($player instanceof Player){
 
-			$chest = $this->getLevel()->getTile($this);
+			$chest = $this->getWorld()->getTile($this);
 			if($chest instanceof TileChest){
 				if(
 					!$this->getSide(Facing::UP)->isTransparent() or

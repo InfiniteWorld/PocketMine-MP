@@ -34,6 +34,10 @@ class Farmland extends Transparent{
 	/** @var int */
 	protected $wetness = 0; //"moisture" blockstate property in PC
 
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.6, BlockToolType::TYPE_SHOVEL));
+	}
+
 	protected function writeStateToMeta() : int{
 		return $this->wetness;
 	}
@@ -46,21 +50,13 @@ class Farmland extends Transparent{
 		return 0b111;
 	}
 
-	public function getHardness() : float{
-		return 0.6;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_SHOVEL;
-	}
-
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
 		return AxisAlignedBB::one(); //TODO: this should be trimmed at the top by 1/16, but MCPE currently treats them as a full block (https://bugs.mojang.com/browse/MCPE-12109)
 	}
 
 	public function onNearbyBlockChange() : void{
 		if($this->getSide(Facing::UP)->isSolid()){
-			$this->level->setBlock($this, BlockFactory::get(BlockLegacyIds::DIRT));
+			$this->world->setBlock($this, BlockFactory::get(BlockLegacyIds::DIRT));
 		}
 	}
 
@@ -72,13 +68,13 @@ class Farmland extends Transparent{
 		if(!$this->canHydrate()){
 			if($this->wetness > 0){
 				$this->wetness--;
-				$this->level->setBlock($this, $this, false);
+				$this->world->setBlock($this, $this, false);
 			}else{
-				$this->level->setBlock($this, BlockFactory::get(BlockLegacyIds::DIRT));
+				$this->world->setBlock($this, BlockFactory::get(BlockLegacyIds::DIRT));
 			}
 		}elseif($this->wetness < 7){
 			$this->wetness = 7;
-			$this->level->setBlock($this, $this, false);
+			$this->world->setBlock($this, $this, false);
 		}
 	}
 
@@ -89,7 +85,7 @@ class Farmland extends Transparent{
 		for($y = $start->y; $y <= $end->y; ++$y){
 			for($z = $start->z; $z <= $end->z; ++$z){
 				for($x = $start->x; $x <= $end->x; ++$x){
-					if($this->level->getBlockAt($x, $y, $z) instanceof Water){
+					if($this->world->getBlockAt($x, $y, $z) instanceof Water){
 						return true;
 					}
 				}

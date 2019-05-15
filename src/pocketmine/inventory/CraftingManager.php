@@ -26,7 +26,7 @@ namespace pocketmine\inventory;
 use pocketmine\item\Item;
 use pocketmine\network\mcpe\CompressBatchPromise;
 use pocketmine\network\mcpe\NetworkCompression;
-use pocketmine\network\mcpe\PacketStream;
+use pocketmine\network\mcpe\PacketBatch;
 use pocketmine\network\mcpe\protocol\CraftingDataPacket;
 use pocketmine\timings\Timings;
 use function array_map;
@@ -115,11 +115,8 @@ class CraftingManager{
 			$pk->addFurnaceRecipe($recipe);
 		}
 
-		$batch = new PacketStream();
-		$batch->putPacket($pk);
-
 		$this->craftingDataCache = new CompressBatchPromise();
-		$this->craftingDataCache->resolve(NetworkCompression::compress($batch->getBuffer()));
+		$this->craftingDataCache->resolve(NetworkCompression::compress(PacketBatch::fromPackets($pk)->getBuffer()));
 
 		Timings::$craftingDataCacheRebuildTimer->stopTiming();
 	}

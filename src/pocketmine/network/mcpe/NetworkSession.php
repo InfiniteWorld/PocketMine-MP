@@ -30,12 +30,12 @@ use pocketmine\event\server\DataPacketReceiveEvent;
 use pocketmine\event\server\DataPacketSendEvent;
 use pocketmine\form\Form;
 use pocketmine\GameMode;
-use pocketmine\level\Position;
 use pocketmine\math\Vector3;
 use pocketmine\network\BadPacketException;
 use pocketmine\network\mcpe\handler\DeathSessionHandler;
 use pocketmine\network\mcpe\handler\HandshakeSessionHandler;
 use pocketmine\network\mcpe\handler\LoginSessionHandler;
+use pocketmine\network\mcpe\handler\NullSessionHandler;
 use pocketmine\network\mcpe\handler\PreSpawnSessionHandler;
 use pocketmine\network\mcpe\handler\ResourcePacksSessionHandler;
 use pocketmine\network\mcpe\handler\SessionHandler;
@@ -50,7 +50,6 @@ use pocketmine\network\mcpe\protocol\ModalFormRequestPacket;
 use pocketmine\network\mcpe\protocol\MovePlayerPacket;
 use pocketmine\network\mcpe\protocol\NetworkChunkPublisherUpdatePacket;
 use pocketmine\network\mcpe\protocol\Packet;
-use pocketmine\network\mcpe\protocol\PacketPool;
 use pocketmine\network\mcpe\protocol\PlayStatusPacket;
 use pocketmine\network\mcpe\protocol\ServerboundPacket;
 use pocketmine\network\mcpe\protocol\ServerToClientHandshakePacket;
@@ -70,6 +69,8 @@ use pocketmine\PlayerInfo;
 use pocketmine\Server;
 use pocketmine\timings\Timings;
 use pocketmine\utils\BinaryDataException;
+use pocketmine\utils\Utils;
+use pocketmine\world\Position;
 use function bin2hex;
 use function count;
 use function get_class;
@@ -83,6 +84,8 @@ use function time;
 use function ucfirst;
 
 class NetworkSession{
+	/** @var \PrefixedLogger */
+	private $logger;
 	/** @var Server */
 	private $server;
 	/** @var Player|null */
@@ -117,7 +120,7 @@ class NetworkSession{
 	/** @var NetworkCipher */
 	private $cipher;
 
-	/** @var PacketStream|null */
+	/** @var PacketBatch|null */
 	private $sendBuffer;
 
 	/** @var \SplQueue|CompressBatchPromise[] */
@@ -130,6 +133,8 @@ class NetworkSession{
 		$this->ip = $ip;
 		$this->port = $port;
 
+		$this->logger = new \PrefixedLogger($this->server->getLogger(), $this->getLogPrefix());
+
 		$this->compressedQueue = new \SplQueue();
 
 		$this->connectTime = time();
@@ -137,6 +142,14 @@ class NetworkSession{
 		$this->setHandler(new LoginSessionHandler($this->server, $this));
 
 		$this->manager->add($this);
+	}
+
+	private function getLogPrefix() : string{
+		return "NetworkSession: " . $this->getDisplayName();
+	}
+
+	public function getLogger() : \Logger{
+		return $this->logger;
 	}
 
 	protected function createPlayer() : void{
@@ -170,6 +183,7 @@ class NetworkSession{
 			throw new \InvalidStateException("Player info has already been set");
 		}
 		$this->info = $info;
+		$this->logger->setPrefix($this->getLogPrefix());
 	}
 
 	public function isConnected() : bool{
@@ -242,7 +256,7 @@ class NetworkSession{
 			try{
 				$payload = $this->cipher->decrypt($payload);
 			}catch(\UnexpectedValueException $e){
-				$this->server->getLogger()->debug("Encrypted packet from " . $this->getDisplayName() . ": " . bin2hex($payload));
+				$this->logger->debug("Encrypted packet: " . bin2hex($payload));
 				throw new BadPacketException("Packet decryption error: " . $e->getMessage(), 0, $e);
 			}finally{
 				Timings::$playerNetworkReceiveDecryptTimer->stopTiming();
@@ -251,9 +265,9 @@ class NetworkSession{
 
 		Timings::$playerNetworkReceiveDecompressTimer->startTiming();
 		try{
-			$stream = new PacketStream(NetworkCompression::decompress($payload));
+			$stream = new PacketBatch(NetworkCompression::decompress($payload));
 		}catch(\ErrorException $e){
-			$this->server->getLogger()->debug("Failed to decompress packet from " . $this->getDisplayName() . ": " . bin2hex($payload));
+			$this->logger->debug("Failed to decompress packet: " . bin2hex($payload));
 			//TODO: this isn't incompatible game version if we already established protocol version
 			throw new BadPacketException("Compressed packet batch decode error (incompatible game version?)", 0, $e);
 		}finally{
@@ -266,16 +280,16 @@ class NetworkSession{
 				throw new BadPacketException("Too many packets in a single batch");
 			}
 			try{
-				$pk = PacketPool::getPacket($stream->getString());
+				$pk = $stream->getPacket();
 			}catch(BinaryDataException $e){
-				$this->server->getLogger()->debug("Packet batch from " . $this->getDisplayName() . ": " . bin2hex($stream->getBuffer()));
+				$this->logger->debug("Packet batch: " . bin2hex($stream->getBuffer()));
 				throw new BadPacketException("Packet batch decode error: " . $e->getMessage(), 0, $e);
 			}
 
 			try{
 				$this->handleDataPacket($pk);
 			}catch(BadPacketException $e){
-				$this->server->getLogger()->debug($pk->getName() . " from " . $this->getDisplayName() . ": " . bin2hex($pk->getBuffer()));
+				$this->logger->debug($pk->getName() . ": " . bin2hex($pk->getBuffer()));
 				throw new BadPacketException("Error processing " . $pk->getName() . ": " . $e->getMessage(), 0, $e);
 			}
 		}
@@ -298,13 +312,13 @@ class NetworkSession{
 			$packet->decode();
 			if(!$packet->feof() and !$packet->mayHaveUnreadBytes()){
 				$remains = substr($packet->getBuffer(), $packet->getOffset());
-				$this->server->getLogger()->debug("Still " . strlen($remains) . " bytes unread in " . $packet->getName() . ": " . bin2hex($remains));
+				$this->logger->debug("Still " . strlen($remains) . " bytes unread in " . $packet->getName() . ": " . bin2hex($remains));
 			}
 
 			$ev = new DataPacketReceiveEvent($this, $packet);
 			$ev->call();
 			if(!$ev->isCancelled() and !$packet->handle($this->handler)){
-				$this->server->getLogger()->debug("Unhandled " . $packet->getName() . " received from " . $this->getDisplayName() . ": " . bin2hex($packet->getBuffer()));
+				$this->logger->debug("Unhandled " . $packet->getName() . ": " . bin2hex($packet->getBuffer()));
 			}
 		}finally{
 			$timings->stopTiming();
@@ -346,7 +360,7 @@ class NetworkSession{
 		$timings->startTiming();
 		try{
 			if($this->sendBuffer === null){
-				$this->sendBuffer = new PacketStream();
+				$this->sendBuffer = new PacketBatch();
 			}
 			$this->sendBuffer->putPacket($packet);
 			$this->manager->scheduleUpdate($this); //schedule flush at end of tick
@@ -406,6 +420,7 @@ class NetworkSession{
 			$this->disconnectGuard = true;
 			$func();
 			$this->disconnectGuard = false;
+			$this->setHandler(NullSessionHandler::getInstance());
 			$this->connected = false;
 			$this->manager->remove($this);
 		}
@@ -511,13 +526,11 @@ class NetworkSession{
 				return false;
 			}
 
-			$this->server->getLogger()->debug($this->getDisplayName() . " is NOT logged into Xbox Live");
 			if($this->info->getXuid() !== ""){
-				$this->server->getLogger()->warning($this->getDisplayName() . " has an XUID, but their login keychain is not signed by Mojang");
+				$this->logger->warning("Found XUID, but login keychain is not signed by Mojang");
 			}
-		}else{
-			$this->server->getLogger()->debug($this->getDisplayName() . " is logged into Xbox Live");
 		}
+		$this->logger->debug("Xbox Live authenticated: " . ($this->authenticated ? "YES" : "NO"));
 
 		return $this->manager->kickDuplicates($this);
 	}
@@ -530,7 +543,7 @@ class NetworkSession{
 		$this->cipher = new NetworkCipher($encryptionKey);
 
 		$this->setHandler(new HandshakeSessionHandler($this));
-		$this->server->getLogger()->debug("Enabled encryption for " . $this->getDisplayName());
+		$this->logger->debug("Enabled encryption");
 	}
 
 	public function onLoginSuccess() : void{
@@ -540,7 +553,7 @@ class NetworkSession{
 		$pk->status = PlayStatusPacket::LOGIN_SUCCESS;
 		$this->sendDataPacket($pk);
 
-		$this->setHandler(new ResourcePacksSessionHandler($this->server, $this, $this->server->getResourcePackManager()));
+		$this->setHandler(new ResourcePacksSessionHandler($this, $this->server->getResourcePackManager()));
 	}
 
 	public function onResourcePacksDone() : void{
@@ -748,41 +761,35 @@ class NetworkSession{
 		return $this->sendDataPacket($pk);
 	}
 
-	public function startUsingChunk(int $chunkX, int $chunkZ, bool $spawn = false) : void{
-		ChunkCache::getInstance($this->player->getLevel())->request($chunkX, $chunkZ)->onResolve(
+	/**
+	 * Instructs the networksession to start using the chunk at the given coordinates. This may occur asynchronously.
+	 * @param int      $chunkX
+	 * @param int      $chunkZ
+	 * @param \Closure $onCompletion To be called when chunk sending has completed.
+	 */
+	public function startUsingChunk(int $chunkX, int $chunkZ, \Closure $onCompletion) : void{
+		Utils::validateCallableSignature(function(int $chunkX, int $chunkZ){}, $onCompletion);
+
+		ChunkCache::getInstance($this->player->getWorld())->request($chunkX, $chunkZ)->onResolve(
 
 			//this callback may be called synchronously or asynchronously, depending on whether the promise is resolved yet
-			function(CompressBatchPromise $promise) use($chunkX, $chunkZ, $spawn){
+			function(CompressBatchPromise $promise) use($chunkX, $chunkZ, $onCompletion){
 				if(!$this->isConnected()){
 					return;
 				}
-				$this->player->level->timings->syncChunkSendTimer->startTiming();
+				$this->player->world->timings->syncChunkSendTimer->startTiming();
 				try{
 					$this->queueCompressed($promise);
-
-					foreach($this->player->getLevel()->getChunkEntities($chunkX, $chunkZ) as $entity){
-						if($entity !== $this->player and !$entity->isClosed() and !$entity->isFlaggedForDespawn()){
-							$entity->spawnTo($this->player);
-						}
-					}
-
-					if($spawn){
-						//TODO: potential race condition during chunk sending could cause this to be called too early
-						$this->onTerrainReady();
-					}
+					$onCompletion($chunkX, $chunkZ);
 				}finally{
-					$this->player->level->timings->syncChunkSendTimer->stopTiming();
+					$this->player->world->timings->syncChunkSendTimer->stopTiming();
 				}
 			}
 		);
 	}
 
 	public function stopUsingChunk(int $chunkX, int $chunkZ) : void{
-		foreach($this->player->getLevel()->getChunkEntities($chunkX, $chunkZ) as $entity){
-			if($entity !== $this->player){
-				$entity->despawnFrom($this->player);
-			}
-		}
+
 	}
 
 	public function tick() : bool{

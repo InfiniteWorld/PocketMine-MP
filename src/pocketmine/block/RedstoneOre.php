@@ -37,8 +37,8 @@ class RedstoneOre extends Solid{
 	/** @var bool */
 	protected $lit = false;
 
-	public function __construct(BlockIdentifierFlattened $idInfo, string $name){
-		parent::__construct($idInfo, $name);
+	public function __construct(BlockIdentifierFlattened $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(3.0, BlockToolType::TYPE_PICKAXE, TieredTool::TIER_IRON));
 	}
 
 	public function getId() : int{
@@ -47,10 +47,6 @@ class RedstoneOre extends Solid{
 
 	public function readStateFromData(int $id, int $stateMeta) : void{
 		$this->lit = $id === $this->idInfo->getSecondId();
-	}
-
-	public function getHardness() : float{
-		return 3;
 	}
 
 	public function isLit() : bool{
@@ -72,13 +68,13 @@ class RedstoneOre extends Solid{
 	}
 
 	public function place(Item $item, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
-		return $this->getLevel()->setBlock($this, $this, false);
+		return $this->getWorld()->setBlock($this, $this, false);
 	}
 
 	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if(!$this->lit){
 			$this->lit = true;
-			$this->getLevel()->setBlock($this, $this); //no return here - this shouldn't prevent block placement
+			$this->getWorld()->setBlock($this, $this); //no return here - this shouldn't prevent block placement
 		}
 		return false;
 	}
@@ -86,7 +82,7 @@ class RedstoneOre extends Solid{
 	public function onNearbyBlockChange() : void{
 		if(!$this->lit){
 			$this->lit = true;
-			$this->getLevel()->setBlock($this, $this);
+			$this->getWorld()->setBlock($this, $this);
 		}
 	}
 
@@ -97,16 +93,8 @@ class RedstoneOre extends Solid{
 	public function onRandomTick() : void{
 		if($this->lit){
 			$this->lit = false;
-			$this->level->setBlock($this, $this);
+			$this->world->setBlock($this, $this);
 		}
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_PICKAXE;
-	}
-
-	public function getToolHarvestLevel() : int{
-		return TieredTool::TIER_IRON;
 	}
 
 	public function getDropsForCompatibleTool(Item $item) : array{

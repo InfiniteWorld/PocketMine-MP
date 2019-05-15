@@ -23,7 +23,7 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe;
 
-use pocketmine\level\format\Chunk;
+use pocketmine\world\format\Chunk;
 use pocketmine\network\mcpe\protocol\FullChunkDataPacket;
 use pocketmine\scheduler\AsyncTask;
 
@@ -57,10 +57,7 @@ class ChunkRequestTask extends AsyncTask{
 		$pk->chunkZ = $this->chunkZ;
 		$pk->data = $this->chunk;
 
-		$stream = new PacketStream();
-		$stream->putPacket($pk);
-
-		$this->setResult(NetworkCompression::compress($stream->getBuffer(), $this->compressionLevel));
+		$this->setResult(NetworkCompression::compress(PacketBatch::fromPackets($pk)->getBuffer(), $this->compressionLevel));
 	}
 
 	public function onError() : void{

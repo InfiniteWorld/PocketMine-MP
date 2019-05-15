@@ -31,8 +31,8 @@ use pocketmine\block\utils\TreeType;
 use pocketmine\item\Item;
 use pocketmine\item\ItemFactory;
 use pocketmine\item\ItemIds;
-use pocketmine\level\Position;
 use pocketmine\tile\Comparator;
+use pocketmine\world\Position;
 use function array_fill;
 use function array_filter;
 use function get_class;
@@ -95,7 +95,6 @@ class BlockFactory{
 		self::register(new Cobweb(new BID(BlockLegacyIds::COBWEB), "Cobweb"));
 		self::register(new CocoaBlock(new BID(BlockLegacyIds::COCOA), "Cocoa Block"));
 		self::register(new CraftingTable(new BID(BlockLegacyIds::CRAFTING_TABLE), "Crafting Table"));
-		self::register(new Dandelion(new BID(BlockLegacyIds::DANDELION), "Dandelion"));
 		self::register(new DaylightSensor(new BlockIdentifierFlattened(BlockLegacyIds::DAYLIGHT_DETECTOR, BlockLegacyIds::DAYLIGHT_DETECTOR_INVERTED), "Daylight Sensor"));
 		self::register(new DeadBush(new BID(BlockLegacyIds::DEADBUSH), "Dead Bush"));
 		self::register(new DetectorRail(new BID(BlockLegacyIds::DETECTOR_RAIL), "Detector Rail"));
@@ -119,6 +118,7 @@ class BlockFactory{
 		self::register(new EnderChest(new BID(BlockLegacyIds::ENDER_CHEST, 0, null, \pocketmine\tile\EnderChest::class), "Ender Chest"));
 		self::register(new Farmland(new BID(BlockLegacyIds::FARMLAND), "Farmland"));
 		self::register(new Fire(new BID(BlockLegacyIds::FIRE), "Fire Block"));
+		self::register(new Flower(new BID(BlockLegacyIds::DANDELION), "Dandelion"));
 		self::register(new Flower(new BID(BlockLegacyIds::RED_FLOWER, Flower::TYPE_ALLIUM), "Allium"));
 		self::register(new Flower(new BID(BlockLegacyIds::RED_FLOWER, Flower::TYPE_AZURE_BLUET), "Azure Bluet"));
 		self::register(new Flower(new BID(BlockLegacyIds::RED_FLOWER, Flower::TYPE_BLUE_ORCHID), "Blue Orchid"));
@@ -392,7 +392,7 @@ class BlockFactory{
 
 			self::register(new WoodenButton(new BID($woodenButtonIds[$treeType]), $treeType->getDisplayName() . " Button"));
 			self::register(new WoodenPressurePlate(new BID($woodenPressurePlateIds[$treeType]), $treeType->getDisplayName() . " Pressure Plate"));
-			self::register(new Trapdoor(new BID($woodenTrapdoorIds[$treeType]), $treeType->getDisplayName() . " Trapdoor"));
+			self::register(new WoodenTrapdoor(new BID($woodenTrapdoorIds[$treeType]), $treeType->getDisplayName() . " Trapdoor"));
 
 			self::register(new Sign($woodenSignIds[$treeType], $treeType->getDisplayName() . " Sign"));
 		}
@@ -612,7 +612,7 @@ class BlockFactory{
 		self::$fullList[$index] = $block;
 		self::$lightFilter[$index] = min(15, $block->getLightFilter() + 1); //opacity plus 1 standard light filter
 		self::$diffusesSkyLight[$index] = $block->diffusesSkyLight();
-		self::$blastResistance[$index] = $block->getBlastResistance();
+		self::$blastResistance[$index] = $block->getBreakInfo()->getBlastResistance();
 	}
 
 	/**
@@ -645,7 +645,7 @@ class BlockFactory{
 		}
 
 		if($pos !== null){
-			$block->position($pos->getLevel(), $pos->getFloorX(), $pos->getFloorY(), $pos->getFloorZ());
+			$block->position($pos->getWorld(), $pos->getFloorX(), $pos->getFloorY(), $pos->getFloorZ());
 		}
 
 		return $block;

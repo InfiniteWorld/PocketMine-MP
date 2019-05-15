@@ -28,10 +28,10 @@ use pocketmine\block\utils\FallableTrait;
 use pocketmine\event\block\BlockTeleportEvent;
 use pocketmine\item\Item;
 use pocketmine\item\TieredTool;
-use pocketmine\level\Level;
-use pocketmine\level\particle\DragonEggTeleportParticle;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
+use pocketmine\world\particle\DragonEggTeleportParticle;
+use pocketmine\world\World;
 use function max;
 use function min;
 use function mt_rand;
@@ -39,16 +39,8 @@ use function mt_rand;
 class DragonEgg extends Transparent implements Fallable{
 	use FallableTrait;
 
-	public function getHardness() : float{
-		return 3;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_PICKAXE;
-	}
-
-	public function getToolHarvestLevel() : int{
-		return TieredTool::TIER_WOODEN;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(3.0, BlockToolType::TYPE_PICKAXE, TieredTool::TIER_WOODEN));
 	}
 
 	public function getLightLevel() : int{
@@ -71,9 +63,9 @@ class DragonEgg extends Transparent implements Fallable{
 
 	protected function teleport() : void{
 		for($tries = 0; $tries < 16; ++$tries){
-			$block = $this->level->getBlockAt(
+			$block = $this->world->getBlockAt(
 				$this->x + mt_rand(-16, 16),
-				max(0, min(Level::Y_MAX - 1, $this->y + mt_rand(-8, 8))),
+				max(0, min(World::Y_MAX - 1, $this->y + mt_rand(-8, 8))),
 				$this->z + mt_rand(-16, 16)
 			);
 			if($block instanceof Air){
@@ -84,9 +76,9 @@ class DragonEgg extends Transparent implements Fallable{
 				}else{
 					$block = $ev->getTo();
 				}
-				$this->level->addParticle($this, new DragonEggTeleportParticle($this->x - $block->x, $this->y - $block->y, $this->z - $block->z));
-				$this->level->setBlock($this, BlockFactory::get(BlockLegacyIds::AIR));
-				$this->level->setBlock($block, $this);
+				$this->world->addParticle($this, new DragonEggTeleportParticle($this->x - $block->x, $this->y - $block->y, $this->z - $block->z));
+				$this->world->setBlock($this, BlockFactory::get(BlockLegacyIds::AIR));
+				$this->world->setBlock($block, $this);
 				break;
 			}
 		}

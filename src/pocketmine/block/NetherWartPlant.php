@@ -37,6 +37,10 @@ class NetherWartPlant extends Flowable{
 	/** @var int */
 	protected $age = 0;
 
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? BlockBreakInfo::instant());
+	}
+
 	protected function writeStateToMeta() : int{
 		return $this->age;
 	}
@@ -60,7 +64,7 @@ class NetherWartPlant extends Flowable{
 
 	public function onNearbyBlockChange() : void{
 		if($this->getSide(Facing::DOWN)->getId() !== BlockLegacyIds::SOUL_SAND){
-			$this->getLevel()->useBreakOn($this);
+			$this->getWorld()->useBreakOn($this);
 		}
 	}
 
@@ -75,7 +79,7 @@ class NetherWartPlant extends Flowable{
 			$ev = new BlockGrowEvent($this, $block);
 			$ev->call();
 			if(!$ev->isCancelled()){
-				$this->getLevel()->setBlock($this, $ev->getNewState());
+				$this->getWorld()->setBlock($this, $ev->getNewState());
 			}
 		}
 	}

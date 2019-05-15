@@ -27,9 +27,6 @@ use pocketmine\block\Block;
 use pocketmine\block\BlockToolType;
 
 class Shears extends Tool{
-	public function __construct(){
-		parent::__construct(self::SHEARS, 0, "Shears");
-	}
 
 	public function getMaxDurability() : int{
 		return 239;
@@ -48,9 +45,6 @@ class Shears extends Tool{
 	}
 
 	public function onDestroyBlock(Block $block) : bool{
-		if($block->getHardness() === 0 or $block->isCompatibleWithTool($this)){
-			return $this->applyDamage(1);
-		}
-		return false;
+		return $this->applyDamage(1);
 	}
 }

@@ -33,18 +33,14 @@ class Dirt extends Solid{
 	public const NORMAL = 0;
 	public const COARSE = 1;
 
-	public function getHardness() : float{
-		return 0.5;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_SHOVEL;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.5, BlockToolType::TYPE_SHOVEL));
 	}
 
 	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($face === Facing::UP and $item instanceof Hoe){
 			$item->applyDamage(1);
-			$this->getLevel()->setBlock($this, BlockFactory::get(BlockLegacyIds::FARMLAND));
+			$this->getWorld()->setBlock($this, BlockFactory::get(BlockLegacyIds::FARMLAND));
 
 			return true;
 		}

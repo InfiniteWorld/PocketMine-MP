@@ -53,8 +53,8 @@ class Sign extends Transparent{
 	/** @var SignText */
 	protected $text;
 
-	public function __construct(BlockIdentifierFlattened $idInfo, string $name){
-		parent::__construct($idInfo, $name);
+	public function __construct(BlockIdentifierFlattened $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(1.0, BlockToolType::TYPE_AXE));
 		$this->text = new SignText();
 	}
 
@@ -84,7 +84,7 @@ class Sign extends Transparent{
 
 	public function readStateFromWorld() : void{
 		parent::readStateFromWorld();
-		$tile = $this->level->getTile($this);
+		$tile = $this->world->getTile($this);
 		if($tile instanceof TileSign){
 			$this->text = $tile->getText();
 		}
@@ -92,17 +92,13 @@ class Sign extends Transparent{
 
 	public function writeStateToWorld() : void{
 		parent::writeStateToWorld();
-		$tile = $this->level->getTile($this);
+		$tile = $this->world->getTile($this);
 		assert($tile instanceof TileSign);
 		$tile->setText($this->text);
 	}
 
 	public function getStateBitmask() : int{
 		return 0b1111;
-	}
-
-	public function getHardness() : float{
-		return 1;
 	}
 
 	public function isSolid() : bool{
@@ -128,12 +124,8 @@ class Sign extends Transparent{
 
 	public function onNearbyBlockChange() : void{
 		if($this->getSide(Facing::opposite($this->facing))->getId() === BlockLegacyIds::AIR){
-			$this->getLevel()->useBreakOn($this);
+			$this->getWorld()->useBreakOn($this);
 		}
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_AXE;
 	}
 
 	/**
@@ -169,7 +161,7 @@ class Sign extends Transparent{
 		$ev->call();
 		if(!$ev->isCancelled()){
 			$this->text = clone $ev->getNewText();
-			$this->level->setBlock($this, $this);
+			$this->world->setBlock($this, $this);
 			return true;
 		}
 

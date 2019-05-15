@@ -32,17 +32,13 @@ class ConcretePowder extends Solid implements Fallable{
 		onNearbyBlockChange as protected startFalling;
 	}
 
-	public function getHardness() : float{
-		return 0.5;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_SHOVEL;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.5, BlockToolType::TYPE_SHOVEL));
 	}
 
 	public function onNearbyBlockChange() : void{
 		if(($block = $this->checkAdjacentWater()) !== null){
-			$this->level->setBlock($this, $block);
+			$this->world->setBlock($this, $block);
 		}else{
 			$this->startFalling();
 		}

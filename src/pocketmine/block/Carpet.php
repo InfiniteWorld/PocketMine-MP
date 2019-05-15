@@ -31,8 +31,8 @@ use pocketmine\Player;
 
 class Carpet extends Flowable{
 
-	public function getHardness() : float{
-		return 0.1;
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.1));
 	}
 
 	public function isSolid() : bool{
@@ -54,7 +54,7 @@ class Carpet extends Flowable{
 
 	public function onNearbyBlockChange() : void{
 		if($this->getSide(Facing::DOWN)->getId() === BlockLegacyIds::AIR){
-			$this->getLevel()->useBreakOn($this);
+			$this->getWorld()->useBreakOn($this);
 		}
 	}
 

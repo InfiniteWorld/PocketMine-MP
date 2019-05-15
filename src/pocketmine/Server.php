@@ -47,17 +47,9 @@ use pocketmine\item\ItemFactory;
 use pocketmine\lang\Language;
 use pocketmine\lang\LanguageNotFoundException;
 use pocketmine\lang\TextContainer;
-use pocketmine\level\biome\Biome;
-use pocketmine\level\format\io\LevelProviderManager;
-use pocketmine\level\format\io\WritableLevelProvider;
-use pocketmine\level\generator\Generator;
-use pocketmine\level\generator\GeneratorManager;
-use pocketmine\level\generator\normal\Normal;
-use pocketmine\level\Level;
-use pocketmine\level\LevelManager;
 use pocketmine\metadata\EntityMetadataStore;
-use pocketmine\metadata\LevelMetadataStore;
 use pocketmine\metadata\PlayerMetadataStore;
+use pocketmine\metadata\WorldMetadataStore;
 use pocketmine\nbt\BigEndianNbtSerializer;
 use pocketmine\nbt\NbtDataException;
 use pocketmine\nbt\tag\CompoundTag;
@@ -67,7 +59,7 @@ use pocketmine\network\mcpe\CompressBatchTask;
 use pocketmine\network\mcpe\NetworkCipher;
 use pocketmine\network\mcpe\NetworkCompression;
 use pocketmine\network\mcpe\NetworkSession;
-use pocketmine\network\mcpe\PacketStream;
+use pocketmine\network\mcpe\PacketBatch;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\PlayerListPacket;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
@@ -102,6 +94,14 @@ use pocketmine\utils\Terminal;
 use pocketmine\utils\TextFormat;
 use pocketmine\utils\Utils;
 use pocketmine\utils\UUID;
+use pocketmine\world\biome\Biome;
+use pocketmine\world\format\io\WorldProviderManager;
+use pocketmine\world\format\io\WritableWorldProvider;
+use pocketmine\world\generator\Generator;
+use pocketmine\world\generator\GeneratorManager;
+use pocketmine\world\generator\normal\Normal;
+use pocketmine\world\World;
+use pocketmine\world\WorldManager;
 use function array_key_exists;
 use function array_shift;
 use function array_sum;
@@ -238,8 +238,8 @@ class Server{
 	/** @var ResourcePackManager */
 	private $resourceManager;
 
-	/** @var LevelManager */
-	private $levelManager;
+	/** @var WorldManager */
+	private $worldManager;
 
 	/** @var int */
 	private $maxPlayers;
@@ -253,8 +253,8 @@ class Server{
 	/** @var PlayerMetadataStore */
 	private $playerMetadata;
 
-	/** @var LevelMetadataStore */
-	private $levelMetadata;
+	/** @var WorldMetadataStore */
+	private $worldMetadata;
 
 	/** @var Network */
 	private $network;
@@ -436,7 +436,7 @@ class Server{
 	}
 
 	/**
-	 * Returns Server global difficulty. Note that this may be overridden in individual Levels.
+	 * Returns Server global difficulty. Note that this may be overridden in individual worlds.
 	 * @return int
 	 */
 	public function getDifficulty() : int{
@@ -493,10 +493,10 @@ class Server{
 	}
 
 	/**
-	 * @return LevelMetadataStore
+	 * @return WorldMetadataStore
 	 */
-	public function getLevelMetadata(){
-		return $this->levelMetadata;
+	public function getWorldMetadata(){
+		return $this->worldMetadata;
 	}
 
 	/**
@@ -528,10 +528,10 @@ class Server{
 	}
 
 	/**
-	 * @return LevelManager
+	 * @return WorldManager
 	 */
-	public function getLevelManager() : LevelManager{
-		return $this->levelManager;
+	public function getWorldManager() : WorldManager{
+		return $this->worldManager;
 	}
 
 	public function getAsyncPool() : AsyncPool{
@@ -623,6 +623,7 @@ class Server{
 	 * @return bool
 	 */
 	public function hasOfflinePlayerData(string $name) : bool{
+		$name = strtolower($name);
 		return file_exists($this->getDataPath() . "players/$name.dat");
 	}
 
@@ -1130,7 +1131,7 @@ class Server{
 
 			$this->entityMetadata = new EntityMetadataStore();
 			$this->playerMetadata = new PlayerMetadataStore();
-			$this->levelMetadata = new LevelMetadataStore();
+			$this->worldMetadata = new WorldMetadataStore();
 
 			$this->operators = new Config($this->dataPath . "ops.txt", Config::ENUM);
 			$this->whitelist = new Config($this->dataPath . "white-list.txt", Config::ENUM);
@@ -1156,8 +1157,8 @@ class Server{
 				$this->logger->warning($this->getLanguage()->translateString("pocketmine.server.authProperty.disabled"));
 			}
 
-			if($this->getConfigBool("hardcore", false) and $this->getDifficulty() < Level::DIFFICULTY_HARD){
-				$this->setConfigInt("difficulty", Level::DIFFICULTY_HARD);
+			if($this->getConfigBool("hardcore", false) and $this->getDifficulty() < World::DIFFICULTY_HARD){
+				$this->setConfigInt("difficulty", World::DIFFICULTY_HARD);
 			}
 
 			if(\pocketmine\DEBUG >= 0){
@@ -1213,18 +1214,18 @@ class Server{
 			$this->pluginManager->registerInterface(new PharPluginLoader($this->autoloader));
 			$this->pluginManager->registerInterface(new ScriptPluginLoader());
 
-			LevelProviderManager::init();
+			WorldProviderManager::init();
 			if(
-				($format = LevelProviderManager::getProviderByName($formatName = (string) $this->getProperty("level-settings.default-format"))) !== null and
-				is_a($format, WritableLevelProvider::class, true)
+				($format = WorldProviderManager::getProviderByName($formatName = (string) $this->getProperty("level-settings.default-format"))) !== null and
+				is_a($format, WritableWorldProvider::class, true)
 			){
-				LevelProviderManager::setDefault($format);
+				WorldProviderManager::setDefault($format);
 			}elseif($formatName !== ""){
 				$this->logger->warning($this->language->translateString("pocketmine.level.badDefaultFormat", [$formatName]));
 			}
 
 			GeneratorManager::registerDefaultGenerators();
-			$this->levelManager = new LevelManager($this);
+			$this->worldManager = new WorldManager($this);
 
 			$this->updater = new AutoUpdater($this, $this->getProperty("auto-updater.host", "update.pmmp.io"));
 
@@ -1241,7 +1242,7 @@ class Server{
 				}elseif(!is_array($options)){
 					continue;
 				}
-				if(!$this->levelManager->loadLevel($name, true)){
+				if(!$this->worldManager->loadWorld($name, true)){
 					if(isset($options["generator"])){
 						$generatorOptions = explode(":", $options["generator"]);
 						$generator = GeneratorManager::getGenerator(array_shift($generatorOptions));
@@ -1252,19 +1253,19 @@ class Server{
 						$generator = Normal::class;
 					}
 
-					$this->levelManager->generateLevel($name, Generator::convertSeed((string) ($options["seed"] ?? "")), $generator, $options);
+					$this->worldManager->generateWorld($name, Generator::convertSeed((string) ($options["seed"] ?? "")), $generator, $options);
 				}
 			}
 
-			if($this->levelManager->getDefaultLevel() === null){
+			if($this->worldManager->getDefaultWorld() === null){
 				$default = $this->getConfigString("level-name", "world");
 				if(trim($default) == ""){
 					$this->getLogger()->warning("level-name cannot be null, using default");
 					$default = "world";
 					$this->setConfigString("level-name", "world");
 				}
-				if(!$this->levelManager->loadLevel($default, true)){
-					$this->levelManager->generateLevel(
+				if(!$this->worldManager->loadWorld($default, true)){
+					$this->worldManager->generateWorld(
 						$default,
 						Generator::convertSeed($this->getConfigString("level-seed")),
 						GeneratorManager::getGenerator($this->getConfigString("level-type")),
@@ -1272,14 +1273,14 @@ class Server{
 					);
 				}
 
-				$level = $this->levelManager->getLevelByName($default);
-				if($level === null){
+				$world = $this->worldManager->getWorldByName($default);
+				if($world === null){
 					$this->getLogger()->emergency($this->getLanguage()->translateString("pocketmine.level.defaultError"));
 					$this->forceShutdown();
 
 					return;
 				}
-				$this->levelManager->setDefaultLevel($level);
+				$this->worldManager->setDefaultWorld($world);
 			}
 
 			$this->enablePlugins(PluginLoadOrder::POSTWORLD());
@@ -1421,7 +1422,7 @@ class Server{
 
 		/** @var Player[] $recipients */
 		foreach($recipients as $recipient){
-			$recipient->addTitle($title, $subtitle, $fadeIn, $stay, $fadeOut);
+			$recipient->sendTitle($title, $subtitle, $fadeIn, $stay, $fadeOut);
 		}
 
 		return count($recipients);
@@ -1492,10 +1493,7 @@ class Server{
 		}
 		$recipients = $ev->getTargets();
 
-		$stream = new PacketStream();
-		foreach($ev->getPackets() as $packet){
-			$stream->putPacket($packet);
-		}
+		$stream = PacketBatch::fromPackets(...$ev->getPackets());
 
 		if(NetworkCompression::$THRESHOLD < 0 or strlen($stream->getBuffer()) < NetworkCompression::$THRESHOLD){
 			foreach($recipients as $target){
@@ -1516,12 +1514,12 @@ class Server{
 	/**
 	 * Broadcasts a list of packets in a batch to a list of players
 	 *
-	 * @param PacketStream $stream
-	 * @param bool         $forceSync
+	 * @param PacketBatch $stream
+	 * @param bool        $forceSync
 	 *
 	 * @return CompressBatchPromise
 	 */
-	public function prepareBatch(PacketStream $stream, bool $forceSync = false) : CompressBatchPromise{
+	public function prepareBatch(PacketBatch $stream, bool $forceSync = false) : CompressBatchPromise{
 		try{
 			Timings::$playerNetworkSendCompressTimer->startTiming();
 
@@ -1631,10 +1629,10 @@ class Server{
 				$this->network->getSessionManager()->close($this->getProperty("settings.shutdown-message", "Server closed"));
 			}
 
-			if($this->levelManager instanceof LevelManager){
+			if($this->worldManager instanceof WorldManager){
 				$this->getLogger()->debug("Unloading all worlds");
-				foreach($this->levelManager->getLevels() as $level){
-					$this->levelManager->unloadLevel($level, true);
+				foreach($this->worldManager->getWorlds() as $world){
+					$this->worldManager->unloadWorld($world, true);
 				}
 			}
 
@@ -1748,6 +1746,7 @@ class Server{
 					$p = $this->pluginManager->getPlugin($plugin);
 					if($p instanceof Plugin and !($p->getPluginLoader() instanceof PharPluginLoader)){
 						$this->logger->debug("Not sending crashdump due to caused by non-phar plugin");
+						$report = false;
 					}
 				}
 
@@ -1954,7 +1953,7 @@ class Server{
 		$this->asyncPool->collectTasks();
 		Timings::$schedulerAsyncTimer->stopTiming();
 
-		$this->levelManager->tick($this->tickCounter);
+		$this->worldManager->tick($this->tickCounter);
 
 		Timings::$connectionTimer->startTiming();
 		$this->network->tick();
@@ -1981,8 +1980,8 @@ class Server{
 		}
 
 		if(($this->tickCounter % 100) === 0){
-			foreach($this->levelManager->getLevels() as $level){
-				$level->clearCache();
+			foreach($this->worldManager->getWorlds() as $world){
+				$world->clearCache();
 			}
 
 			if($this->getTicksPerSecondAverage() < 12){

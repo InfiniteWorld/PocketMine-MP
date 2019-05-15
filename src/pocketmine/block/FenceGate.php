@@ -25,12 +25,12 @@ namespace pocketmine\block;
 
 use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
-use pocketmine\level\sound\DoorSound;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Bearing;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
+use pocketmine\world\sound\DoorSound;
 
 class FenceGate extends Transparent{
 	/** @var bool */
@@ -39,6 +39,10 @@ class FenceGate extends Transparent{
 	protected $facing = Facing::NORTH;
 	/** @var bool */
 	protected $inWall = false;
+
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(2.0, BlockToolType::TYPE_AXE));
+	}
 
 	protected function writeStateToMeta() : int{
 		return Bearing::fromFacing($this->facing) | ($this->open ? 0x04 : 0) | ($this->inWall ? 0x08 : 0);
@@ -53,15 +57,6 @@ class FenceGate extends Transparent{
 	public function getStateBitmask() : int{
 		return 0b1111;
 	}
-
-	public function getHardness() : float{
-		return 2;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_AXE;
-	}
-
 
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
 		if($this->open){
@@ -92,7 +87,7 @@ class FenceGate extends Transparent{
 		$inWall = $this->checkInWall();
 		if($inWall !== $this->inWall){
 			$this->inWall = $inWall;
-			$this->level->setBlock($this, $this);
+			$this->world->setBlock($this, $this);
 		}
 	}
 
@@ -105,8 +100,8 @@ class FenceGate extends Transparent{
 			}
 		}
 
-		$this->getLevel()->setBlock($this, $this);
-		$this->level->addSound($this, new DoorSound());
+		$this->getWorld()->setBlock($this, $this);
+		$this->world->addSound($this, new DoorSound());
 		return true;
 	}
 

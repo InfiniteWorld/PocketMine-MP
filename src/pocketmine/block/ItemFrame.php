@@ -45,6 +45,10 @@ class ItemFrame extends Flowable{
 	/** @var float */
 	protected $itemDropChance = 1.0;
 
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.25));
+	}
+
 	protected function writeStateToMeta() : int{
 		return (5 - $this->facing) | ($this->hasMap ? 0x04 : 0);
 	}
@@ -56,7 +60,7 @@ class ItemFrame extends Flowable{
 
 	public function readStateFromWorld() : void{
 		parent::readStateFromWorld();
-		$tile = $this->level->getTile($this);
+		$tile = $this->world->getTile($this);
 		if($tile instanceof TileItemFrame){
 			$this->framedItem = $tile->getItem();
 			if($this->framedItem->isNull()){
@@ -69,7 +73,7 @@ class ItemFrame extends Flowable{
 
 	public function writeStateToWorld() : void{
 		parent::writeStateToWorld();
-		$tile = $this->level->getTile($this);
+		$tile = $this->world->getTile($this);
 		if($tile instanceof TileItemFrame){
 			$tile->setItem($this->framedItem);
 			$tile->setItemRotation($this->itemRotation);
@@ -151,7 +155,7 @@ class ItemFrame extends Flowable{
 			return true;
 		}
 
-		$this->level->setBlock($this, $this);
+		$this->world->setBlock($this, $this);
 
 		return true;
 	}
@@ -161,16 +165,16 @@ class ItemFrame extends Flowable{
 			return false;
 		}
 		if(lcg_value() <= $this->itemDropChance){
-			$this->level->dropItem($this->add(0.5, 0.5, 0.5), $this->getFramedItem());
+			$this->world->dropItem($this->add(0.5, 0.5, 0.5), $this->getFramedItem());
 		}
 		$this->setFramedItem(null);
-		$this->level->setBlock($this, $this);
+		$this->world->setBlock($this, $this);
 		return true;
 	}
 
 	public function onNearbyBlockChange() : void{
 		if(!$this->getSide(Facing::opposite($this->facing))->isSolid()){
-			$this->level->useBreakOn($this);
+			$this->world->useBreakOn($this);
 		}
 	}
 
@@ -199,9 +203,5 @@ class ItemFrame extends Flowable{
 
 	public function isAffectedBySilkTouch() : bool{
 		return false;
-	}
-
-	public function getHardness() : float{
-		return 0.25;
 	}
 }

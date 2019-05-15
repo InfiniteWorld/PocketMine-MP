@@ -26,22 +26,19 @@ namespace pocketmine\item;
 use pocketmine\block\Block;
 use pocketmine\block\BlockFactory;
 use pocketmine\block\BlockLegacyIds;
-use pocketmine\level\sound\FlintSteelSound;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
+use pocketmine\world\sound\FlintSteelSound;
 use function assert;
 
 class FlintSteel extends Tool{
-	public function __construct(){
-		parent::__construct(self::FLINT_STEEL, 0, "Flint and Steel");
-	}
 
 	public function onActivate(Player $player, Block $blockReplace, Block $blockClicked, int $face, Vector3 $clickVector) : ItemUseResult{
 		if($blockReplace->getId() === BlockLegacyIds::AIR){
-			$level = $player->getLevel();
-			assert($level !== null);
-			$level->setBlock($blockReplace, BlockFactory::get(BlockLegacyIds::FIRE));
-			$level->addSound($blockReplace->add(0.5, 0.5, 0.5), new FlintSteelSound());
+			$world = $player->getWorld();
+			assert($world !== null);
+			$world->setBlock($blockReplace, BlockFactory::get(BlockLegacyIds::FIRE));
+			$world->addSound($blockReplace->add(0.5, 0.5, 0.5), new FlintSteelSound());
 
 			$this->applyDamage(1);
 

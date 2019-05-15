@@ -42,8 +42,8 @@ class RedstoneRepeater extends Flowable{
 	/** @var int */
 	protected $delay = 1;
 
-	public function __construct(BlockIdentifierFlattened $idInfo, string $name){
-		parent::__construct($idInfo, $name);
+	public function __construct(BlockIdentifierFlattened $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? BlockBreakInfo::instant());
 	}
 
 	public function getId() : int{
@@ -98,13 +98,13 @@ class RedstoneRepeater extends Flowable{
 		if(++$this->delay > 4){
 			$this->delay = 1;
 		}
-		$this->level->setBlock($this, $this);
+		$this->world->setBlock($this, $this);
 		return true;
 	}
 
 	public function onNearbyBlockChange() : void{
 		if($this->getSide(Facing::DOWN)->isTransparent()){
-			$this->level->useBreakOn($this);
+			$this->world->useBreakOn($this);
 		}
 	}
 

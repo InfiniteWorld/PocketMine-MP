@@ -25,13 +25,13 @@ namespace pocketmine\block;
 
 use pocketmine\block\utils\BlockDataValidator;
 use pocketmine\item\Item;
-use pocketmine\level\sound\DoorSound;
 use pocketmine\math\AxisAlignedBB;
 use pocketmine\math\Facing;
 use pocketmine\math\Vector3;
 use pocketmine\Player;
+use pocketmine\world\sound\DoorSound;
 
-class Trapdoor extends Transparent{
+abstract class Trapdoor extends Transparent{
 	private const MASK_UPPER = 0x04;
 	private const MASK_OPENED = 0x08;
 
@@ -58,10 +58,6 @@ class Trapdoor extends Transparent{
 		return 0b1111;
 	}
 
-	public function getHardness() : float{
-		return 3;
-	}
-
 	protected function recalculateBoundingBox() : ?AxisAlignedBB{
 		return AxisAlignedBB::one()->trim($this->open ? $this->facing : ($this->top ? Facing::DOWN : Facing::UP), 13 / 16);
 	}
@@ -79,16 +75,8 @@ class Trapdoor extends Transparent{
 
 	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		$this->open = !$this->open;
-		$this->level->setBlock($this, $this);
-		$this->level->addSound($this, new DoorSound());
+		$this->world->setBlock($this, $this);
+		$this->world->addSound($this, new DoorSound());
 		return true;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_AXE;
-	}
-
-	public function getFuelTime() : int{
-		return 300;
 	}
 }

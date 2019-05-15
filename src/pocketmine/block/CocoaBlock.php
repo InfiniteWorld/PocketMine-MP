@@ -42,6 +42,10 @@ class CocoaBlock extends Transparent{
 	/** @var int */
 	protected $age = 0;
 
+	public function __construct(BlockIdentifier $idInfo, string $name, ?BlockBreakInfo $breakInfo = null){
+		parent::__construct($idInfo, $name, $breakInfo ?? new BlockBreakInfo(0.2, BlockToolType::TYPE_AXE, 0, 15.0));
+	}
+
 	protected function writeStateToMeta() : int{
 		return Bearing::fromFacing(Facing::opposite($this->facing)) | ($this->age << 2);
 	}
@@ -53,14 +57,6 @@ class CocoaBlock extends Transparent{
 
 	public function getStateBitmask() : int{
 		return 0b1111;
-	}
-
-	public function getHardness() : float{
-		return 0.2;
-	}
-
-	public function getToolType() : int{
-		return BlockToolType::TYPE_AXE;
 	}
 
 	public function isAffectedBySilkTouch() : bool{
@@ -88,7 +84,7 @@ class CocoaBlock extends Transparent{
 	public function onInteract(Item $item, int $face, Vector3 $clickVector, ?Player $player = null) : bool{
 		if($this->age < 2 and $item instanceof Fertilizer){
 			$this->age++;
-			$this->level->setBlock($this, $this);
+			$this->world->setBlock($this, $this);
 
 			$item->pop();
 
@@ -101,7 +97,7 @@ class CocoaBlock extends Transparent{
 	public function onNearbyBlockChange() : void{
 		$side = $this->getSide(Facing::opposite($this->facing));
 		if(!($side instanceof Wood) or $side->getTreeType() !== TreeType::JUNGLE()){
-			$this->level->useBreakOn($this);
+			$this->world->useBreakOn($this);
 		}
 	}
 
@@ -112,7 +108,7 @@ class CocoaBlock extends Transparent{
 	public function onRandomTick() : void{
 		if($this->age < 2 and mt_rand(1, 5) === 1){
 			$this->age++;
-			$this->level->setBlock($this, $this);
+			$this->world->setBlock($this, $this);
 		}
 	}
 
