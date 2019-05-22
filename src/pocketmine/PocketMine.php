@@ -22,7 +22,7 @@
 declare(strict_types=1);
 
 namespace {
-	const INT32_MIN = PHP_INT_SIZE < 8 ? -0x7fffffff : -0x80000000; //Why do you do this, 32-bit :(
+	const INT32_MIN = PHP_INT_SIZE === 8 ? -0x80000000 : -0x7fffffff; //Why do you do this, 32-bit :(
 	const INT32_MAX = 0x7fffffff;
 }
 

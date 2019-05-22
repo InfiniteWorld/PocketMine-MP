@@ -171,10 +171,10 @@ class LoginPacket extends DataPacket implements ServerboundPacket{
 		}
 
 		$v = new Validator();
-		if(PHP_INT_SIZE < 8){
-			$v->required(self::I_CLIENT_RANDOM_ID)->string();
-		}else{
+		if(PHP_INT_SIZE === 8){
 			$v->required(self::I_CLIENT_RANDOM_ID)->integer();
+		}else{
+			$v->required(self::I_CLIENT_RANDOM_ID)->string();
 		}
 		$v->required(self::I_SERVER_ADDRESS)->string();
 		$v->required(self::I_LANGUAGE_CODE)->string();
