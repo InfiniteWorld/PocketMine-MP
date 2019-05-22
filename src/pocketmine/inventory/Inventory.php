@@ -56,15 +56,12 @@ interface Inventory{
 
 	/**
 	 * Puts an Item in a slot.
-	 * If a plugin refuses the update or $index is invalid, it'll return false
 	 *
 	 * @param int  $index
 	 * @param Item $item
 	 * @param bool $send
-	 *
-	 * @return bool
 	 */
-	public function setItem(int $index, Item $item, bool $send = true) : bool;
+	public function setItem(int $index, Item $item, bool $send = true) : void;
 
 	/**
 	 * Stores the given Items in the inventory. This will try to fill
@@ -182,10 +179,8 @@ interface Inventory{
 	 *
 	 * @param int  $index
 	 * @param bool $send
-	 *
-	 * @return bool
 	 */
-	public function clear(int $index, bool $send = true) : bool;
+	public function clear(int $index, bool $send = true) : void;
 
 	/**
 	 * Clears all the slots
@@ -231,12 +226,17 @@ interface Inventory{
 	public function slotExists(int $slot) : bool;
 
 	/**
-	 * @return null|\Closure
+	 * @param InventoryChangeListener ...$listeners
 	 */
-	public function getSlotChangeListener() : ?\Closure;
+	public function addChangeListeners(InventoryChangeListener ...$listeners) : void;
 
 	/**
-	 * @param \Closure|null $eventProcessor
+	 * @param InventoryChangeListener ...$listeners
 	 */
-	public function setSlotChangeListener(?\Closure $eventProcessor) : void;
+	public function removeChangeListeners(InventoryChangeListener ...$listeners) : void;
+
+	/**
+	 * @return InventoryChangeListener[]
+	 */
+	public function getChangeListeners() : array;
 }

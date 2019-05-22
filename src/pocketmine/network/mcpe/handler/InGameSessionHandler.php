@@ -23,7 +23,6 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\handler;
 
-use pocketmine\block\Block;
 use pocketmine\block\ItemFrame;
 use pocketmine\block\Sign;
 use pocketmine\block\utils\SignText;
@@ -92,10 +91,9 @@ use function preg_split;
 use function trim;
 
 /**
- * Temporary session handler implementation
- * TODO: split this up properly into different handlers
+ * This handler handles packets related to general gameplay.
  */
-class SimpleSessionHandler extends SessionHandler{
+class InGameSessionHandler extends SessionHandler{
 
 	/** @var Player */
 	private $player;
@@ -282,7 +280,9 @@ class SimpleSessionHandler extends SessionHandler{
 				}
 				return true;
 			case UseItemTransactionData::ACTION_CLICK_AIR:
-				$this->player->useHeldItem();
+				if(!$this->player->useHeldItem()){
+					$this->player->getInventory()->sendHeldItem($this->player);
+				}
 				return true;
 		}
 
@@ -298,16 +298,14 @@ class SimpleSessionHandler extends SessionHandler{
 	private function onFailedBlockAction(Vector3 $blockPos, ?int $face) : void{
 		$this->player->getInventory()->sendHeldItem($this->player);
 		if($blockPos->distanceSquared($this->player) < 10000){
-			$target = $this->player->getWorld()->getBlock($blockPos);
-
-			$blocks = $target->getAllSides();
+			$blocks = $blockPos->sidesArray();
 			if($face !== null){
-				$sideBlock = $target->getSide($face);
+				$sidePos = $blockPos->getSide($face);
 
-				/** @var Block[] $blocks */
-				array_push($blocks, ...$sideBlock->getAllSides()); //getAllSides() on each of these will include $target and $sideBlock because they are next to each other
+				/** @var Vector3[] $blocks */
+				array_push($blocks, ...$sidePos->sidesArray()); //getAllSides() on each of these will include $blockPos and $sidePos because they are next to each other
 			}else{
-				$blocks[] = $target;
+				$blocks[] = $blockPos;
 			}
 			$this->player->getWorld()->sendBlocks([$this->player], $blocks);
 		}
@@ -319,12 +317,17 @@ class SimpleSessionHandler extends SessionHandler{
 			return false;
 		}
 
+		//TODO: use transactiondata for rollbacks here
 		switch($data->getActionType()){
 			case UseItemOnEntityTransactionData::ACTION_INTERACT:
-				$this->player->interactEntity($target, $data->getClickPos());
+				if(!$this->player->interactEntity($target, $data->getClickPos())){
+					$this->player->getInventory()->sendHeldItem($this->player);
+				}
 				return true;
 			case UseItemOnEntityTransactionData::ACTION_ATTACK:
-				$this->player->attackEntity($target);
+				if(!$this->player->attackEntity($target)){
+					$this->player->getInventory()->sendHeldItem($this->player);
+				}
 				return true;
 		}
 
@@ -332,12 +335,17 @@ class SimpleSessionHandler extends SessionHandler{
 	}
 
 	private function handleReleaseItemTransaction(ReleaseItemTransactionData $data) : bool{
+		//TODO: use transactiondata for rollbacks here (resending entire inventory is very wasteful)
 		switch($data->getActionType()){
 			case ReleaseItemTransactionData::ACTION_RELEASE:
-				$this->player->releaseHeldItem();
+				if(!$this->player->releaseHeldItem()){
+					$this->player->getInventory()->sendContents($this->player);
+				}
 				return true;
 			case ReleaseItemTransactionData::ACTION_CONSUME:
-				$this->player->consumeHeldItem();
+				if(!$this->player->consumeHeldItem()){
+					$this->player->getInventory()->sendHeldItem($this->player);
+				}
 				return true;
 		}
 
@@ -345,7 +353,10 @@ class SimpleSessionHandler extends SessionHandler{
 	}
 
 	public function handleMobEquipment(MobEquipmentPacket $packet) : bool{
-		return $this->player->equipItem($packet->hotbarSlot);
+		if(!$this->player->equipItem($packet->hotbarSlot)){
+			$this->player->getInventory()->sendHeldItem($this->player);
+		}
+		return true;
 	}
 
 	public function handleMobArmorEquipment(MobArmorEquipmentPacket $packet) : bool{
@@ -377,7 +388,9 @@ class SimpleSessionHandler extends SessionHandler{
 
 		switch($packet->action){
 			case PlayerActionPacket::ACTION_START_BREAK:
-				$this->player->attackBlock($pos, $packet->face);
+				if(!$this->player->attackBlock($pos, $packet->face)){
+					$this->onFailedBlockAction($pos, $packet->face);
+				}
 
 				break;
 

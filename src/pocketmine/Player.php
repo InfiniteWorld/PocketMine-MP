@@ -74,7 +74,6 @@ use pocketmine\inventory\CraftingGrid;
 use pocketmine\inventory\Inventory;
 use pocketmine\inventory\PlayerCursorInventory;
 use pocketmine\item\Consumable;
-use pocketmine\item\Durable;
 use pocketmine\item\enchantment\EnchantmentInstance;
 use pocketmine\item\enchantment\MeleeWeaponEnchantment;
 use pocketmine\item\Item;
@@ -184,7 +183,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	/** @var PlayerInfo */
 	protected $playerInfo;
 
-	protected $windowCnt = 2;
+	protected $lastInventoryNetworkId = 2;
 	/** @var int[] */
 	protected $windows = [];
 	/** @var Inventory[] */
@@ -1723,15 +1722,13 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	}
 
 	public function equipItem(int $hotbarSlot) : bool{
-		if(!$this->inventory->isHotbarSlot($hotbarSlot)){
-			$this->inventory->sendContents($this);
+		if(!$this->inventory->isHotbarSlot($hotbarSlot)){ //TODO: exception here?
 			return false;
 		}
 
 		$ev = new PlayerItemHeldEvent($this, $this->inventory->getItem($hotbarSlot), $hotbarSlot);
 		$ev->call();
 		if($ev->isCancelled()){
-			$this->inventory->sendHeldItem($this);
 			return false;
 		}
 
@@ -1758,18 +1755,17 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		$ev->call();
 
 		if($ev->isCancelled()){
-			$this->inventory->sendHeldItem($this);
 			return false;
 		}
 
 		$result = $item->onClickAir($this, $directionVector);
-		if($result === ItemUseResult::SUCCESS()){
-			$this->resetItemCooldown($item);
-			if($this->hasFiniteResources()){
-				$this->inventory->setItemInHand($item);
-			}
-		}elseif($result === ItemUseResult::FAIL()){
-			$this->inventory->sendHeldItem($this);
+		if($result !== ItemUseResult::SUCCESS()){
+			return false;
+		}
+
+		$this->resetItemCooldown($item);
+		if($this->hasFiniteResources()){
+			$this->inventory->setItemInHand($item);
 		}
 
 		//TODO: check if item has a release action - if it doesn't, this shouldn't be set
@@ -1781,7 +1777,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	/**
 	 * Consumes the currently-held item.
 	 *
-	 * @return bool
+	 * @return bool if the consumption succeeded.
 	 */
 	public function consumeHeldItem() : bool{
 		$slot = $this->inventory->getItemInHand();
@@ -1793,8 +1789,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 			$ev->call();
 
 			if($ev->isCancelled() or !$this->consumeObject($slot)){
-				$this->inventory->sendContents($this);
-				return true;
+				return false;
 			}
 
 			$this->resetItemCooldown($slot);
@@ -1818,22 +1813,16 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	 */
 	public function releaseHeldItem() : bool{
 		try{
-			if($this->isUsingItem()){
-				$item = $this->inventory->getItemInHand();
-				if($this->hasItemCooldown($item)){
-					$this->inventory->sendContents($this);
-					return false;
-				}
-				$result = $item->onReleaseUsing($this);
-				if($result === ItemUseResult::SUCCESS()){
-					$this->resetItemCooldown($item);
-					$this->inventory->setItemInHand($item);
-					return true;
-				}
-				if($result === ItemUseResult::FAIL()){
-					$this->inventory->sendContents($this);
-					return true;
-				}
+			$item = $this->inventory->getItemInHand();
+			if(!$this->isUsingItem() or $this->hasItemCooldown($item)){
+				return false;
+			}
+
+			$result = $item->onReleaseUsing($this);
+			if($result === ItemUseResult::SUCCESS()){
+				$this->resetItemCooldown($item);
+				$this->inventory->setItemInHand($item);
+				return true;
 			}
 
 			return false;
@@ -1894,7 +1883,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	 * @param Vector3 $pos
 	 * @param int     $face
 	 *
-	 * @return bool
+	 * @return bool if an action took place successfully
 	 */
 	public function attackBlock(Vector3 $pos, int $face) : bool{
 		if($pos->distanceSquared($this) > 10000){
@@ -1906,9 +1895,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		$ev = new PlayerInteractEvent($this, $this->inventory->getItemInHand(), $target, null, $face, PlayerInteractEvent::LEFT_CLICK_BLOCK);
 		$ev->call();
 		if($ev->isCancelled()){
-			$this->world->sendBlocks([$this], [$target]);
-			$this->inventory->sendHeldItem($this);
-			return true;
+			return false;
 		}
 		if($target->onAttack($this->inventory->getItemInHand(), $face, $this)){
 			return true;
@@ -2037,9 +2024,6 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 		$entity->attack($ev);
 
 		if($ev->isCancelled()){
-			if($heldItem instanceof Durable and $this->hasFiniteResources()){
-				$this->inventory->sendContents($this);
-			}
 			return false;
 		}
 
@@ -2826,7 +2810,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	 * player is already viewing the specified inventory.
 	 *
 	 * @param Inventory $inventory
-	 * @param int|null  $forceId Forces a special ID for the window
+	 * @param int|null  $forceNetworkId Forces a special ID for the window
 	 * @param bool      $isPermanent Prevents the window being removed if true.
 	 *
 	 * @return int
@@ -2834,34 +2818,34 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	 * @throws \InvalidArgumentException if a forceID which is already in use is specified
 	 * @throws \InvalidStateException if trying to add a window without forceID when no slots are free
 	 */
-	public function addWindow(Inventory $inventory, ?int $forceId = null, bool $isPermanent = false) : int{
+	public function addWindow(Inventory $inventory, ?int $forceNetworkId = null, bool $isPermanent = false) : int{
 		if(($id = $this->getWindowId($inventory)) !== ContainerIds::NONE){
 			return $id;
 		}
 
-		if($forceId === null){
-			$cnt = $this->windowCnt;
+		if($forceNetworkId === null){
+			$networkId = $this->lastInventoryNetworkId;
 			do{
-				$cnt = max(ContainerIds::FIRST, ($cnt + 1) % ContainerIds::LAST);
-				if($cnt === $this->windowCnt){ //wraparound, no free slots
+				$networkId = max(ContainerIds::FIRST, ($networkId + 1) % ContainerIds::LAST);
+				if($networkId === $this->lastInventoryNetworkId){ //wraparound, no free slots
 					throw new \InvalidStateException("No free window IDs found");
 				}
-			}while(isset($this->windowIndex[$cnt]));
-			$this->windowCnt = $cnt;
+			}while(isset($this->windowIndex[$networkId]));
+			$this->lastInventoryNetworkId = $networkId;
 		}else{
-			$cnt = $forceId;
-			if(isset($this->windowIndex[$cnt])){
-				throw new \InvalidArgumentException("Requested force ID $forceId already in use");
+			$networkId = $forceNetworkId;
+			if(isset($this->windowIndex[$networkId])){
+				throw new \InvalidArgumentException("Requested force ID $forceNetworkId already in use");
 			}
 		}
 
-		$this->windowIndex[$cnt] = $inventory;
-		$this->windows[spl_object_id($inventory)] = $cnt;
+		$this->windowIndex[$networkId] = $inventory;
+		$this->windows[spl_object_id($inventory)] = $networkId;
 		if($inventory->open($this)){
 			if($isPermanent){
-				$this->permanentWindows[$cnt] = true;
+				$this->permanentWindows[spl_object_id($inventory)] = true;
 			}
-			return $cnt;
+			return $networkId;
 		}else{
 			$this->removeWindow($inventory);
 
@@ -2878,15 +2862,15 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	 * @throws \InvalidArgumentException if trying to remove a fixed inventory window without the `force` parameter as true
 	 */
 	public function removeWindow(Inventory $inventory, bool $force = false){
-		$id = $this->windows[$hash = spl_object_id($inventory)] ?? null;
-
-		if($id !== null and !$force and isset($this->permanentWindows[$id])){
-			throw new \InvalidArgumentException("Cannot remove fixed window $id (" . get_class($inventory) . ") from " . $this->getName());
+		$objectId = spl_object_id($inventory);
+		if(!$force and isset($this->permanentWindows[$objectId])){
+			throw new \InvalidArgumentException("Cannot remove fixed window " . get_class($inventory) . " from " . $this->getName());
 		}
 
-		if($id !== null){
+		$networkId = $this->windows[$objectId] ?? null;
+		if($networkId !== null){
 			$inventory->close($this);
-			unset($this->windows[$hash], $this->windowIndex[$id], $this->permanentWindows[$id]);
+			unset($this->windows[$objectId], $this->windowIndex[$networkId], $this->permanentWindows[$objectId]);
 		}
 	}
 
@@ -2896,8 +2880,8 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	 * @param bool $removePermanentWindows Whether to remove permanent windows.
 	 */
 	public function removeAllWindows(bool $removePermanentWindows = false){
-		foreach($this->windowIndex as $id => $window){
-			if(!$removePermanentWindows and isset($this->permanentWindows[$id])){
+		foreach($this->windowIndex as $networkId => $window){
+			if(!$removePermanentWindows and isset($this->permanentWindows[spl_object_id($window)])){
 				continue;
 			}
 
@@ -2906,7 +2890,7 @@ class Player extends Human implements CommandSender, ChunkLoader, ChunkListener,
 	}
 
 	public function sendAllInventories(){
-		foreach($this->windowIndex as $id => $inventory){
+		foreach($this->windowIndex as $networkId => $inventory){
 			$inventory->sendContents($this);
 		}
 	}

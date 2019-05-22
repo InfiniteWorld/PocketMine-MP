@@ -30,21 +30,25 @@ use pocketmine\event\server\DataPacketReceiveEvent;
 use pocketmine\event\server\DataPacketSendEvent;
 use pocketmine\form\Form;
 use pocketmine\GameMode;
+use pocketmine\inventory\Inventory;
 use pocketmine\math\Vector3;
 use pocketmine\network\BadPacketException;
 use pocketmine\network\mcpe\handler\DeathSessionHandler;
 use pocketmine\network\mcpe\handler\HandshakeSessionHandler;
+use pocketmine\network\mcpe\handler\InGameSessionHandler;
 use pocketmine\network\mcpe\handler\LoginSessionHandler;
 use pocketmine\network\mcpe\handler\NullSessionHandler;
 use pocketmine\network\mcpe\handler\PreSpawnSessionHandler;
 use pocketmine\network\mcpe\handler\ResourcePacksSessionHandler;
 use pocketmine\network\mcpe\handler\SessionHandler;
-use pocketmine\network\mcpe\handler\SimpleSessionHandler;
 use pocketmine\network\mcpe\protocol\AdventureSettingsPacket;
 use pocketmine\network\mcpe\protocol\AvailableCommandsPacket;
 use pocketmine\network\mcpe\protocol\ChunkRadiusUpdatedPacket;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\DisconnectPacket;
+use pocketmine\network\mcpe\protocol\InventoryContentPacket;
+use pocketmine\network\mcpe\protocol\InventorySlotPacket;
+use pocketmine\network\mcpe\protocol\MobArmorEquipmentPacket;
 use pocketmine\network\mcpe\protocol\MobEffectPacket;
 use pocketmine\network\mcpe\protocol\ModalFormRequestPacket;
 use pocketmine\network\mcpe\protocol\MovePlayerPacket;
@@ -60,6 +64,7 @@ use pocketmine\network\mcpe\protocol\TransferPacket;
 use pocketmine\network\mcpe\protocol\types\CommandData;
 use pocketmine\network\mcpe\protocol\types\CommandEnum;
 use pocketmine\network\mcpe\protocol\types\CommandParameter;
+use pocketmine\network\mcpe\protocol\types\ContainerIds;
 use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
 use pocketmine\network\mcpe\protocol\UpdateAttributesPacket;
 use pocketmine\network\NetworkInterface;
@@ -569,7 +574,7 @@ class NetworkSession{
 	}
 
 	public function onSpawn() : void{
-		$this->setHandler(new SimpleSessionHandler($this->player, $this));
+		$this->setHandler(new InGameSessionHandler($this->player, $this));
 	}
 
 	public function onDeath() : void{
@@ -577,7 +582,7 @@ class NetworkSession{
 	}
 
 	public function onRespawn() : void{
-		$this->setHandler(new SimpleSessionHandler($this->player, $this));
+		$this->setHandler(new InGameSessionHandler($this->player, $this));
 	}
 
 	public function syncMovement(Vector3 $pos, ?float $yaw = null, ?float $pitch = null, int $mode = MovePlayerPacket::MODE_NORMAL) : void{
@@ -790,6 +795,34 @@ class NetworkSession{
 
 	public function stopUsingChunk(int $chunkX, int $chunkZ) : void{
 
+	}
+
+	public function syncInventorySlot(Inventory $inventory, int $slot) : void{
+		$windowId = $this->player->getWindowId($inventory);
+		if($windowId !== ContainerIds::NONE){
+			$pk = new InventorySlotPacket();
+			$pk->inventorySlot = $slot;
+			$pk->item = $inventory->getItem($slot);
+			$pk->windowId = $windowId;
+			$this->sendDataPacket($pk);
+		}
+	}
+
+	public function syncInventoryContents(Inventory $inventory) : void{
+		$windowId = $this->player->getWindowId($inventory);
+		if($windowId !== ContainerIds::NONE){
+			$pk = new InventoryContentPacket();
+			$pk->items = $inventory->getContents(true);
+			$pk->windowId = $windowId;
+			$this->sendDataPacket($pk);
+		}
+	}
+
+	public function onMobArmorChange(Living $mob) : void{
+		$pk = new MobArmorEquipmentPacket();
+		$pk->entityRuntimeId = $mob->getId();
+		$pk->slots = $mob->getArmorInventory()->getContents(true); //beware this order might change in the future
+		$this->sendDataPacket($pk);
 	}
 
 	public function tick() : bool{

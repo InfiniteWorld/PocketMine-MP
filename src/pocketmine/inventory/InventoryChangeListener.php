@@ -21,8 +21,18 @@
 
 declare(strict_types=1);
 
-namespace pocketmine\event\entity;
+namespace pocketmine\inventory;
 
-class EntityArmorChangeEvent extends EntityInventoryChangeEvent{
+/**
+ * Classes implementing this interface can be injected into inventories to receive notifications when content changes
+ * occur.
+ * @see CallbackInventoryChangeListener for a closure-based listener
+ * @see Inventory::addChangeListeners()
+ * @see Inventory::removeChangeListeners()
+ */
+interface InventoryChangeListener{
 
+	public function onSlotChange(Inventory $inventory, int $slot) : void;
+
+	public function onContentChange(Inventory $inventory) : void;
 }

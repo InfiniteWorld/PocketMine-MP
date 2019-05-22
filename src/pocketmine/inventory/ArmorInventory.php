@@ -25,12 +25,6 @@ namespace pocketmine\inventory;
 
 use pocketmine\entity\Living;
 use pocketmine\item\Item;
-use pocketmine\network\mcpe\protocol\InventoryContentPacket;
-use pocketmine\network\mcpe\protocol\InventorySlotPacket;
-use pocketmine\network\mcpe\protocol\MobArmorEquipmentPacket;
-use pocketmine\Player;
-use function array_merge;
-use function array_search;
 
 class ArmorInventory extends BaseInventory{
 	public const SLOT_HEAD = 0;
@@ -66,71 +60,19 @@ class ArmorInventory extends BaseInventory{
 		return $this->getItem(self::SLOT_FEET);
 	}
 
-	public function setHelmet(Item $helmet) : bool{
-		return $this->setItem(self::SLOT_HEAD, $helmet);
+	public function setHelmet(Item $helmet) : void{
+		$this->setItem(self::SLOT_HEAD, $helmet);
 	}
 
-	public function setChestplate(Item $chestplate) : bool{
-		return $this->setItem(self::SLOT_CHEST, $chestplate);
+	public function setChestplate(Item $chestplate) : void{
+		$this->setItem(self::SLOT_CHEST, $chestplate);
 	}
 
-	public function setLeggings(Item $leggings) : bool{
-		return $this->setItem(self::SLOT_LEGS, $leggings);
+	public function setLeggings(Item $leggings) : void{
+		$this->setItem(self::SLOT_LEGS, $leggings);
 	}
 
-	public function setBoots(Item $boots) : bool{
-		return $this->setItem(self::SLOT_FEET, $boots);
-	}
-
-	public function sendSlot(int $index, $target) : void{
-		if($target instanceof Player){
-			$target = [$target];
-		}
-
-		/** @var Player[] $target */
-
-		if(($k = array_search($this->holder, $target, true)) !== false){
-			$pk = new InventorySlotPacket();
-			$pk->windowId = $target[$k]->getWindowId($this);
-			$pk->inventorySlot = $index;
-			$pk->item = $this->getItem($index);
-			$target[$k]->sendDataPacket($pk);
-			unset($target[$k]);
-		}
-		if(!empty($target)){
-			$pk = new MobArmorEquipmentPacket();
-			$pk->entityRuntimeId = $this->getHolder()->getId();
-			$pk->slots = $this->getContents(true);
-			$this->holder->getWorld()->getServer()->broadcastPacket($target, $pk);
-		}
-	}
-
-	public function sendContents($target) : void{
-		if($target instanceof Player){
-			$target = [$target];
-		}
-
-		$armor = $this->getContents(true);
-
-		if(($k = array_search($this->holder, $target, true)) !== false){
-			$pk = new InventoryContentPacket();
-			$pk->windowId = $target[$k]->getWindowId($this);
-			$pk->items = $armor;
-			$target[$k]->sendDataPacket($pk);
-			unset($target[$k]);
-		}
-		if(!empty($target)){
-			$pk = new MobArmorEquipmentPacket();
-			$pk->entityRuntimeId = $this->getHolder()->getId();
-			$pk->slots = $armor;
-			$this->holder->getWorld()->getServer()->broadcastPacket($target, $pk);
-		}
-	}
-
-	/**
-	 * @return Player[]
-	 */
-	public function getViewers() : array{
-		return array_merge(parent::getViewers(), $this->holder->getViewers());
+	public function setBoots(Item $boots) : void{
+		$this->setItem(self::SLOT_FEET, $boots);
 	}
 }

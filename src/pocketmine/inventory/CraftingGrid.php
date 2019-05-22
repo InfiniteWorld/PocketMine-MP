@@ -61,22 +61,9 @@ class CraftingGrid extends BaseInventory{
 		throw new \BadMethodCallException("Cannot change the size of a crafting grid");
 	}
 
-	public function setItem(int $index, Item $item, bool $send = true) : bool{
-		if(parent::setItem($index, $item, $send)){
-			$this->seekRecipeBounds();
-
-			return true;
-		}
-
-		return false;
-	}
-
-	public function sendSlot(int $index, $target) : void{
-		//we can't send a slot of a client-sided inventory window
-	}
-
-	public function sendContents($target) : void{
-		//no way to do this
+	public function setItem(int $index, Item $item, bool $send = true) : void{
+		parent::setItem($index, $item, $send);
+		$this->seekRecipeBounds();
 	}
 
 	/**

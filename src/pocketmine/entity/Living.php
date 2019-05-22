@@ -26,7 +26,6 @@ namespace pocketmine\entity;
 use pocketmine\block\Block;
 use pocketmine\entity\effect\Effect;
 use pocketmine\entity\effect\EffectInstance;
-use pocketmine\event\entity\EntityArmorChangeEvent;
 use pocketmine\event\entity\EntityDamageByChildEntityEvent;
 use pocketmine\event\entity\EntityDamageByEntityEvent;
 use pocketmine\event\entity\EntityDamageEvent;
@@ -34,6 +33,7 @@ use pocketmine\event\entity\EntityDeathEvent;
 use pocketmine\event\entity\EntityEffectAddEvent;
 use pocketmine\event\entity\EntityEffectRemoveEvent;
 use pocketmine\inventory\ArmorInventory;
+use pocketmine\inventory\CallbackInventoryChangeListener;
 use pocketmine\inventory\Inventory;
 use pocketmine\item\Armor;
 use pocketmine\item\Consumable;
@@ -96,15 +96,13 @@ abstract class Living extends Entity implements Damageable{
 
 		$this->armorInventory = new ArmorInventory($this);
 		//TODO: load/save armor inventory contents
-		$this->armorInventory->setSlotChangeListener(function(Inventory $inventory, int $slot, Item $oldItem, Item $newItem) : ?Item{
-			$ev = new EntityArmorChangeEvent($this, $oldItem, $newItem, $slot);
-			$ev->call();
-			if($ev->isCancelled()){
-				return null;
+		$this->armorInventory->addChangeListeners(CallbackInventoryChangeListener::onAnyChange(
+			function(Inventory $unused) : void{
+				foreach($this->getViewers() as $viewer){
+					$viewer->getNetworkSession()->onMobArmorChange($this);
+				}
 			}
-
-			return $ev->getNewItem();
-		});
+		));
 
 		$health = $this->getMaxHealth();
 
@@ -925,7 +923,7 @@ abstract class Living extends Entity implements Damageable{
 	protected function sendSpawnPacket(Player $player) : void{
 		parent::sendSpawnPacket($player);
 
-		$this->armorInventory->sendContents($player);
+		$player->getNetworkSession()->onMobArmorChange($this);
 	}
 
 	protected function onDispose() : void{
