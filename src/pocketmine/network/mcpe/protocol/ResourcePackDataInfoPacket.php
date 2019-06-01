@@ -38,7 +38,7 @@ class ResourcePackDataInfoPacket extends DataPacket implements ClientboundPacket
 	public $maxChunkSize;
 	/** @var int */
 	public $chunkCount;
-	/** @var int */
+	/** @var int|string */
 	public $compressedPackSize;
 	/** @var string */
 	public $sha256;

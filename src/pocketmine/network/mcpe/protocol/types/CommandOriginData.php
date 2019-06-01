@@ -47,6 +47,6 @@ class CommandOriginData{
 	/** @var string */
 	public $requestId;
 
-	/** @var int */
+	/** @var int|string */
 	public $varlong1;
 }

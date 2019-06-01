@@ -131,7 +131,7 @@ class StartGamePacket extends DataPacket implements ClientboundPacket{
 	public $premiumWorldTemplateId = "";
 	/** @var bool */
 	public $isTrial = false;
-	/** @var int */
+	/** @var int|string */
 	public $currentTick = 0; //only used if isTrial is true
 	/** @var int */
 	public $enchantmentSeed = 0;

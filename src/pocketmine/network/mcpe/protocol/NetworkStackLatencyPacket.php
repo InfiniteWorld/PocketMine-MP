@@ -30,7 +30,7 @@ use pocketmine\network\mcpe\handler\SessionHandler;
 class NetworkStackLatencyPacket extends DataPacket implements ClientboundPacket, ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::NETWORK_STACK_LATENCY_PACKET;
 
-	/** @var int */
+	/** @var int|string */
 	public $timestamp;
 	/** @var bool */
 	public $needResponse;

@@ -24,9 +24,9 @@ declare(strict_types=1);
 namespace pocketmine\network\mcpe\protocol\types;
 
 class ScoreboardIdentityPacketEntry{
-	/** @var int */
+	/** @var int|string */
 	public $scoreboardId;
-	/** @var int|null */
+	/** @var int|string|null */
 	public $entityUniqueId;
 
 }

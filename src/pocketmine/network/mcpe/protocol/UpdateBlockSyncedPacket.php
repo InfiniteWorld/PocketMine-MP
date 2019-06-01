@@ -32,7 +32,7 @@ class UpdateBlockSyncedPacket extends UpdateBlockPacket{
 
 	/** @var int|string */
 	public $entityUniqueId = 0;
-	/** @var int */
+	/** @var int|string */
 	public $uvarint64_2 = 0;
 
 	protected function decodePayload() : void{

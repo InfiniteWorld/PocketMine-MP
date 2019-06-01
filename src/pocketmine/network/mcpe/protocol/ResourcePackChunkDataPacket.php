@@ -37,7 +37,7 @@ class ResourcePackChunkDataPacket extends DataPacket implements ClientboundPacke
 	public $packId;
 	/** @var int */
 	public $chunkIndex;
-	/** @var int */
+	/** @var int|string */
 	public $progress;
 	/** @var string */
 	public $data;
