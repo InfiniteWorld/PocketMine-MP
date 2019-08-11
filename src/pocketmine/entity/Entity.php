@@ -70,9 +70,15 @@ use function abs;
 use function assert;
 use function cos;
 use function count;
+use function ctype_digit;
 use function deg2rad;
 use function floor;
 use function get_class;
+use function gmp_and;
+use function gmp_cmp;
+use function gmp_mul;
+use function gmp_pow;
+use function gmp_xor;
 use function is_array;
 use function is_infinite;
 use function is_nan;
@@ -80,6 +86,7 @@ use function lcg_value;
 use function sin;
 use function spl_object_id;
 use const M_PI_2;
+use const PHP_INT_SIZE;
 
 abstract class Entity extends Location implements Metadatable, EntityIds{
 
@@ -1732,8 +1739,13 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	 */
 	public function setDataFlag(int $propertyId, int $flagId, bool $value = true, int $propertyType = EntityMetadataTypes::LONG) : void{
 		if($this->getDataFlag($propertyId, $flagId) !== $value){
-			$flags = (int) $this->propertyManager->getPropertyValue($propertyId, $propertyType);
-			$flags ^= 1 << $flagId;
+			if(PHP_INT_SIZE === 8){
+				$flags = (int) $this->propertyManager->getPropertyValue($propertyId, $propertyType);
+				$flags ^= 1 << $flagId;
+			}else{
+				$flags = (string) $this->propertyManager->getPropertyValue($propertyId, $propertyType);
+				$flags = (string) gmp_xor($flags, gmp_mul("1", gmp_pow("2", $flagId)));
+			}
 			$this->propertyManager->setPropertyValue($propertyId, $propertyType, $flags);
 		}
 	}
@@ -1745,7 +1757,16 @@ abstract class Entity extends Location implements Metadatable, EntityIds{
 	 * @return bool
 	 */
 	public function getDataFlag(int $propertyId, int $flagId) : bool{
-		return (((int) $this->propertyManager->getPropertyValue($propertyId, -1)) & (1 << $flagId)) > 0;
+		if(PHP_INT_SIZE === 8){
+			return (((int) $this->propertyManager->getPropertyValue($propertyId, -1)) & (1 << $flagId)) > 0;
+		}else{
+			$value = (string) $this->propertyManager->getPropertyValue($propertyId, -1);
+			if(!ctype_digit($value)){
+				$value = "0";
+			}
+			$result = gmp_cmp(gmp_and($value, gmp_mul("1", gmp_pow("2", $flagId))), "0");
+			return $result === 1 || $result === 2 ? true : false;
+		}
 	}
 
 	/**

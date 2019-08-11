@@ -42,6 +42,7 @@ use function implode;
 use function is_array;
 use function json_decode;
 use function json_last_error_msg;
+use const PHP_INT_SIZE;
 
 class LoginPacket extends DataPacket implements ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::LOGIN_PACKET;

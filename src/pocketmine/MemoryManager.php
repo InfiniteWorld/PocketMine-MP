@@ -61,6 +61,7 @@ use function strtoupper;
 use function substr;
 use const JSON_PRETTY_PRINT;
 use const JSON_UNESCAPED_SLASHES;
+use const PHP_INT_SIZE;
 use const SORT_NUMERIC;
 
 class MemoryManager{

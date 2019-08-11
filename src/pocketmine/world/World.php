@@ -94,6 +94,7 @@ use function array_sum;
 use function assert;
 use function cos;
 use function count;
+use function explode;
 use function floor;
 use function get_class;
 use function gettype;
@@ -113,6 +114,7 @@ use const INT32_MIN;
 use const M_PI;
 use const PHP_INT_MAX;
 use const PHP_INT_MIN;
+use const PHP_INT_SIZE;
 
 #include <rules/World.h>
 
@@ -1042,11 +1044,19 @@ class World implements ChunkManager, Metadatable{
 
 			foreach($chunk->getSubChunks() as $Y => $subChunk){
 				if(!($subChunk instanceof EmptySubChunk)){
+					if(PHP_INT_SIZE === 8){
+						$k = mt_rand(0, 0xfffffffff); //36 bits
+					}
 					for($i = 0; $i < 3; ++$i){
-						$k = mt_rand(0, 0xfff);
+						if(PHP_INT_SIZE === 4){
+							$k = mt_rand(0, 0xfff);
+						}
 						$x = $k & 0x0f;
 						$y = ($k >> 4) & 0x0f;
 						$z = ($k >> 8) & 0x0f;
+						if(PHP_INT_SIZE === 8){
+							$k >>= 12;
+						}
 
 						$state = $subChunk->getFullBlock($x, $y, $z);
 

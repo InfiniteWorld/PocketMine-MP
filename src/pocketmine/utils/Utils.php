@@ -85,6 +85,7 @@ use function sys_get_temp_dir;
 use function trim;
 use function unlink;
 use function xdebug_get_function_stack;
+use const JSON_BIGINT_AS_STRING;
 use const PHP_EOL;
 use const PHP_INT_MAX;
 use const PHP_INT_SIZE;
